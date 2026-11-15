@@ -1,7 +1,7 @@
 <h1 align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="media/airband-wordmark-dark.svg">
-    <img src="media/airband-wordmark-light.svg" alt="Airband" width="300">
+    <source media="(prefers-color-scheme: dark)" srcset="media/airband-wordmark-dark.png">
+    <img src="media/airband-wordmark-light.png" alt="Airband" width="300">
   </picture>
 </h1>
 

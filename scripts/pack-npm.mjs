@@ -40,7 +40,7 @@ writeFileSync(join(out, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
 
 writeFileSync(
   join(out, "README.md"),
-  `<p align="center"><img src="https://raw.githubusercontent.com/HarshBaldaniya/airband/main/media/airband-wordmark-light.svg" alt="Airband" width="260"></p>
+  `<p align="center"><img src="https://raw.githubusercontent.com/HarshBaldaniya/airband/main/media/airband-wordmark-light.png" alt="Airband" width="260"></p>
 
 # airband
 
