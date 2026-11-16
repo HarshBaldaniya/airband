@@ -9,7 +9,7 @@ description: Pick up a ticket, issue or design (a Linear or Jira id like ENG-142
    Figma file's name). Chats keep these ids from the person's words and the replies, so earlier
    work turns up whichever agent did it. Read the best matches: `chat` and `n`.
 2. **The ticket itself.** If a Linear, GitHub or Figma tool is connected, read the ticket, issue or
-   frame there. Airband does not read those services; it remembers what chats did with them.
+   frame there. Airband does not read those services. It remembers what chats did with them.
 3. **The code.** `airband_map` with `find` on the ticket's main words and names, then `outline` or
    `graph` on what it finds. If a branch or PR for it exists, `airband_map` with `diff` shows what
    it already changed.

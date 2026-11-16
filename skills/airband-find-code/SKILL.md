@@ -8,15 +8,16 @@ description: Find code in this project fast, before searching or opening files. 
 Ask the map first. Use grep or read whole files only when the map has nothing.
 
 1. **Where is it?** `airband_map` with `find: "<a name or plain words>"`. You get ranked matches as
-   `path:start-end`; read only those lines.
+   `path:start-end`. Read only those lines.
 2. **What's in this file or folder?** `airband_map` with `outline: "<path or name>"`: one level, with
    line ranges.
-3. **What uses it, and what does it use?** `airband_map` with `graph: "<name or path>"`; add
+3. **What uses it, and what does it use?** `airband_map` with `graph: "<name or path>"`. Add
    `hops: 2` for one more step.
 4. **New to the project?** `airband_map` with no arguments: the commands, entry points and main parts.
 
-Without the tool (another agent, a terminal, CI), the same answers come from the command line:
-`node "$HOME/.airband/airband.js" find "<words>"` (bash, zsh and PowerShell alike), and `outline`, `graph`, `overview`.
+Without the tool (another agent, a terminal, CI), use the command line for the same answers. Run
+`node "$HOME/.airband/airband.js" find "<words>"` in bash, zsh or PowerShell. The other commands are
+`outline`, `graph` and `overview`.
 
 The map is built by a parser on this computer and stays fresh as files are saved. It covers
 TypeScript, JavaScript, Python, Go, Rust, Java, C#, Ruby and PHP.

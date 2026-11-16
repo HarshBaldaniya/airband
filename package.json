@@ -73,6 +73,21 @@
           "default": true,
           "description": "Show a short line in your agent's window when a chat starts (Airband is on, the map is ready, who it shares with, what other chats did here lately) and when another chat's work is added to your message. Shown to you only: it costs no tokens. Claude Code and Gemini CLI."
         },
+        "airband.writing.docs": {
+          "type": "boolean",
+          "default": true,
+          "description": "When a chat is asked for a doc (a PRD, a spec, a README, a PR description), add Airband's short writing rules once: one idea per sentence, active voice, no hype words. After an agent writes a doc file, Airband checks it. A project's .airband.json can set this for the whole team."
+        },
+        "airband.writing.messages": {
+          "type": "boolean",
+          "default": true,
+          "description": "When a chat is asked for a message (Slack, email, a PR comment, an announcement), add Airband's short message rules once: the point first, who does what by when, at most 5 items in a list."
+        },
+        "airband.writing.replies": {
+          "type": "boolean",
+          "default": false,
+          "description": "Ask every chat for short replies you can act on: the answer or next action first, numbered steps, where things stand, no recap."
+        },
         "airband.codeMap.enabled": {
           "type": "boolean",
           "default": true,

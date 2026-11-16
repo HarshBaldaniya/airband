@@ -5,9 +5,11 @@ description: Leave this chat's work so another chat (Claude Code, Codex or Gemin
 
 # Hand the work over
 
-1. **Gather.** What this chat set out to do, what is finished, what is still open, the files
-   changed, the branch and commits, tickets and PRs (`ENG-142`, `#128`), decisions made and why,
-   and anything tried that did not work. `airband_map` with `diff` lists what the branch changed.
+1. **Gather.** Collect these:
+   - what this chat set out to do, what is finished, and what is still open;
+   - the files changed, the branch and commits, and the tickets and PRs (`ENG-142`, `#128`);
+   - the decisions made and why, and anything tried that did not work.
+   `airband_map` with `diff` lists what the branch changed.
 2. **Save one note.** `airband_notes` with `title` (the task in a few words) and `text`:
    - Done: one line each.
    - Open: the next step first, with `path:line`.

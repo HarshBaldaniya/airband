@@ -34,6 +34,10 @@ const SEATS_V1 = `export function syncSeats(n: number): number {
 }
 
 export function oldSeats(): number {
+  return seatBase();
+}
+
+function seatBase(): number {
   return 1;
 }
 `;
@@ -43,6 +47,10 @@ const SEATS_V2 = `export function syncSeats(n: number): number {
 
 export function seatLimit(): number {
   return 10;
+}
+
+function seatBase(): number {
+  return 1;
 }
 `;
 
@@ -88,6 +96,8 @@ test("a branch's changes, per declaration, with callers and tests, without check
   assert.match(text, /removed oldSeats function was :5-7 · still used by 1: bill src\/billing\.ts \(check these\)/);
   assert.match(text, /changed syncSeats function :1-3 · used by 2: .* · tests: test\/seats\.test\.ts/);
   assert.match(text, /Other files: README\.md/);
+  assert.deepEqual(r.orphans.map((o) => [o.name, o.file, o.was]), [["seatBase", "src/seats.ts", ["oldSeats"]]], "only the removed code used it");
+  assert.match(text, /Left with no caller \(only removed code used it\): seatBase src\/seats\.ts/);
   assert.ok(text.length / 4 < 900);
 
   // The same with a range written out.

@@ -81,6 +81,17 @@ export class ClaudeAdapter implements Adapter {
     return { total, today: day, model, context: used ? { used, window: contextWindow(model) } : undefined };
   }
 
+  /** Tokens from this day on (a YYYY-MM-DD), counted as `usage` counts them. */
+  usageSince(chat: ChatSession, day: string): Usage {
+    if (!chat.file) return NO_USAGE;
+    const entry = this.entry(chat.file);
+    if (fileSize(chat.file) !== entry.offset) this.step(chat.file, entry, Infinity);
+    let sum = NO_USAGE;
+    for (const [when, u] of Object.entries(entry.base)) if (when >= day) sum = addUsage(sum, u);
+    for (const { u, day: when } of entry.byId.values()) if (when >= day) sum = addUsage(sum, u);
+    return sum;
+  }
+
   /** How much of the chat's file hasn't been read for its usage yet. */
   pendingBytes(chat: ChatSession): number {
     if (!chat.file) return 0;

@@ -12,6 +12,14 @@ import review from "../../skills/airband-review/SKILL.md";
 import impact from "../../skills/airband-impact/SKILL.md";
 import handoff from "../../skills/airband-handoff/SKILL.md";
 import ticket from "../../skills/airband-ticket/SKILL.md";
+import onboard from "../../skills/airband-onboard/SKILL.md";
+import debug from "../../skills/airband-debug/SKILL.md";
+import testPlan from "../../skills/airband-test-plan/SKILL.md";
+import progress from "../../skills/airband-progress/SKILL.md";
+import standup from "../../skills/airband-standup/SKILL.md";
+import spend from "../../skills/airband-spend/SKILL.md";
+import writeDocs from "../../skills/airband-write-docs/SKILL.md";
+import writeMessages from "../../skills/airband-write-messages/SKILL.md";
 import { guardRealHome, writeFileAtomic } from "./paths";
 
 export const SKILLS: { name: string; text: string }[] = [
@@ -22,6 +30,14 @@ export const SKILLS: { name: string; text: string }[] = [
   { name: "airband-impact", text: impact },
   { name: "airband-handoff", text: handoff },
   { name: "airband-ticket", text: ticket },
+  { name: "airband-onboard", text: onboard },
+  { name: "airband-debug", text: debug },
+  { name: "airband-test-plan", text: testPlan },
+  { name: "airband-progress", text: progress },
+  { name: "airband-standup", text: standup },
+  { name: "airband-spend", text: spend },
+  { name: "airband-write-docs", text: writeDocs },
+  { name: "airband-write-messages", text: writeMessages },
 ];
 
 /** A file in each skill folder Airband wrote, so it only ever replaces or removes its own. */

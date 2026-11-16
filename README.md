@@ -102,7 +102,7 @@ it.
 ### What your agents get
 
 Setup gives each agent three tools over MCP (under 400 tokens of definitions in all), the
-instructions to use them, and seven skills they pick up by themselves when a task matches:
+instructions to use them, and 15 skills they pick up by themselves when a task matches.
 
 | Tool | What an agent does with it |
 |---|---|
@@ -110,26 +110,43 @@ instructions to use them, and seven skills they pick up by themselves when a tas
 | `airband_flightlog` | Read another chat's asks and outcomes, or search every chat, by words, code names, tickets (`ENG-142`), PRs (`#128`) or Figma links |
 | `airband_notes` | Read and leave notes for the next chat in this project |
 
-| Skill | Used when |
-|---|---|
-| `airband-find-code` | the agent needs to find where something is, or what uses it |
-| `airband-recall` | you ask what was done before, or which chat changed something |
-| `airband-catchup` | you ask what the other chats did while you were away |
-| `airband-review` | you ask to review a pull request or branch, or your own changes before a PR |
-| `airband-impact` | you ask what a change would break, or whether something is safe to rename or delete |
-| `airband-handoff` | you say hand off, wrap up, or that another chat will continue the work |
-| `airband-ticket` | you name a ticket, issue, PR number or Figma link to work on |
+Each skill does a job with what only Airband knows: the map of your code, the records of every
+chat, and the notes chats leave. You don't call them. Ask for the job in your own words, and the
+agent picks the skill. Only a skill's one-line description sits in each chat. The rest loads when
+the skill is used.
+
+| For | Skill | Used when you ask to … |
+|---|---|---|
+| Developers | `airband-find-code` | find where something is, or what uses it |
+| | `airband-impact` | know what a change would break, or whether a rename or delete is safe |
+| | `airband-review` | review a PR, a branch, or your own changes before a PR |
+| | `airband-debug` | find why something is broken (it first checks whether an earlier chat saw it) |
+| | `airband-onboard` | explain a codebase to someone new |
+| QA | `airband-test-plan` | plan the tests for a PR or feature, starting with the changes no test reaches |
+| Product and leads | `airband-progress` | say where a ticket, feature or PR stands |
+| | `airband-ticket` | pick up a ticket, issue, PR or Figma link with what was done on it before |
+| | `airband-standup` | write a standup or a weekly update from your chats |
+| Finance and founders | `airband-spend` | show the tokens spent by project, agent, ticket and chat |
+| Everyone | `airband-recall` | find what was done before, and which chat did it |
+| | `airband-catchup` | hear what the other chats did while you were away |
+| | `airband-handoff` | leave the work so another chat or agent can continue it |
+| | `airband-write-docs` | write a PRD, spec, README or PR description no one can misread |
+| | `airband-write-messages` | write a Slack post, email or comment people can act on |
+
+If you have your own skill for the same job (your team's review checklist, say), the agent follows
+yours and uses Airband's tools inside it.
 
 The commands are there to run by hand too: `/airband:review` in Claude Code, `/prompts:review` in
 Codex, `/review` in Gemini CLI.
 
 ### Reviewing a pull request
 
-`airband_map` with `diff: "#128"` (or `airband diff #128` in a terminal) reads the pull request from
-git without checking it out: every function, class and type it added, changed, moved or removed,
-with `path:start-end`, who calls each one and which tests reach it. Removed code that something
-still calls is flagged. A number is fetched from `origin` first; a branch name or `main..feature`
-works too, and with nothing given it compares this branch with the default one.
+`airband_map` with `diff: "#128"` reads the pull request from git without checking it out. In a
+terminal, run `airband diff #128`. It lists every function, class and type the PR added, changed,
+moved or removed. Each one has `path:start-end`, its callers and the tests that reach it. Removed
+code that something still calls is flagged. A number is fetched from `origin` first. A branch name or `main..feature`
+works too. With nothing given, it compares this branch with the default one. Code that only the
+removed code used is listed as "Left with no caller".
 
 ```text
 main...#128 (4f1c2a9e0 → 9b77d03c1): 6 declarations changed in 3 files.
@@ -140,15 +157,86 @@ src/team/members.ts
   changed onMemberLeft function :61-79 · used by 2: removeMember src/team/api.ts, … · no test reaches it
 ```
 
-With `in: "my-api"` (or `--in my-api`) the same questions go to another project you have
-mapped, by its folder's name, so a chat in your app can look up the API route it calls.
+With `in: "my-api"` (or `--in my-api`), the same questions go to another project you have mapped.
+Name it by its folder. A chat in your app can then look up the API route it calls.
 
 ### Tickets, issues and designs
 
-Each chat's record keeps the tickets and links named in it: Linear and Jira ids (`ENG-142`), GitHub
-pull requests and issues (`#128`, links), and Figma files and frames. Ask any agent "what did we do
+Each chat's record keeps the tickets and links named in it. These are Linear and Jira ids
+(`ENG-142`), GitHub pull requests and issues (`#128`, links), and Figma files and frames. Ask any agent "what did we do
 for ENG-142?" and it finds the chats, in any agent, that worked on it. Airband does not connect to
-Linear, GitHub or Figma; it remembers what your chats did with them.
+Linear, GitHub or Figma. It remembers what your chats did with them.
+
+### Writing rules for docs and messages
+
+AI agents now write many of a team's docs and messages. Airband gives them house rules, at the
+moment they need them:
+
+| When an agent is asked to … | Airband adds, once per chat |
+|---|---|
+| write a doc: a PRD, spec, README, guide, PR description or changelog | the **docs rules**: one idea per sentence, active voice, one name for one thing, no hype words, every fact and hedge kept, no lines crediting an AI tool |
+| write a message: Slack, email, a PR or ticket comment, an announcement | the **message rules**: the point first, who does what by when, at most 5 items in a list, no empty greetings, no lines crediting an AI tool, a draft before sending |
+| reply to you (off by default) | the **reply rules**: the answer or next action first, numbered steps, where things stand, no recap |
+
+The rules are a few lines (about 150 tokens), sent only with an ask that needs them. The full rules
+are the `airband-write-docs` and `airband-write-messages` skills. After an agent writes a doc file,
+Airband checks the new text. It names long sentences, semicolons, hype words, two-word verbs,
+filler, and lines such as "🤖 Generated with …" or "Co-Authored-By: Claude". What agents write goes
+out in your name, so it reads as yours. The agent gets the list to fix, and you see one line:
+
+```text
+↪ Airband checked docs/prd.md: 2 long sentences (lines 14, 31), 1 hype word (line 9)
+```
+
+```bash
+airband writing                       # what is on
+airband writing replies on            # short replies in every chat
+airband writing check docs/*.md       # check files; exits 1 on findings, for CI
+airband writing docs on --project     # the team's choice, in .airband.json
+```
+
+**For a team:** `--project` writes `.airband.json` at the project's root. Commit it, and everyone
+who uses Airband in that project gets the same rules, in every agent. It can carry the team's own
+rules too, and they are added after Airband's:
+
+```json
+{
+  "writing": {
+    "docs": true,
+    "messages": true,
+    "rules": ["Write British English.", "Name the owner of every action item."]
+  }
+}
+```
+
+The project's file wins over each person's setting. Your own writing skills and instructions win
+over both. The docs rules follow the ideas of controlled-language writing (ASD-STE100, Simplified
+Technical English). The message rules follow ADHD-friendly writing. Both are Airband's own short
+versions.
+
+### Standups and AI spend
+
+Airband already keeps a record of every chat in every agent, so it can answer two questions no
+single agent can:
+
+```bash
+airband standup              # what your chats did yesterday and today, per project
+airband standup --days 7     # the week, for a weekly update
+airband spend                # tokens in the last 7 days: by project, agent, ticket and chat
+airband spend --days 30 --json
+```
+
+```text
+Since Tue 10 Nov: 3.4B tokens in 17 chats (46k new input, 7.7M output, 3.4B cache reads).
+
+By project
+  my-app                      1.8B   54%  8 chats
+  my-api                      1.6B   46%  6 chats
+```
+
+Ask an agent for "my standup" or "AI spend this month" and it uses these, then writes the update for
+you. Tokens are what each agent reported in its own files. Tokens per ticket are an estimate, because
+agents report tokens per reply, not per topic.
 
 ## How it works
 
@@ -267,6 +355,9 @@ gemini extensions install https://github.com/HarshBaldaniya/airband --auto-updat
 | `airband notices off` | Hide Airband's lines in your agent's window (`on` shows them again) |
 | `airband find "rate limiter"` | Where something is in your code; also `outline`, `graph`, `overview` |
 | `airband diff #128` | What a pull request or branch changed: functions, their callers, the tests |
+| `airband standup` | What your chats did since yesterday, in every project (`--days 7` for a week) |
+| `airband spend` | Tokens spent by project, agent, ticket and chat (`--days 30`) |
+| `airband writing` | The writing rules agents get; `writing check <file>` checks a doc |
 | `airband changelog` | What changed in this version (`--all` for every version) |
 | `airband about` | Version, system, where it is installed, and the links |
 | `airband bug` | Open a GitHub issue with your version and system filled in |
@@ -319,7 +410,13 @@ Settings live under **Settings → Extensions → Airband**:
 | `airband.autoDeliver` | `false` | Give waiting updates to a chat as soon as it finishes, at the cost of an extra turn. Off: they wait for your next message, at no extra cost. |
 | `airband.codeMap.enabled` | `true` | Keep a Map of each open folder (about 1 MB for a large project). |
 | `airband.notices` | `true` | Show Airband's line when a chat starts and when other chats' work is added to your message. Shown to you only; no tokens. |
+| `airband.writing.docs` | `true` | Add the docs writing rules when a chat is asked for a doc, and check docs agents write. |
+| `airband.writing.messages` | `true` | Add the message writing rules when a chat is asked for a message. |
+| `airband.writing.replies` | `false` | Ask every chat for short replies you can act on. |
 | `airband.backupFolder` | `""` | A folder to copy flightlogs and your own commands to every half hour, for example in iCloud Drive or Dropbox. |
+
+Without VS Code, the same choices are commands: `airband notices off`, `airband writing replies on`.
+A project's `.airband.json` sets the writing rules for everyone who works in it.
 
 <details>
 <summary><strong>Keyboard shortcuts</strong></summary>
@@ -348,6 +445,8 @@ Press `?` on any page for the full list.
 - **Shared text is data, not orders.** What one chat sends another is fenced with a random tag and
   marked as information, so words in it can't pass for your instructions.
 - **No logins.** Airband never reads a login, token or key file.
+- **Standups, spend and the writing check stay on your computer.** They read the records Airband
+  already keeps and the files agents write. Nothing is uploaded.
 - **Changes only Airband's own entries** in each agent's settings, after a backup; `airband remove`
   takes them all out again.
 

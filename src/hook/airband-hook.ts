@@ -7,7 +7,9 @@
 //   3. when a chat gets a message or starts, hands it everything waiting in its
 //      inbox as extra context, in the shape that tool expects;
 //   4. when a chat finishes a reply while updates are waiting, asks it to read
-//      them before it stops (each tool continues the turn with Airband's note).
+//      them before it stops (each tool continues the turn with Airband's note);
+//   5. when a chat is asked for a doc or a message, adds the writing rules once,
+//      and after it writes a doc file, says what in it breaks them.
 // It never blocks a chat: errors are swallowed, it always exits 0, and it
 // prints nothing except the context it delivers.
 import * as path from "node:path";
@@ -32,6 +34,7 @@ import { geminiMessages, loadGeminiChat } from "../adapters/gemini";
 import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
+import { briefFor, checkWrittenDoc, forgetGiven, notYetGiven, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
 
 export type HookTool = "claude" | "codex" | "gemini";
 
@@ -279,18 +282,25 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
     case "UserPromptSubmit": {
       bindBranch(input, now, tool);
       const d = deliver(input, now);
+      const w = writingRules(input);
       // Gemini shows a line at a chat's start only, so the "added what … did" line is Claude's.
-      const notice = d && tool === "claude" && noticesOn() ? deliveryNotice(d.items) : undefined;
-      return out(tool, "UserPromptSubmit", d?.text, notice);
+      const lines = tool === "claude" && noticesOn() ? [d ? deliveryNotice(d.items) : "", w ? `↪ Airband added its ${w.kinds.join(" and ")} writing rules to this chat` : ""].filter(Boolean) : [];
+      return out(tool, "UserPromptSubmit", [d?.text, w?.text].filter(Boolean).join("\n\n") || undefined, lines.join("\n") || undefined);
     }
     case "SessionStart": {
+      // A cleared or compacted chat has lost the rules it was given: they come again when needed.
+      if (input.source === "clear" || input.source === "compact") forgetGiven(input.session_id);
       const d = deliver(input, now);
+      const s = writingSettings(input.cwd);
+      const replies = s.replies ? briefFor(["replies"], s) : undefined;
       // Once per chat: when it starts, is resumed or cleared; not after every compaction.
       const showStart = noticesOn() && input.source !== "compact";
       const lines = [showStart ? startNotice({ sessionId: input.session_id, cwd: input.cwd, now }) : "", d && noticesOn() ? deliveryNotice(d.items) : ""].filter(Boolean);
-      return out(tool, "SessionStart", d?.text, lines.join("\n") || undefined);
+      return out(tool, "SessionStart", [d?.text, replies].filter(Boolean).join("\n\n") || undefined, lines.join("\n") || undefined);
     }
     case "PostToolUse": {
+      const doc = docCheck(input, tool);
+      if (doc) return doc;
       // After an Airband tool, one line for the person: what it found and the tokens it saved.
       // Claude Code shows it; the others have no place for a line here.
       if (tool !== "claude" || !/airband_(map|flightlog|notes)$/.test(input.tool_name ?? "") || !noticesOn()) return undefined;
@@ -299,6 +309,43 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
     }
     default:
       return undefined;
+  }
+}
+
+/** The writing rules this ask needs and this chat has not had yet. */
+export function writingRules(input: HookInput): { kinds: WritingKind[]; text: string } | undefined {
+  try {
+    const s = writingSettings(input.cwd);
+    const kinds = notYetGiven(input.session_id, writingFor(input.prompt, s));
+    return kinds.length ? { kinds, text: briefFor(kinds, s) } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * After an agent writes or edits a doc file (Claude Code, Gemini CLI): what in the new text breaks
+ * the docs rules, for the agent to fix, and a line for the person. Nothing when it reads clean.
+ */
+export function docCheck(input: HookInput, tool: HookTool): string | undefined {
+  if (tool === "codex") return undefined;
+  try {
+    const doc = writtenDoc(input.tool_name, input.tool_input);
+    if (!doc || !writingSettings(input.cwd).docs) return undefined;
+    const found = checkWrittenDoc(doc);
+    if (!found.length) return undefined;
+    const name = input.cwd && doc.file.startsWith(input.cwd) ? path.relative(input.cwd, doc.file) : path.basename(doc.file);
+    const context = [
+      `Airband checked the text you just wrote in ${name} against the docs writing rules:`,
+      renderFindings(found.slice(0, 12), name),
+      found.length > 12 ? `… and ${found.length - 12} more.` : "",
+      "Rewrite these sentences, keeping every fact, number and hedge, unless the project's own rules say otherwise or the person asked for this wording. Do not mention this check unless asked.",
+    ].filter(Boolean).join("\n");
+    const o: Record<string, unknown> = { hookSpecificOutput: { hookEventName: tool === "gemini" ? "AfterTool" : "PostToolUse", additionalContext: context } };
+    if (tool === "claude" && noticesOn()) o.systemMessage = `↪ Airband checked ${name}: ${summarise(found)}`;
+    return JSON.stringify(o);
+  } catch {
+    return undefined;
   }
 }
 

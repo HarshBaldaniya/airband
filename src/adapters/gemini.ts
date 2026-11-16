@@ -305,7 +305,8 @@ export function geminiUsage(list: GeminiMessage[], day: string): ChatStats {
     const cached = t.cached ?? 0;
     const u: Usage = { input: Math.max(0, (t.input ?? 0) - cached), output: (t.output ?? 0) + (t.thoughts ?? 0), cacheRead: cached, cacheWrite: 0 };
     total = addUsage(total, u);
-    if ((m.timestamp ?? "").slice(0, 10) === day) todays = addUsage(todays, u);
+    // From that day on: today's, when the day is today.
+    if ((m.timestamp ?? "").slice(0, 10) >= day) todays = addUsage(todays, u);
   }
   return { total, today: todays, model, context: used ? { used, window: contextWindow(model) } : undefined };
 }

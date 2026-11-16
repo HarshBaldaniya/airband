@@ -19,6 +19,8 @@ import { globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, pmComma
 import { columns, out, paint, plain } from "./ui";
 import { readConfig, setConfig } from "../core/updates";
 import { changesSince, releases } from "./changes";
+import { checkWriting, renderFindings, setProjectWriting, summarise, WRITING_KINDS, writingSettings, type WritingKind } from "../core/writing";
+import { renderSpend, renderWork, sinceDays, spendSince, workSince } from "../core/worklog";
 import { completionOn, currentShell, refreshCompletion, turnCompletionOff, turnCompletionOn } from "./shell";
 import * as readline from "node:readline/promises";
 
@@ -213,6 +215,71 @@ export async function main(argv: string[]): Promise<number> {
       if (want && want !== "on" && want !== "off") return usage("notices [on|off]");
       const on = want ? setConfig({ notices: want === "on" }).notices : readConfig().notices;
       out(on ? `${paint.ok("✓")} Airband's lines in your agent's window are on (when a chat starts, and when other chats' work is added).` : `Airband's lines in your agent's window are off. Turn them back on: ${self()} notices on`);
+      return 0;
+    }
+    case "writing": {
+      const [what, want, ...files] = rest.split(/\s+/).filter(Boolean);
+      if (what === "check") {
+        const asMessage = flag(args, "--message", "--messages");
+        const paths = [want, ...files].filter(Boolean);
+        if (!paths.length) return usage("writing check <file> [--message]");
+        let bad = 0;
+        const all: Record<string, unknown> = {};
+        for (const p of paths) {
+          let text: string;
+          try {
+            text = fs.readFileSync(path.resolve(p), "utf8");
+          } catch {
+            out(`${p}: no such file`);
+            bad++;
+            continue;
+          }
+          const found = checkWriting(text, asMessage ? "messages" : "docs");
+          all[p] = found;
+          if (asJson) continue;
+          if (!found.length) out(`${paint.ok("✓")} ${p} reads clean.`);
+          else out(`${p}: ${summarise(found, 7)}\n${renderFindings(found, p)}`);
+          if (found.length) bad++;
+        }
+        if (asJson) json(all);
+        // Findings fail the run, so it fits in CI.
+        return bad ? 1 : 0;
+      }
+      const forProject = flag(args, "--project", "--team");
+      if (what) {
+        if (!WRITING_KINDS.includes(what as WritingKind) || (want !== "on" && want !== "off")) return usage("writing [docs|messages|replies on|off] [--project] | writing check <file>");
+        if (forProject) out(`${paint.ok("✓")} Written to ${setProjectWriting(folder, what as WritingKind, want === "on")}. Commit it so the whole team gets the same rules.`);
+        else setConfig({ writing: { ...readConfig().writing, [what]: want === "on" } });
+      }
+      const s = writingSettings(folder);
+      if (asJson) {
+        json(s);
+        return 0;
+      }
+      const line = (k: WritingKind, about: string) => out(`  ${s[k] ? paint.ok("on ") : paint.dim("off")}  ${k.padEnd(9)} ${about}`);
+      out("Writing rules Airband adds when a chat needs them:");
+      line("docs", "PRDs, specs, READMEs, PR descriptions; and a check after a doc is written");
+      line("messages", "Slack, email, PR and ticket comments, announcements");
+      line("replies", "short replies you can act on, in every chat");
+      if (s.project) out(paint.dim(`  This project's ${path.relative(folder, s.project) || s.project} sets the team's choices${s.rules.length ? ` and ${s.rules.length} rules of its own` : ""}.`));
+      out(paint.dim(`  Change: ${self()} writing replies on · for the team: ${self()} writing docs on --project · check a file: ${self()} writing check README.md`));
+      return 0;
+    }
+    case "standup": {
+      const days = Number(option(args, "--days") ?? "") || 2;
+      const since = sinceDays(days);
+      // Every project by default: a standup covers all of a person's work. --in narrows it.
+      const chats = workSince(since, inArg ? folder : undefined);
+      if (asJson) json(chats);
+      else out(renderWork(chats, since));
+      return 0;
+    }
+    case "spend": {
+      const days = Number(option(args, "--days") ?? "") || 7;
+      const since = sinceDays(days);
+      const chats = spendSince(since, inArg ? folder : undefined);
+      if (asJson) json(chats);
+      else out(renderSpend(chats, since));
       return 0;
     }
     case "version": {

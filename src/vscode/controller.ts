@@ -1177,7 +1177,10 @@ export class Controller implements vscode.Disposable {
       const cfg = vscode.workspace.getConfiguration("airband");
       const autoDeliver = cfg.get<boolean>("autoDeliver", false);
       const notices = cfg.get<boolean>("notices", true);
-      writeFileAtomic(airbandFile("config.json"), JSON.stringify({ contextSize: this.contextSize(), autoDeliver, notices }));
+      const writing = { docs: cfg.get<boolean>("writing.docs", true), messages: cfg.get<boolean>("writing.messages", true), replies: cfg.get<boolean>("writing.replies", false) };
+      // Kept: anything else in the file (set from the terminal, or by a newer version).
+      const file = airbandFile("config.json");
+      writeFileAtomic(file, JSON.stringify({ ...readJson<Record<string, unknown>>(file, {}), contextSize: this.contextSize(), autoDeliver, notices, writing }));
     } catch {
       // Defaults apply.
     }

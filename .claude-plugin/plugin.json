@@ -1,7 +1,7 @@
 {
   "name": "airband",
   "version": "0.0.2",
-  "description": "A map of your code, the records of your other AI chats, and skills that use them: find code in a few hundred tokens, review a PR with callers and tests, recall past work and tickets, catch up on other chats.",
+  "description": "A map of your code, the records of your other AI chats, and 15 skills that use them: find code in a few hundred tokens, review a PR with callers and tests, debug, plan tests, recall past work and tickets, standups, AI spend, and docs and messages people can read.",
   "author": {
     "name": "Harsh Baldaniya"
   },

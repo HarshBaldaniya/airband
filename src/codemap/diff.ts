@@ -46,6 +46,8 @@ export interface DiffReport {
   testsChanged: string[];
   /** Code files past FILES_MAX, named only */
   skipped: string[];
+  /** Code the change leaves with no caller: everything that called it was removed */
+  orphans: { file: string; name: string; was: string[] }[];
 }
 
 function git(root: string, args: string[], maxBuffer = 16 * 1024 * 1024): string {
@@ -136,7 +138,7 @@ export async function diffReport(map: CodeMap, range: string): Promise<DiffRepor
   } catch (err) {
     return `git could not compare them: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`;
   }
-  const report: DiffReport = { base, head, label, decls: [], other: [], testsChanged: [], skipped: [] };
+  const report: DiffReport = { base, head, label, decls: [], other: [], testsChanged: [], skipped: [], orphans: [] };
   const isLocal = (s: string) => map.resolver.isLocal(s);
   let read = 0;
   for (const line of listing.split("\n").filter(Boolean)) {
@@ -191,7 +193,31 @@ export async function diffReport(map: CodeMap, range: string): Promise<DiffRepor
     to.from = gone.file;
     report.decls.splice(report.decls.indexOf(gone), 1);
   }
+  report.orphans = orphansOf(map, report.decls);
   return report;
+}
+
+/**
+ * What the removed code called that nothing else calls: left without a caller by this change.
+ * Read from this checkout's map, so it shows when the checkout still has the removed code (a PR
+ * reviewed from its base branch); reviewing a branch that is checked out, `check: unused` shows it.
+ */
+function orphansOf(map: CodeMap, decls: ChangedDecl[]): DiffReport["orphans"] {
+  const gone = new Set(decls.filter((d) => d.change === "removed").map((d) => `${d.file}#${d.name}`));
+  if (!gone.size) return [];
+  const out = new Map<string, DiffReport["orphans"][number]>();
+  for (const g of gone) {
+    const [file, name] = [g.slice(0, g.indexOf("#")), g.slice(g.indexOf("#") + 1)];
+    for (const e of map.graph.uses(file, name)) {
+      const k = `${e.to.file}#${e.to.name}`;
+      if (gone.has(k) || out.has(k) || isTestFile(e.to.file)) continue;
+      const others = map.graph.usedBy(e.to.file, e.to.name).filter((c) => !gone.has(`${c.from.file}#${c.from.name}`) && `${c.from.file}#${c.from.name}` !== k);
+      if (others.length) continue;
+      const was = map.graph.usedBy(e.to.file, e.to.name).filter((c) => gone.has(`${c.from.file}#${c.from.name}`)).map((c) => c.from.name);
+      out.set(k, { file: e.to.file, name: e.to.name, was: [...new Set(was)] });
+    }
+  }
+  return [...out.values()];
 }
 
 /** Who calls it in this checkout's map, and the tests among them or importing its file. */
@@ -243,6 +269,7 @@ export function renderDiff(r: DiffReport, budget = 900): string {
       out.push(`  ${d.change.padEnd(7)} ${d.name} ${d.kind} ${where}${reachText ? ` · ${reachText}` : ""}${tests}`);
     }
   }
+  if (r.orphans.length) out.push(`Left with no caller (only removed code used it): ${r.orphans.slice(0, 8).map((o) => `${o.name} ${o.file}`).join(", ")}${r.orphans.length > 8 ? `, … ${r.orphans.length - 8} more` : ""}`);
   if (r.testsChanged.length) out.push(`Tests changed: ${r.testsChanged.slice(0, 8).join(", ")}${r.testsChanged.length > 8 ? `, … ${r.testsChanged.length - 8} more` : ""}`);
   if (r.other.length) out.push(`Other files: ${r.other.slice(0, 10).join(", ")}${r.other.length > 10 ? `, … ${r.other.length - 10} more` : ""}`);
   if (r.skipped.length) out.push(`Not read (over ${FILES_MAX} code files): ${r.skipped.slice(0, 10).join(", ")}${r.skipped.length > 10 ? ` … ${r.skipped.length - 10} more` : ""}`);
