@@ -28,20 +28,9 @@ export interface FileEntry {
 /** A store's format; a change here rebuilds every map once. */
 export const STORE_VERSION = 1;
 
-export function folderId(root: string): string {
-  let real = root;
-  try {
-    real = fs.realpathSync(root);
-  } catch {
-    // A folder that is gone still has an id.
-  }
-  const hash = crypto.createHash("sha1").update(real).digest("hex").slice(0, 10);
-  return `${path.basename(real).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 40)}-${hash}`;
-}
-
-export function storeDir(root: string): string {
-  return airbandFile("codemap", folderId(root));
-}
+// Kept in ./where so the hook can find a map without loading the parser.
+export { folderId, storeDir } from "./where";
+import { storeDir } from "./where";
 
 const filesPath = (root: string) => path.join(storeDir(root), "files.jsonl.gz");
 const metaPath = (root: string) => path.join(storeDir(root), "meta.json");

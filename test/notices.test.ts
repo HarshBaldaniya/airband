@@ -9,7 +9,7 @@ import { handle } from "../src/hook/airband-hook";
 import { deliveryNotice, startNotice } from "../src/core/notices";
 import { addConnection, appendInbox } from "../src/core/store";
 import { airbandFile } from "../src/core/paths";
-import { storeDir } from "../src/codemap/store";
+import { storeDir } from "../src/codemap/where";
 import { setConfig } from "../src/core/updates";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

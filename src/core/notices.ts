@@ -5,7 +5,7 @@
 // no tokens. Codex has no place for one, so Codex chats get none.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { storeDir } from "../codemap/store";
+import { storeDir } from "../codemap/where";
 import { listHeads, type RecordHead } from "./record";
 import { readConnections } from "./store";
 import type { InboxItem } from "./types";

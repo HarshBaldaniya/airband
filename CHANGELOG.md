@@ -1,7 +1,6 @@
 # Changelog
 
-## Unreleased
-
+## 0.0.2
 - **Airband says what it's doing.** When a chat starts, one line in the agent's window: Airband
   is on, the map of the folder is ready, who the chat shares with, and which other chats worked
   there in the last 12 hours, with what to say to catch up. When another chat's work is added to
