@@ -334,7 +334,8 @@ export function docCheck(input: HookInput, tool: HookTool): string | undefined {
     if (!doc || !writingSettings(input.cwd).docs) return undefined;
     const found = checkWrittenDoc(doc);
     if (!found.length) return undefined;
-    const name = input.cwd && doc.file.startsWith(input.cwd) ? path.relative(input.cwd, doc.file) : path.basename(doc.file);
+    // Forward slashes on every system, as the agent and the person read paths elsewhere.
+    const name = (input.cwd && doc.file.startsWith(input.cwd) ? path.relative(input.cwd, doc.file) : path.basename(doc.file)).split(path.sep).join("/");
     const context = [
       `Airband checked the text you just wrote in ${name} against the docs writing rules:`,
       renderFindings(found.slice(0, 12), name),
