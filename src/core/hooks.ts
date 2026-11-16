@@ -228,3 +228,48 @@ export function staleHookTargets(): HookTarget[] {
 export function isToolConnected(t: HookTarget): boolean {
   return t.present() && isConnected(t.file, t.events);
 }
+
+// ---- Claude Code's own AI-credit lines ----
+
+/** Claude Code's setting that leaves out "Co-Authored-By: Claude" in commits, "Generated with Claude
+ *  Code" in PRs, and the session link: empty strings, in the object form every version reads. */
+const NO_AI_CREDIT = { commit: "", pr: "", sessionUrl: false };
+
+/** Whether Claude Code adds its AI-credit lines to commits and PRs (its default). */
+export function claudeAiCreditShown(file = claudeSettingsPath()): boolean {
+  try {
+    const a = readSettings(file).attribution as { commit?: unknown; pr?: unknown } | undefined;
+    return !(a && a.commit === "" && a.pr === "");
+  } catch {
+    return true;
+  }
+}
+
+/** Turns Claude Code's AI-credit lines off (or back on), changing only that setting, after a backup.
+ *  A person's own attribution is kept aside while they are off, and put back when they are on again. */
+export function setClaudeAiCredit(show: boolean, file = claudeSettingsPath()): void {
+  const settings = readSettings(file);
+  const a = settings.attribution as Record<string, unknown> | undefined;
+  const hidden = !!a && a.commit === "" && a.pr === "";
+  const kept = path.join(airbandHome(), "claude-attribution.json");
+  if (show === !hidden) return;
+  if (show) {
+    let before: unknown;
+    try {
+      before = JSON.parse(fs.readFileSync(kept, "utf8")).attribution;
+    } catch {
+      before = undefined;
+    }
+    if (before === undefined) delete settings.attribution;
+    else settings.attribution = before;
+    fs.rmSync(kept, { force: true });
+  } else {
+    if (a !== undefined) writeFileAtomic(kept, JSON.stringify({ attribution: a }));
+    settings.attribution = { ...NO_AI_CREDIT };
+  }
+  guardRealHome(file);
+  const backup = `${file}.airband-backup`;
+  if (fs.existsSync(file) && !fs.existsSync(backup)) fs.copyFileSync(file, backup);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  writeFileAtomic(file, `${JSON.stringify(settings, null, 2)}\n`);
+}

@@ -1,6 +1,6 @@
 ---
 name: airband-ticket
-description: Pick up a ticket, issue or design (a Linear or Jira id like ENG-142, a GitHub issue or PR like #128, or a Figma link) with everything already done on it in earlier chats and the code it points to. Use when the person names a ticket, issue, PR number or Figma link to work on, or asks what was done for one.
+description: Pick up a ticket, issue or design (a Linear or Jira id like ENG-142, a GitHub issue or PR number, or a Figma link) with everything already done on it in earlier chats and the code it points to. Use when the person names a ticket, issue, PR number or Figma link to work on, or asks what was done for one.
 ---
 
 # Work on a ticket

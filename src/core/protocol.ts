@@ -125,6 +125,8 @@ export interface RunsView {
 /** The Writing page: the rules agents get, the team's file per project, and what the checks found. */
 export interface WritingView {
   settings: { docs: boolean; messages: boolean; replies: boolean; beforeSend: boolean };
+  /** Claude Code adds its own "Co-Authored-By: Claude" and "Generated with Claude Code" lines */
+  claudeAiCredit: boolean;
   projects: { root: string; name: string; file?: string; team: Partial<Record<"docs" | "messages" | "replies" | "beforeSend", boolean>>; rules: string[] }[];
   log: { at: number; what: string; agent: string; cwd?: string; action: "fix" | "held"; summary: string; findings: WritingFindingView[] }[];
   briefs: { docs: string; messages: string; replies: string };
@@ -210,6 +212,7 @@ export type FromWebview =
   /** Save the current choices in this project's .airband.json, for the team */
   | { type: "writingTeam"; root: string }
   | { type: "writingOpen"; path: string; line?: number }
+  | { type: "writingAiCredit"; show: boolean }
   /** Pick a file and check it */
   | { type: "writingCheck" }
   | { type: "runStart"; task: string; agents: ("claude" | "codex" | "gemini")[]; tokens?: number; minutes?: number; leases: string[] }

@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
-import { HOOK_EVENTS, connect, disconnect, isConnected } from "../src/core/hooks";
+import { HOOK_EVENTS, claudeAiCreditShown, connect, disconnect, isConnected, setClaudeAiCredit } from "../src/core/hooks";
 import { handle, record, statusFor } from "../src/hook/airband-hook";
 import { addConnection, addPending, appendInbox, getCursor, readConnections, readDeliveries, readInbox, setCursor } from "../src/core/store";
 
@@ -183,4 +183,22 @@ test("a reply that quotes Airband's words is kept; Airband's own deliveries are 
   fs.appendFileSync(transcript, user("u1", "[Airband] The person linked this chat…") + user("u2", "is any chat linked?") + ai("a1", 'Yes, one. The "[Airband] … New in" notes come from it.'));
   handle({ session_id: "aaa", hook_event_name: "Stop", transcript_path: transcript });
   assert.deepEqual(readInbox("bbb").map((i) => i.text), ['• is any chat linked? → Yes, one. The "[Airband] … New in" notes come from it.']);
+});
+
+test("Claude Code's AI-credit lines: hidden with its own setting, and back, keeping the person's own", () => {
+  const file = path.join(tmp("airband-settings-"), "settings.json");
+  fs.writeFileSync(file, JSON.stringify({ model: "opus" }));
+  assert.equal(claudeAiCreditShown(file), true, "Claude Code's default");
+  setClaudeAiCredit(false, file);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")), { model: "opus", attribution: { commit: "", pr: "", sessionUrl: false } });
+  assert.equal(claudeAiCreditShown(file), false);
+  assert.ok(fs.existsSync(`${file}.airband-backup`));
+  setClaudeAiCredit(true, file);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")), { model: "opus" }, "back to how it was");
+  // A person's own attribution text is never thrown away.
+  fs.writeFileSync(file, JSON.stringify({ attribution: { commit: "Reviewed by Asha" } }));
+  assert.equal(claudeAiCreditShown(file), true);
+  setClaudeAiCredit(false, file);
+  setClaudeAiCredit(true, file);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")).attribution, { commit: "Reviewed by Asha" }, "their own text comes back");
 });

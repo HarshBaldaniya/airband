@@ -1,6 +1,6 @@
 ---
 name: airband-impact
-description: Find everything a change would touch before making it, with Airband's map: callers, importers two steps out, tests, and other projects that use it. Use when the person asks what breaks if something changes, what uses a function or file, whether something is safe to rename, move or delete, or how big a change is.
+description: Find everything a change would touch before making it, with Airband's map. It finds callers, importers two steps out, tests, and other projects that use it. Use when the person asks what breaks if something changes, what uses a function or file, whether something is safe to rename, move or delete, or how big a change is.
 ---
 
 # What a change would touch

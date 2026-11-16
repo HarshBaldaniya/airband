@@ -2,7 +2,7 @@
 // here; each open project's team file (.airband.json); a file checked on the spot; and the latest
 // things the checks found, each with a click to the line.
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, FileCheck, FileText, MessageSquare, Reply, Send, ShieldCheck, Users } from "lucide-react";
+import { BadgeCheck, ChevronDown, ChevronRight, FileCheck, FileText, MessageSquare, Reply, Send, ShieldCheck, Users } from "lucide-react";
 import type { WritingFindingView, WritingView } from "../src/core/protocol";
 import type { Tool } from "../src/core/types";
 import { onMessage, send } from "./api";
@@ -109,6 +109,17 @@ export function WritingPage() {
             </div>
           );
         })}
+        <div className={`tile writingswitch${data.claudeAiCredit ? "" : " on"}`}>
+          <div className="writingswitchtop">
+            <BadgeCheck {...I} size={15} />
+            <b>Claude Code's AI credit</b>
+            <span className="grow" />
+            <button role="switch" aria-checked={data.claudeAiCredit} aria-label="Claude Code's AI credit lines" className={`ntpill${data.claudeAiCredit ? "" : " on"}`} onClick={() => send({ type: "writingAiCredit", show: !data.claudeAiCredit })}>
+              {data.claudeAiCredit ? "Shown" : "Hidden"}
+            </button>
+          </div>
+          <p className="muted small">Claude Code adds "Co-Authored-By: Claude" to commits and "Generated with Claude Code" to PRs. Hide them so what you send reads as yours. This changes Claude Code's own setting, after a backup.</p>
+        </div>
       </section>
 
       {checked && (

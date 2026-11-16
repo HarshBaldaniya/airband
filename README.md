@@ -199,6 +199,11 @@ works in Claude Code and Gemini CLI. In Codex, the rules still come with the ask
 ↪ Airband held a Slack message to fix first: 2 empty greetings or sign-offs (line 1)
 ```
 
+Claude Code adds its own "Co-Authored-By: Claude" line to commits and "Generated with Claude Code"
+to PRs, because its built-in instructions tell it to. `airband writing ai-credit off` turns that off
+at the source, in Claude Code's own `attribution` setting. Airband backs up the settings file first,
+and `ai-credit on` puts back whatever was there.
+
 The **Writing** page in the VS Code extension shows all of this. It has the switches and the team
 file for each open project. A "Check a file" button checks a doc on the spot. The page also lists
 what the checks found lately, each with a click to its line.
@@ -207,6 +212,7 @@ what the checks found lately, each with a click to its line.
 airband writing                       # what is on
 airband writing replies on            # short replies in every chat
 airband writing before-send off       # don't check messages before they go out
+airband writing ai-credit off         # Claude Code stops adding its AI-credit lines
 airband writing check docs/*.md       # check files; exits 1 on findings, for CI
 airband writing docs on --project     # the team's choice, in .airband.json
 ```

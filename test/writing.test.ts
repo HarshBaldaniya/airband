@@ -238,6 +238,11 @@ test("what an agent is about to send is read from shell commands and MCP tools",
   assert.equal(outgoingText("Bash", { command: "gh pr create --title x --body-file body.md" }, project)?.text, "From a file.");
   assert.equal(outgoingText("run_shell_command", { command: 'gh issue create --title x --body "Steps"' })?.where, "issue", "Gemini CLI's shell");
   assert.equal(outgoingText("Bash", { command: "npm test" }), undefined);
+  // Only a command that runs: not the same words inside a quoted prompt or an echo.
+  assert.equal(outgoingText("Bash", { command: `claude -p "Commit with: git commit -m 'x' -m 'Co-Authored-By: Claude'"` }), undefined);
+  assert.equal(outgoingText("Bash", { command: `echo "run gh pr create --body 'hi'"` }), undefined);
+  assert.equal(outgoingText("Bash", { command: `cd my-api && GIT_EDITOR=true git commit -m "Fix seats"` })?.text, "Fix seats");
+  assert.equal(outgoingText("Bash", { command: `git status; gh pr comment 128 --body "Merged."` })?.where, "comment");
   assert.equal(outgoingText("Bash", { command: "git commit --amend --no-edit" }), undefined, "no words: nothing to check");
 
   const slack = outgoingText("mcp__claude_ai_Slack__slack_send_message", { channel_id: "C1", message: "Hi" });

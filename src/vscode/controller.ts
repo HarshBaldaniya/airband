@@ -52,7 +52,7 @@ import { CONTEXT_BUDGET, buildContext, buildUpdate, formatDelivery, oldConversat
 import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, pruneRecords, readHead, recordBehind, readAsks, readAsksFrom, recordContext, recordPointer, renderAsks, setRecordTitle, toolOf, type LinkLevel } from "../core/record";
 import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";
 import { moveOldHome, moveOldWorkspace } from "../core/migrate";
-import { connect, disconnect, findClaude, findNode, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, staleHookTargets } from "../core/hooks";
+import { claudeAiCreditShown, connect, disconnect, findClaude, findNode, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../core/hooks";
 import { claudeExtensionInstalled, openClaude, openInTerminal, ownTerminalFor, typeWhenStarted } from "./open";
 import { webviewHtml } from "./webview-html";
 
@@ -776,6 +776,9 @@ export class Controller implements vscode.Disposable {
           this.post({ type: "toast", title: "Saved for the team", text: `${path.basename(file)} in ${path.basename(path.dirname(file))}. Commit it so everyone gets the same rules.`, icon: "info" });
           return void vscode.window.showTextDocument(vscode.Uri.file(file), { preview: true });
         }
+        case "writingAiCredit":
+          setClaudeAiCredit(m.show);
+          return this.post({ type: "writing", data: this.writingView() }, from);
         case "writingOpen": {
           const line = Math.max(0, (m.line ?? 1) - 1);
           return void vscode.window.showTextDocument(vscode.Uri.file(m.path), { selection: new vscode.Range(line, 0, line, 0), preview: true });
@@ -1222,7 +1225,7 @@ export class Controller implements vscode.Disposable {
       const pick = (k: string) => (typeof team[k] === "boolean" ? { [k]: team[k] as boolean } : {});
       return { root, name: f.name, ...(file ? { file } : {}), team: { ...pick("docs"), ...pick("messages"), ...pick("replies"), ...pick("beforeSend") }, rules: writingSettings(root).rules };
     });
-    return { settings, projects, log: readWritingLog(40), briefs: { docs: DOCS_BRIEF, messages: MESSAGES_BRIEF, replies: REPLIES_BRIEF } };
+    return { settings, claudeAiCredit: claudeAiCreditShown(), projects, log: readWritingLog(40), briefs: { docs: DOCS_BRIEF, messages: MESSAGES_BRIEF, replies: REPLIES_BRIEF } };
   }
 
   /** The hook can't read VS Code's settings, so the ones it needs are mirrored to ~/.airband/config.json. */

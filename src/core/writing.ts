@@ -452,18 +452,22 @@ export function outgoingText(toolName: string | undefined, input: unknown, cwd?:
     const raw = i.command;
     const command = Array.isArray(raw) ? raw.join(" ") : typeof raw === "string" ? raw : "";
     if (!command) return undefined;
+    // Only what runs: "git commit" or "gh pr create" as a command of its own, not words inside a
+    // quoted string (a prompt handed to another tool, an echo).
+    const bare = command.replace(/<<-?\s*['"]?([A-Za-z_]\w*)['"]?[^\n]*\n[\s\S]*?\n\s*\1\b/g, "").replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '""');
+    const at = (re: string) => new RegExp(`(?:^|[;&|(\\n]|\\$\\()\\s*(?:\\w+=\\S*\\s+)*${re}`).test(bare);
     let where: string | undefined;
     let kind: Outgoing["kind"] = "messages";
     let flags = ["--body", "-b"];
-    if (/\bgit\s+(-C\s+\S+\s+)?commit\b/.test(command)) {
+    if (at("git\\s+(?:-C\\s+\\S+\\s+)?commit\\b")) {
       where = "commit message";
       kind = "commit";
       flags = ["-m", "--message"];
-    } else if (/\bgh\s+pr\s+(create|edit)\b/.test(command)) [where, kind] = ["PR description", "docs"];
-    else if (/\bgh\s+issue\s+(create|edit)\b/.test(command)) [where, kind] = ["issue", "docs"];
-    else if (/\bgh\s+(pr|issue)\s+comment\b/.test(command)) where = "comment";
-    else if (/\bgh\s+pr\s+review\b/.test(command)) where = "review";
-    else if (/\bgh\s+release\s+(create|edit)\b/.test(command)) [where, kind, flags] = ["release notes", "docs", ["--notes", "-n"]];
+    } else if (at("gh\\s+pr\\s+(?:create|edit)\\b")) [where, kind] = ["PR description", "docs"];
+    else if (at("gh\\s+issue\\s+(?:create|edit)\\b")) [where, kind] = ["issue", "docs"];
+    else if (at("gh\\s+(?:pr|issue)\\s+comment\\b")) where = "comment";
+    else if (at("gh\\s+pr\\s+review\\b")) where = "review";
+    else if (at("gh\\s+release\\s+(?:create|edit)\\b")) [where, kind, flags] = ["release notes", "docs", ["--notes", "-n"]];
     if (!where) return undefined;
     const text = shellValues(command, flags, cwd).join("\n\n").trim();
     return text ? { where, kind, text } : undefined;

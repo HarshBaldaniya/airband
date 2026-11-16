@@ -19,6 +19,7 @@ import { globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, pmComma
 import { columns, out, paint, plain } from "./ui";
 import { readConfig, setConfig } from "../core/updates";
 import { changesSince, releases } from "./changes";
+import { claudeAiCreditShown, setClaudeAiCredit } from "../core/hooks";
 import { checkWriting, renderFindings, setProjectWriting, summarise, WRITING_KINDS, writingSettings, type WritingKind } from "../core/writing";
 import { renderSpend, renderWork, sinceDays, spendSince, workSince } from "../core/worklog";
 import { completionOn, currentShell, refreshCompletion, turnCompletionOff, turnCompletionOn } from "./shell";
@@ -246,6 +247,12 @@ export async function main(argv: string[]): Promise<number> {
         return bad ? 1 : 0;
       }
       const forProject = flag(args, "--project", "--team");
+      if (what === "ai-credit") {
+        if (want !== "on" && want !== "off") return usage("writing ai-credit on|off");
+        setClaudeAiCredit(want === "on");
+        out(want === "off" ? `${paint.ok("✓")} Claude Code no longer adds "Co-Authored-By: Claude" to commits or "Generated with Claude Code" to PRs. New chats pick it up.` : `Claude Code adds its AI-credit lines again (its default).`);
+        return 0;
+      }
       if (what) {
         const key = what === "before-send" ? "beforeSend" : what;
         if (!(WRITING_KINDS.includes(key as WritingKind) || key === "beforeSend") || (want !== "on" && want !== "off")) return usage("writing [docs|messages|replies|before-send on|off] [--project] | writing check <file>");
@@ -263,8 +270,10 @@ export async function main(argv: string[]): Promise<number> {
       line("messages", "Slack, email, PR and ticket comments, announcements");
       line("replies", "short replies you can act on, in every chat");
       out(`  ${s.beforeSend ? paint.ok("on ") : paint.dim("off")}  ${"before-send".padEnd(11)} check a message, PR or commit before it goes out, and hold it once to fix`);
+      const credit = claudeAiCreditShown();
+      out(`  ${credit ? paint.dim("on ") : paint.ok("off")}  ${"ai-credit".padEnd(11)} Claude Code's own "Co-Authored-By: Claude" and "Generated with Claude Code" lines`);
       if (s.project) out(paint.dim(`  This project's ${path.relative(folder, s.project) || s.project} sets the team's choices${s.rules.length ? ` and ${s.rules.length} rules of its own` : ""}.`));
-      out(paint.dim(`  Change: ${self()} writing replies on · for the team: ${self()} writing docs on --project · check a file: ${self()} writing check README.md`));
+      out(paint.dim(`  Change: ${self()} writing replies on · ${self()} writing ai-credit off · for the team: ${self()} writing docs on --project · check a file: ${self()} writing check README.md`));
       return 0;
     }
     case "standup": {

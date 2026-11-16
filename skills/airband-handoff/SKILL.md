@@ -1,6 +1,6 @@
 ---
 name: airband-handoff
-description: Leave this chat's work so another chat (Claude Code, Codex or Gemini CLI) can pick it up without asking: what was done, what is open, the files, the branch and the decisions. Use when the person says hand off, wrap up, save where we are, or that another chat or agent will continue this.
+description: Leave this chat's work so another chat (Claude Code, Codex or Gemini CLI) can pick it up without asking. It saves what was done, what is open, the files, the branch and the decisions. Use when the person says hand off, wrap up, save where we are, or that another chat or agent will continue this.
 ---
 
 # Hand the work over

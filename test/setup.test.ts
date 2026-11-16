@@ -87,6 +87,8 @@ test("every skill has a name matching its folder and a description that says whe
     const description = /^description: (.+)$/m.exec(front)?.[1] ?? "";
     assert.match(description, /Use when/);
     assert.ok(description.length < 400, `${s.name}: keep the description short (${description.length})`);
+    // Plain YAML: " #" starts a comment and ": " a new key, which cut the description short.
+    assert.doesNotMatch(description, /\s#|: /, `${s.name}: no " #" or ": " in a plain description`);
   }
 });
 

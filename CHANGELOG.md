@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.3
 - **Review pull requests from the map.** `airband_map` with `diff` (and `airband diff`) takes a
   branch, `main..feature` or a PR number. A number like `#128` is fetched from origin, and nothing
   is checked out. It lists every function, class and type the change added, changed, moved or
@@ -30,9 +30,8 @@
   A person's own skill for the same job comes first.
 - **Writing rules that switch on by themselves.** A chat asked for a doc (a PRD, a spec, a README)
   gets a few lines of docs rules, once. A chat asked for a message (Slack, email, a PR comment)
-  gets the message rules. After an agent writes
-  a doc file, Airband checks the new text (Claude Code and Gemini CLI). It names long sentences,
-  semicolons, hype words, two-word verbs and filler. It also names lines that credit an AI tool
+  gets the message rules. After an agent writes a doc file, Airband checks the new text (Claude
+  Code and Gemini CLI). It names long sentences, semicolons, hype words, two-word verbs and filler. It also names lines that credit an AI tool
   ("Generated with …", "Co-Authored-By: Claude"), so what agents write reads as the person's.
   Short replies for every chat are one switch away (`airband writing replies on`). A team commits
   `.airband.json` to give everyone the same rules, with its own added.
@@ -41,6 +40,9 @@
   they break the rules, the send is held once, with what to fix. A commit is held only for a line
   crediting an AI tool. The same words sent again go through. `airband writing before-send off`
   turns it off.
+- **`airband writing ai-credit off`** stops Claude Code adding "Co-Authored-By: Claude" to commits
+  and "Generated with Claude Code" to PRs. It sets Claude Code's own `attribution` setting after a
+  backup, and `on` puts back what was there. The Writing page has the same switch.
 - **A Writing page** in the VS Code extension (`E`, or "Airband: Open writing rules"). It has the
   switches and each open project's team file. It checks a file on the spot, and it lists what the
   checks found lately, with a click to the line.
