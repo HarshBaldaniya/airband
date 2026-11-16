@@ -36,6 +36,14 @@
   ("Generated with …", "Co-Authored-By: Claude"), so what agents write reads as the person's.
   Short replies for every chat are one switch away (`airband writing replies on`). A team commits
   `.airband.json` to give everyone the same rules, with its own added.
+- **Checked before it goes out.** An agent may be about to send a Slack message, an email, a PR
+  description, a comment or a commit. Airband reads the words first (Claude Code and Gemini CLI). If
+  they break the rules, the send is held once, with what to fix. A commit is held only for a line
+  crediting an AI tool. The same words sent again go through. `airband writing before-send off`
+  turns it off.
+- **A Writing page** in the VS Code extension (`E`, or "Airband: Open writing rules"). It has the
+  switches and each open project's team file. It checks a file on the spot, and it lists what the
+  checks found lately, with a click to the line.
 - **`airband writing check <file>`** checks docs from a terminal or CI, and exits with 1 on findings.
 - **`airband standup`**: what your chats did since yesterday, per project, in every agent.
 - **`airband spend`**: tokens by project, agent, ticket and chat, for the last 7 days or any span.

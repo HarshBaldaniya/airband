@@ -31,7 +31,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import type { BoardTab, ConnectionView, ViewState } from "../src/core/protocol";
-import { Orbit, SquareSlash, Workflow } from "lucide-react";
+import { Orbit, PenLine, SquareSlash, Workflow } from "lucide-react";
 import { RUNS_OFFERED } from "../src/core/offered";
 import { PAGE_KEYS } from "./pagekeys";
 import type { BoardArrange, BoardPosition, ChatSession } from "../src/core/types";
@@ -86,6 +86,7 @@ import { UsageView } from "./Usage";
 import { CodePage } from "./CodePage";
 import { LibraryPage } from "./LibraryPage";
 import { RunsPage } from "./RunsPage";
+import { WritingPage } from "./WritingPage";
 import { KeySheet, useDismiss } from "./Keys";
 
 type CardLink = { id: string; title: string; dir: "out" | "in" | "both" };
@@ -164,6 +165,7 @@ export function Board(props: { state: ViewState; setModal: (m: Modal) => void; t
       if (k === "u") props.setTab("usage");
       if (k === "m") props.setTab("code");
       if (k === "c") props.setTab("library");
+      if (k === "e") props.setTab("writing");
       if (k === "w" && RUNS_OFFERED) props.setTab("runs");
     };
     window.addEventListener("keydown", onKey, true);
@@ -185,6 +187,9 @@ export function Board(props: { state: ViewState; setModal: (m: Modal) => void; t
           </button>
           <button role="tab" aria-selected={tab === "library"} className={tab === "library" ? "on" : ""} onClick={() => props.setTab("library")} data-tip="Commands for your agents (C)">
             <SquareSlash {...I} /> <span className="tablabel">Commands</span>
+          </button>
+          <button role="tab" aria-selected={tab === "writing"} className={tab === "writing" ? "on" : ""} onClick={() => props.setTab("writing")} data-tip="Writing rules for your agents (E)">
+            <PenLine {...I} /> <span className="tablabel">Writing</span>
           </button>
           {RUNS_OFFERED && (
             <button role="tab" aria-selected={tab === "runs"} className={tab === "runs" ? "on" : ""} onClick={() => props.setTab("runs")} data-tip="Runs and automations (W)">
@@ -209,6 +214,8 @@ export function Board(props: { state: ViewState; setModal: (m: Modal) => void; t
         <CodePage state={props.state} />
       ) : tab === "library" ? (
         <LibraryPage />
+      ) : tab === "writing" ? (
+        <WritingPage />
       ) : tab === "runs" ? (
         <RunsPage />
       ) : (

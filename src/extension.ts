@@ -43,6 +43,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("airband.openUsage", () => controller.openBoard("usage")),
     vscode.commands.registerCommand("airband.openCode", () => controller.openBoard("code")),
     vscode.commands.registerCommand("airband.openLibrary", () => controller.openBoard("library")),
+    vscode.commands.registerCommand("airband.openWriting", () => controller.openBoard("writing")),
     vscode.commands.registerCommand("airband.newChat", () => controller.newChatCommand()),
     vscode.commands.registerCommand("airband.connect", () => controller.turnOn()),
     vscode.commands.registerCommand("airband.disconnect", () => controller.turnOff()),

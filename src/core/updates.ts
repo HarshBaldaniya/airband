@@ -28,7 +28,7 @@ export interface AirbandConfig {
   /** Show the person a short line when a chat starts and when other chats' work rides along. */
   notices: boolean;
   /** Writing rules a chat gets when it needs them: docs, messages, and short replies. */
-  writing: { docs: boolean; messages: boolean; replies: boolean };
+  writing: { docs: boolean; messages: boolean; replies: boolean; beforeSend: boolean };
 }
 
 export function readConfig(): AirbandConfig {
@@ -41,7 +41,7 @@ export function readConfig(): AirbandConfig {
     notices: c.notices !== false,
     // Docs and message rules come only with an ask for one, a few lines once per chat: on.
     // Short replies change how every reply reads: off unless chosen.
-    writing: { docs: c.writing?.docs !== false, messages: c.writing?.messages !== false, replies: c.writing?.replies === true },
+    writing: { docs: c.writing?.docs !== false, messages: c.writing?.messages !== false, replies: c.writing?.replies === true, beforeSend: c.writing?.beforeSend !== false },
   };
 }
 

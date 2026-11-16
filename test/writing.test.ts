@@ -9,11 +9,15 @@ import { handle } from "../src/hook/airband-hook";
 import { setConfig } from "../src/core/updates";
 import {
   briefFor,
+  checkOutgoing,
   checkWriting,
   DOCS_BRIEF,
   forgetGiven,
+  holdOnce,
   MESSAGES_BRIEF,
   notYetGiven,
+  outgoingText,
+  readWritingLog,
   REPLIES_BRIEF,
   setProjectWriting,
   summarise,
@@ -47,7 +51,7 @@ test("an ask for a doc or a message gets those rules; other asks get none", () =
 });
 
 test("the person's switches, and the team's file winning where it says something", () => {
-  setConfig({ writing: { docs: false, messages: true, replies: true } });
+  setConfig({ writing: { docs: false, messages: true, replies: true, beforeSend: true } });
   assert.deepEqual(writingFor("write the spec", writingSettings(project)), []);
   const file = setProjectWriting(path.join(project, "docs"), "docs", true);
   assert.equal(file, path.join(project, ".airband.json"), "the file goes at the repository's root");
@@ -174,14 +178,14 @@ test("the hook adds the rules once per chat, in each agent's shape", () => {
   const gemini = JSON.parse(ask("gemini", "g1", "write the README")!);
   assert.equal(gemini.hookSpecificOutput.hookEventName, "BeforeAgent");
   // Off: nothing.
-  setConfig({ writing: { docs: false, messages: false, replies: false } });
+  setConfig({ writing: { docs: false, messages: false, replies: false, beforeSend: true } });
   assert.equal(ask("claude", "c2", "Write a PRD"), undefined);
 });
 
 test("short replies, when chosen, are asked for at every start and after a compaction", () => {
   const start = (source: string) => handle({ hook_event_name: "SessionStart", session_id: "c1", cwd: project, source }, Date.now(), "claude");
   assert.doesNotMatch(context(start("startup")) ?? "", /short replies/);
-  setConfig({ writing: { docs: true, messages: true, replies: true } });
+  setConfig({ writing: { docs: true, messages: true, replies: true, beforeSend: true } });
   assert.match(context(start("startup"))!, /^The person asked Airband for short replies/);
   assert.match(context(start("compact"))!, /short replies/);
 });
@@ -207,6 +211,76 @@ test("after an agent writes a doc, it hears what breaks the rules, and the perso
   assert.equal(line(post("claude", "Edit")), undefined);
   assert.ok(context(post("claude", "Edit")));
   // Docs rules off: no check.
-  setConfig({ writing: { docs: false, messages: true, replies: false } });
+  setConfig({ writing: { docs: false, messages: true, replies: false, beforeSend: true } });
   assert.equal(post("claude", "Edit"), undefined);
+});
+
+// ---- before it goes out ----
+
+const HEREDOC_PR = `gh pr create --title "Seat sync" --body "$(cat <<'EOF'
+## Summary
+Seat sync now rejects negative counts.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"`;
+
+test("what an agent is about to send is read from shell commands and MCP tools", () => {
+  const pr = outgoingText("Bash", { command: HEREDOC_PR });
+  assert.equal(pr?.where, "PR description");
+  assert.equal(pr?.kind, "docs");
+  assert.match(pr!.text, /^## Summary\nSeat sync now rejects negative counts\.\n\n🤖 Generated/);
+  const commit = outgoingText("Bash", { command: 'git add -A && git commit -m "Fix seat sync" -m "Co-Authored-By: Claude <noreply@anthropic.com>"' });
+  assert.deepEqual([commit?.where, commit?.kind, commit?.text], ["commit message", "commit", "Fix seat sync\n\nCo-Authored-By: Claude <noreply@anthropic.com>"]);
+  assert.equal(outgoingText("Bash", { command: "gh pr comment 128 --body 'Looks good, merging.'" })?.where, "comment");
+  const bodyFile = path.join(project, "body.md");
+  fs.writeFileSync(bodyFile, "From a file.");
+  assert.equal(outgoingText("Bash", { command: "gh pr create --title x --body-file body.md" }, project)?.text, "From a file.");
+  assert.equal(outgoingText("run_shell_command", { command: 'gh issue create --title x --body "Steps"' })?.where, "issue", "Gemini CLI's shell");
+  assert.equal(outgoingText("Bash", { command: "npm test" }), undefined);
+  assert.equal(outgoingText("Bash", { command: "git commit --amend --no-edit" }), undefined, "no words: nothing to check");
+
+  const slack = outgoingText("mcp__claude_ai_Slack__slack_send_message", { channel_id: "C1", message: "Hi" });
+  assert.deepEqual([slack?.where, slack?.kind, slack?.text], ["Slack message", "messages", "Hi"]);
+  assert.equal(outgoingText("mcp__claude_ai_Gmail__create_draft", { to: "a@b.c", subject: "s", body: "Hello" })?.where, "email");
+  assert.equal(outgoingText("mcp__linear__save_comment", { issueId: "ENG-142", body: "Done" })?.where, "comment");
+  assert.equal(outgoingText("mcp__github__create_pull_request", { title: "x", body: "Adds seats" })?.where, "PR description");
+  assert.equal(outgoingText("mcp__claude_ai_Slack__slack_read_channel", { channel_id: "C1" }), undefined);
+  assert.equal(outgoingText("mcp__claude_ai_Slack__slack_add_reaction", { name: "tada", message: "x" }), undefined);
+  assert.equal(outgoingText("mcp__airband__airband_notes", { title: "t", text: "x" }), undefined, "Airband's own notes are not sent to anyone");
+  assert.equal(outgoingText("Write", { file_path: "a.md", content: "x" }), undefined);
+});
+
+test("a commit is held only for a line crediting an AI tool", () => {
+  assert.deepEqual(checkOutgoing({ where: "commit message", kind: "commit", text: "Fix seat sync; it was robust before" }), []);
+  assert.equal(checkOutgoing({ where: "commit message", kind: "commit", text: "Fix\n\nCo-Authored-By: Claude <x@y.z>" })[0].rule, "ai");
+});
+
+test("the same words are held once, then go through", () => {
+  assert.equal(holdOnce("s1", "Hi team, hope you're well"), true);
+  assert.equal(holdOnce("s1", "Hi team, hope you're well"), false);
+  assert.equal(holdOnce("s1", "Can you review PR #128 by Friday?"), true, "new words are checked again");
+  assert.equal(holdOnce("s2", "Hi team, hope you're well"), true, "another chat is its own");
+});
+
+test("the hook holds a send once in Claude Code and Gemini CLI, and logs it for the Writing page", () => {
+  const pre = (tool: "claude" | "gemini" | "codex", sid = "c1") =>
+    handle({ hook_event_name: tool === "gemini" ? "BeforeTool" : "PreToolUse", session_id: sid, cwd: project, tool_name: tool === "gemini" ? "run_shell_command" : "Bash", tool_input: { command: HEREDOC_PR } }, Date.now(), tool);
+  const first = JSON.parse(pre("claude")!);
+  assert.equal(first.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(first.hookSpecificOutput.permissionDecisionReason, /^Airband held this PR description before it went out\./);
+  assert.match(first.hookSpecificOutput.permissionDecisionReason, /line crediting an AI tool/);
+  assert.match(first.hookSpecificOutput.permissionDecisionReason, /send it again unchanged: it will go through\.$/);
+  assert.equal(first.systemMessage, "↪ Airband held a PR description to fix first: 1 line crediting an AI tool (line 4)");
+  assert.equal(pre("claude"), undefined, "sent again unchanged: it goes through");
+  const gem = JSON.parse(pre("gemini", "g1")!);
+  assert.equal(gem.decision, "deny");
+  assert.match(gem.reason, /^Airband held this PR description/);
+  assert.equal(pre("codex", "x1"), undefined, "Codex is not asked before a tool");
+  const log = readWritingLog();
+  assert.equal(log.length, 2);
+  assert.deepEqual([log[0].action, log[0].what, log[0].agent], ["held", "PR description", "gemini"], "newest first");
+  // Off: nothing is held.
+  setConfig({ writing: { docs: true, messages: true, replies: false, beforeSend: false } });
+  assert.equal(pre("claude", "c9"), undefined);
 });

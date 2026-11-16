@@ -9,7 +9,8 @@
 //   4. when a chat finishes a reply while updates are waiting, asks it to read
 //      them before it stops (each tool continues the turn with Airband's note);
 //   5. when a chat is asked for a doc or a message, adds the writing rules once,
-//      and after it writes a doc file, says what in it breaks them.
+//      after it writes a doc file says what in it breaks them, and before it
+//      sends a message, a PR or a commit, holds it once if it breaks them.
 // It never blocks a chat: errors are swallowed, it always exits 0, and it
 // prints nothing except the context it delivers.
 import * as path from "node:path";
@@ -34,7 +35,7 @@ import { geminiMessages, loadGeminiChat } from "../adapters/gemini";
 import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
-import { briefFor, checkWrittenDoc, forgetGiven, notYetGiven, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
+import { briefFor, checkOutgoing, checkWrittenDoc, forgetGiven, holdOnce, logWriting, notYetGiven, outgoingText, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
 
 export type HookTool = "claude" | "codex" | "gemini";
 
@@ -63,7 +64,7 @@ export interface HookInput {
 const EVENT_ALIASES: Record<HookTool, Record<string, string>> = {
   claude: {},
   codex: { PermissionRequest: "Notification" },
-  gemini: { BeforeAgent: "UserPromptSubmit", AfterAgent: "Stop", AfterTool: "PostToolUse" },
+  gemini: { BeforeAgent: "UserPromptSubmit", AfterAgent: "Stop", AfterTool: "PostToolUse", BeforeTool: "PreToolUse" },
 };
 
 const TOOL_NAME: Record<HookTool, Tool> = { claude: "Claude", codex: "Codex", gemini: "Gemini" };
@@ -298,6 +299,8 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
       const lines = [showStart ? startNotice({ sessionId: input.session_id, cwd: input.cwd, now }) : "", d && noticesOn() ? deliveryNotice(d.items) : ""].filter(Boolean);
       return out(tool, "SessionStart", [d?.text, replies].filter(Boolean).join("\n\n") || undefined, lines.join("\n") || undefined);
     }
+    case "PreToolUse":
+      return sendCheck(input, tool);
     case "PostToolUse": {
       const doc = docCheck(input, tool);
       if (doc) return doc;
@@ -344,7 +347,39 @@ export function docCheck(input: HookInput, tool: HookTool): string | undefined {
     ].filter(Boolean).join("\n");
     const o: Record<string, unknown> = { hookSpecificOutput: { hookEventName: tool === "gemini" ? "AfterTool" : "PostToolUse", additionalContext: context } };
     if (tool === "claude" && noticesOn()) o.systemMessage = `↪ Airband checked ${name}: ${summarise(found)}`;
+    logWriting({ at: Date.now(), what: name, agent: tool, cwd: input.cwd, action: "fix", summary: summarise(found), findings: found });
     return JSON.stringify(o);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Before an agent sends a message, a PR or a commit (Claude Code, Gemini CLI): when the words break
+ * the rules, the send is held once with what to fix. The same words sent again go through, so a
+ * wording the person asked for is never stuck.
+ */
+export function sendCheck(input: HookInput, tool: HookTool): string | undefined {
+  if (tool === "codex") return undefined;
+  try {
+    const o = outgoingText(input.tool_name, input.tool_input, input.cwd);
+    if (!o) return undefined;
+    const s = writingSettings(input.cwd);
+    if (!s.beforeSend || (o.kind === "docs" && !s.docs) || (o.kind === "messages" && !s.messages) || (o.kind === "commit" && !s.docs && !s.messages)) return undefined;
+    const found = checkOutgoing(o);
+    if (!found.length || !holdOnce(input.session_id, o.text)) return undefined;
+    const rules = o.kind === "messages" ? "message writing rules" : o.kind === "commit" ? "rule that text reads as the person's" : "docs writing rules";
+    const reason = [
+      `Airband held this ${o.where} before it went out. It breaks the ${rules}:`,
+      renderFindings(found.slice(0, 12)),
+      found.length > 12 ? `… and ${found.length - 12} more.` : "",
+      `Rewrite it and send it again, keeping every fact, name, date and link. If the person asked for this exact wording, send it again unchanged: it will go through.`,
+    ].filter(Boolean).join("\n");
+    logWriting({ at: Date.now(), what: o.where, agent: tool, cwd: input.cwd, action: "held", summary: summarise(found), findings: found });
+    if (tool === "gemini") return JSON.stringify({ decision: "deny", reason });
+    const out: Record<string, unknown> = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } };
+    if (noticesOn()) out.systemMessage = `↪ Airband held a ${o.where} to fix first: ${summarise(found)}`;
+    return JSON.stringify(out);
   } catch {
     return undefined;
   }

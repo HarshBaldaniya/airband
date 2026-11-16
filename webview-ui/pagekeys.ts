@@ -14,6 +14,7 @@ const EVERYWHERE: KeySection = {
     [["U"], "Fuel"],
     [["M"], "Map"],
     [["C"], "Commands"],
+    [["E"], "Writing"],
     [["?"], "These shortcuts"],
   ],
 };
@@ -59,5 +60,6 @@ export const PAGE_KEYS: Record<BoardTab, KeySection[]> = {
   usage: [{ title: "Fuel", keys: FUEL }, EVERYWHERE],
   code: [{ title: "Map", keys: MAP }, EVERYWHERE],
   library: [{ title: "Commands", keys: COMMANDS }, EVERYWHERE],
+  writing: [EVERYWHERE],
   runs: [EVERYWHERE],
 };

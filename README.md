@@ -98,6 +98,7 @@ it.
 | **Map** | Your project's parts and files as a board, built by a parser on your computer. Agents query it instead of searching files. TypeScript, JavaScript, Python, Go, Rust, Java, C#, Ruby and PHP. |
 | **Commands** | 28 ready-made commands (plan, build, review, pr, tests, specs, recall and more), the same in every agent, plus your own as Markdown files. |
 | **Fuel** | Each agent's plan limits as the agent reports them, and tokens per chat. |
+| **Writing** | The writing rules agents get, switched on and off; a team file for each project; a file checked on the spot; and what the checks found lately. |
 
 ### What your agents get
 
@@ -188,9 +189,24 @@ out in your name, so it reads as yours. The agent gets the list to fix, and you 
 ↪ Airband checked docs/prd.md: 2 long sentences (lines 14, 31), 1 hype word (line 9)
 ```
 
+**Before it goes out.** Before an agent sends a Slack message, an email, a PR description, a
+comment or a commit, Airband reads the words. If they break the rules, it holds the send once and
+tells the agent what to fix. A commit is held only for a line crediting an AI tool. If the same
+words come again unchanged, they go through, so a wording you asked for never gets stuck. This
+works in Claude Code and Gemini CLI. In Codex, the rules still come with the ask.
+
+```text
+↪ Airband held a Slack message to fix first: 2 empty greetings or sign-offs (line 1)
+```
+
+The **Writing** page in the VS Code extension shows all of this. It has the switches and the team
+file for each open project. A "Check a file" button checks a doc on the spot. The page also lists
+what the checks found lately, each with a click to its line.
+
 ```bash
 airband writing                       # what is on
 airband writing replies on            # short replies in every chat
+airband writing before-send off       # don't check messages before they go out
 airband writing check docs/*.md       # check files; exits 1 on findings, for CI
 airband writing docs on --project     # the team's choice, in .airband.json
 ```
@@ -412,6 +428,7 @@ Settings live under **Settings → Extensions → Airband**:
 | `airband.notices` | `true` | Show Airband's line when a chat starts and when other chats' work is added to your message. Shown to you only; no tokens. |
 | `airband.writing.docs` | `true` | Add the docs writing rules when a chat is asked for a doc, and check docs agents write. |
 | `airband.writing.messages` | `true` | Add the message writing rules when a chat is asked for a message. |
+| `airband.writing.beforeSend` | `true` | Check a message, PR or commit before an agent sends it, and hold it once to fix. |
 | `airband.writing.replies` | `false` | Ask every chat for short replies you can act on. |
 | `airband.backupFolder` | `""` | A folder to copy flightlogs and your own commands to every half hour, for example in iCloud Drive or Dropbox. |
 
@@ -423,7 +440,7 @@ A project's `.airband.json` sets the writing rules for everyone who works in it.
 
 | Keys | Where | Action |
 |---|---|---|
-| `T` `U` `M` `C` | Everywhere | Tower, Fuel, Map, Commands |
+| `T` `U` `M` `C` `E` | Everywhere | Tower, Fuel, Map, Commands, Writing |
 | `/` | Tower, Map, Commands | Find a chat, a file or a command |
 | `N` | Tower | New Claude chat |
 | `1` `2` `3` `4` | Tower | Arrange by channel, time, agent, folder |

@@ -83,6 +83,11 @@
           "default": true,
           "description": "When a chat is asked for a message (Slack, email, a PR comment, an announcement), add Airband's short message rules once: the point first, who does what by when, at most 5 items in a list."
         },
+        "airband.writing.beforeSend": {
+          "type": "boolean",
+          "default": true,
+          "description": "Before an agent sends a Slack message, an email, a PR or a commit, check the words. If they break the rules, Airband holds the send once and tells the agent what to fix. The same words sent again go through. Claude Code and Gemini CLI."
+        },
         "airband.writing.replies": {
           "type": "boolean",
           "default": false,
@@ -178,6 +183,10 @@
       {
         "command": "airband.openLibrary",
         "title": "Airband: Open commands"
+      },
+      {
+        "command": "airband.openWriting",
+        "title": "Airband: Open writing rules"
       }
     ],
     "menus": {
@@ -206,6 +215,11 @@
           "command": "airband.openLibrary",
           "when": "view == airband.chats",
           "group": "open@3"
+        },
+        {
+          "command": "airband.openWriting",
+          "when": "view == airband.chats",
+          "group": "open@4"
         },
         {
           "command": "airband.refresh",

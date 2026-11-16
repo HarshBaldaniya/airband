@@ -69,15 +69,15 @@ export const COMMANDS: CommandInfo[] = [
   {
     name: "writing",
     group: "Get started",
-    args: "[docs|messages|replies on|off] | check <file>",
+    args: "[docs|messages|replies|before-send on|off] | check <file>",
     summary: "Writing rules agents get when they write a doc or a message",
-    about: "When a chat is asked for a doc (a PRD, a spec, a README) or a message (Slack, email, a PR comment), Airband adds a few lines of writing rules, once per chat. After an agent writes a doc file, it checks the new text and names long sentences, semicolons, hype words and filler. \"replies\" asks every chat for short replies you can act on (off by default). With --project the choice goes in the project's .airband.json, which the team commits; it wins over each person's setting. \"check\" reads files and exits with 1 when something breaks the rules, so it fits in CI.",
+    about: "When a chat is asked for a doc (a PRD, a spec, a README) or a message (Slack, email, a PR comment), Airband adds a few lines of writing rules, once per chat. After an agent writes a doc file, it checks the new text and names long sentences, semicolons, hype words and filler. Before an agent sends a Slack message, an email, a PR or a commit, Airband checks the words and holds the send once if they break the rules (\"before-send\"; Claude Code and Gemini CLI). The same words sent again go through. \"replies\" asks every chat for short replies you can act on (off by default). With --project the choice goes in the project's .airband.json, which the team commits; it wins over each person's setting. \"check\" reads files and exits with 1 when something breaks the rules, so it fits in CI.",
     options: [
       ["--project", "Set it for the whole team, in this project's .airband.json"],
       ["--message", "With check: use the message rules (lists, greetings) instead of the docs rules"],
       ["--json", "As JSON, for scripts"],
     ],
-    examples: ["airband writing", "airband writing replies on", "airband writing docs on --project", "airband writing check README.md docs/prd.md"],
+    examples: ["airband writing", "airband writing replies on", "airband writing before-send off", "airband writing docs on --project", "airband writing check README.md docs/prd.md"],
   },
   {
     name: "remove",

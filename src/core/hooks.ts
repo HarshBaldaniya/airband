@@ -8,7 +8,10 @@ import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { airbandHome, guardRealHome, writeFileAtomic } from "./paths";
 
-export const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PostToolUse", "Notification", "Stop", "SessionEnd"] as const;
+export const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Notification", "Stop", "SessionEnd"] as const;
+/** Tools a before-tool hook runs for: shell commands (commits, PRs) and MCP tools (Slack, email).
+ *  Not file reads and edits, so most tool calls start no process at all. */
+const PRE_TOOL_MATCHER: Record<string, string> = { claude: "Bash|mcp__.*", gemini: "run_shell_command|.*__.*|mcp_.*" };
 const MARK = "airband-hook.js";
 /** Hooks written when Airband was called Relay or Crosstalk: still ours, so they are replaced, never
  *  doubled (staleHookTargets reports them, since they don't name airband-hook.js). */
@@ -116,6 +119,8 @@ export function connect(command: string, file = claudeSettingsPath(), events: re
     const kept = groups.filter((g) => g.hooks.length > 0);
     const entry: HookGroup = { hooks: [{ type: "command", command, timeout: timeouts[event] ?? timeout }] };
     if (event === "PostToolUse" && file === claudeSettingsPath()) entry.matcher = "*";
+    if (event === "PreToolUse") entry.matcher = PRE_TOOL_MATCHER.claude;
+    if (event === "BeforeTool") entry.matcher = PRE_TOOL_MATCHER.gemini;
     kept.push(entry);
     hooks[event] = kept;
   }
@@ -181,7 +186,7 @@ export function hookTargets(): HookTarget[] {
       tool: "Gemini",
       file: path.join(geminiHome(), "settings.json"),
       // Gemini CLI's names: BeforeAgent = a prompt arrives, AfterAgent = a reply ended. Timeouts are in ms.
-      events: ["SessionStart", "BeforeAgent", "AfterAgent", "AfterTool", "Notification", "SessionEnd"],
+      events: ["SessionStart", "BeforeAgent", "BeforeTool", "AfterAgent", "AfterTool", "Notification", "SessionEnd"],
       timeout: 5000,
       // ~/.gemini alone is not enough: Antigravity makes it too. Gemini CLI leaves these behind.
       present: () => ["settings.json", "tmp", "projects.json", "oauth_creds.json"].some((n) => fs.existsSync(path.join(geminiHome(), n))),

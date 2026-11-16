@@ -181,7 +181,7 @@ test("hook targets: each agent's events; Gemini counts as installed only with Ge
   assert.equal(gemini().present(), false);
   fs.mkdirSync(path.join(home, "tmp"));
   assert.equal(gemini().present(), true);
-  assert.deepEqual([...gemini().events], ["SessionStart", "BeforeAgent", "AfterAgent", "AfterTool", "Notification", "SessionEnd"]);
+  assert.deepEqual([...gemini().events], ["SessionStart", "BeforeAgent", "BeforeTool", "AfterAgent", "AfterTool", "Notification", "SessionEnd"]);
   assert.equal(gemini().timeout, 5000); // Gemini CLI's timeouts are milliseconds
   assert.ok(hookTargets().find((t) => t.tool === "Codex")!.events.includes("SessionEnd"));
   delete process.env.AIRBAND_GEMINI_HOME;

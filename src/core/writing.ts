@@ -18,6 +18,8 @@ export interface WritingSettings {
   docs: boolean;
   messages: boolean;
   replies: boolean;
+  /** Check a message, PR or commit before it goes out, and hold it once to fix */
+  beforeSend: boolean;
   /** The team's own extra rules, from the project file */
   rules: string[];
   /** The project file the settings came from, when there is one */
@@ -28,7 +30,7 @@ export interface WritingSettings {
 export const PROJECT_FILE = ".airband.json";
 
 interface ProjectFile {
-  writing?: Partial<Record<WritingKind, boolean>> & { rules?: unknown };
+  writing?: Partial<Record<WritingKind | "beforeSend", boolean>> & { rules?: unknown };
 }
 
 /** The nearest `.airband.json` from this folder up to the repository's root. */
@@ -64,11 +66,12 @@ export function writingSettings(cwd?: string): WritingSettings {
   const team = file ? readJson<ProjectFile>(file, {}).writing ?? {} : {};
   const pick = (k: WritingKind) => (typeof team[k] === "boolean" ? (team[k] as boolean) : mine[k]);
   const rules = Array.isArray(team.rules) ? team.rules.filter((r): r is string => typeof r === "string" && !!r.trim()).map((r) => r.trim().slice(0, 300)).slice(0, 12) : [];
-  return { docs: pick("docs"), messages: pick("messages"), replies: pick("replies"), rules, ...(file ? { project: file } : {}) };
+  const beforeSend = typeof team.beforeSend === "boolean" ? team.beforeSend : mine.beforeSend;
+  return { docs: pick("docs"), messages: pick("messages"), replies: pick("replies"), beforeSend, rules, ...(file ? { project: file } : {}) };
 }
 
 /** Sets one kind on or off in the project's file (made when missing), keeping the rest of it. */
-export function setProjectWriting(cwd: string, kind: WritingKind, on: boolean): string {
+export function setProjectWriting(cwd: string, kind: WritingKind | "beforeSend", on: boolean): string {
   const file = projectFile(cwd) ?? path.join(projectRoot(cwd), PROJECT_FILE);
   const now = readJson<ProjectFile & Record<string, unknown>>(file, {});
   now.writing = { ...(now.writing ?? {}), [kind]: on };
@@ -301,7 +304,7 @@ export function checkWriting(text: string, kind: "docs" | "messages" = "docs"): 
     for (const m of used.matchAll(HYPE)) out.push({ line: b.line, rule: "hype", text: `"${m[0]}"`, fix: "the fact or number it stands for" });
     for (const [re, fix] of PHRASAL) for (const m of used.matchAll(re)) out.push({ line: b.line, rule: "phrasal", text: `"${m[0]}"`, fix });
     for (const [re, fix] of FILLER) for (const m of used.matchAll(re)) out.push({ line: b.line, rule: "filler", text: `"${m[0]}"`, fix });
-    if (kind === "messages" && PLEASANTRY.test(used)) out.push({ line: b.line, rule: "pleasantry", text: `"${(PLEASANTRY.exec(used)?.[0] ?? "").trim()}"`, fix: "(delete)" });
+    if (kind === "messages") for (const m of used.matchAll(new RegExp(PLEASANTRY.source, "gi"))) out.push({ line: b.line, rule: "pleasantry", text: `"${m[0].trim()}"`, fix: "(delete)" });
   }
   if (kind === "messages") {
     // A list longer than five, at one level.
@@ -397,4 +400,176 @@ export function checkWrittenDoc(doc: { file: string; text: string }): WritingFin
     // The file is gone already: lines of the text itself.
   }
   return found.map((f) => ({ ...f, line: f.line + offset }));
+}
+
+// ---- before it goes out: a message, a PR or a commit an agent is about to send ----
+
+export interface Outgoing {
+  /** What it is, as the person would say it: "Slack message", "PR description", "commit message" */
+  where: string;
+  /** Which rules it gets: a commit only the AI-credit rule */
+  kind: "docs" | "messages" | "commit";
+  text: string;
+}
+
+const SHELL_TOOL = /^(Bash|run_shell_command|shell|exec_command|local_shell)$/;
+/** An MCP tool that sends or posts words for people to read. */
+const SENDS = /(send|post|reply|forward|schedule|draft|comment|review|create_?(issue|pull|pr)|update_?(issue|pull|pr)|save_?(comment|issue)|message|announce)/i;
+const NOT_SENDS = /(reaction|label|read|get|list|search|find|delete|remove|upload|download|mark|status|query|fetch)/i;
+const TEXT_FIELD = /^(text|message|body|content|markdown|comment|description|reply|draft|html_?body|note)$/i;
+
+/** The words after a flag in a shell command: a quoted value, a heredoc, or a file named by it. */
+function shellValues(command: string, flags: string[], cwd?: string): string[] {
+  const out: string[] = [];
+  const names = flags.map((f) => f.replace(/[-]/g, "\\-")).join("|");
+  // A heredoc anywhere in the command ("$(cat <<'EOF' … EOF)") is the body: agents write long ones so.
+  const here = /<<-?\s*['"]?([A-Za-z_]\w*)['"]?[^\n]*\n([\s\S]*?)\n\s*\1\b/.exec(command);
+  if (here) out.push(here[2]);
+  else {
+    const re = new RegExp(`(?:^|\\s)(?:${names})(?:=|\\s+)(?:"((?:[^"\\\\]|\\\\.)*)"|'([^']*)'|(\\S+))`, "g");
+    for (const m of command.matchAll(re)) {
+      const v = m[1] !== undefined ? m[1].replace(/\\(["\\$`])/g, "$1") : (m[2] ?? m[3] ?? "");
+      if (v) out.push(v);
+    }
+  }
+  const file = new RegExp(`(?:^|\\s)(?:--body-file|-F|--file)(?:=|\\s+)("([^"]+)"|'([^']+)'|(\\S+))`).exec(command);
+  const name = file && (file[2] ?? file[3] ?? file[4]);
+  if (name && name !== "-") {
+    try {
+      out.push(fs.readFileSync(path.resolve(cwd ?? ".", name), "utf8").slice(0, 64_000));
+    } catch {
+      // A file not there yet: nothing to read.
+    }
+  }
+  return out;
+}
+
+/** What an agent is about to send, read from the tool call; nothing for anything else. */
+export function outgoingText(toolName: string | undefined, input: unknown, cwd?: string): Outgoing | undefined {
+  if (!input || typeof input !== "object" || !toolName) return undefined;
+  const i = input as Record<string, unknown>;
+  if (SHELL_TOOL.test(toolName)) {
+    const raw = i.command;
+    const command = Array.isArray(raw) ? raw.join(" ") : typeof raw === "string" ? raw : "";
+    if (!command) return undefined;
+    let where: string | undefined;
+    let kind: Outgoing["kind"] = "messages";
+    let flags = ["--body", "-b"];
+    if (/\bgit\s+(-C\s+\S+\s+)?commit\b/.test(command)) {
+      where = "commit message";
+      kind = "commit";
+      flags = ["-m", "--message"];
+    } else if (/\bgh\s+pr\s+(create|edit)\b/.test(command)) [where, kind] = ["PR description", "docs"];
+    else if (/\bgh\s+issue\s+(create|edit)\b/.test(command)) [where, kind] = ["issue", "docs"];
+    else if (/\bgh\s+(pr|issue)\s+comment\b/.test(command)) where = "comment";
+    else if (/\bgh\s+pr\s+review\b/.test(command)) where = "review";
+    else if (/\bgh\s+release\s+(create|edit)\b/.test(command)) [where, kind, flags] = ["release notes", "docs", ["--notes", "-n"]];
+    if (!where) return undefined;
+    const text = shellValues(command, flags, cwd).join("\n\n").trim();
+    return text ? { where, kind, text } : undefined;
+  }
+  // Another tool, from an MCP server: Slack, email, GitHub, Linear and the like.
+  if (/airband/i.test(toolName) || !/__|^mcp/i.test(toolName)) return undefined;
+  const verb = toolName.split(/__/).pop() ?? toolName;
+  if (!SENDS.test(verb) || NOT_SENDS.test(verb)) return undefined;
+  const text = Object.entries(i)
+    .filter(([k, v]) => TEXT_FIELD.test(k) && typeof v === "string")
+    .map(([, v]) => v as string)
+    .join("\n\n")
+    .trim();
+  if (!text) return undefined;
+  const kind: Outgoing["kind"] = /create_?(issue|pull|pr)|update_?(issue|pull|pr)|save_?issue|document/i.test(verb) ? "docs" : "messages";
+  const where = /slack/i.test(toolName)
+    ? "Slack message"
+    : /gmail|mail|outlook/i.test(toolName)
+      ? "email"
+      : /teams/i.test(toolName)
+        ? "Teams message"
+        : /comment|review/i.test(verb)
+          ? "comment"
+          : kind === "docs"
+            ? /issue/i.test(verb)
+              ? "issue"
+              : "PR description"
+            : "message";
+  return { where, kind, text };
+}
+
+/** What in an outgoing text breaks its rules. A commit is held only for a line crediting an AI tool. */
+export function checkOutgoing(o: Outgoing): WritingFinding[] {
+  if (o.kind === "commit") return checkWriting(o.text, "docs").filter((f) => f.rule === "ai");
+  return checkWriting(o.text, o.kind);
+}
+
+const heldFile = () => airbandFile("writing-held.json");
+
+/** djb2, enough to know the same text again. */
+function hashText(t: string): string {
+  let h = 5381;
+  for (let k = 0; k < t.length; k++) h = ((h << 5) + h + t.charCodeAt(k)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * Hold this text once: true the first time it is seen, false when it comes again unchanged (the
+ * agent was told it may send it as it is, when the person asked for that wording).
+ */
+export function holdOnce(sessionId: string | undefined, text: string, now = Date.now()): boolean {
+  const key = `${sessionId ?? "-"}:${hashText(text)}`;
+  const held = readJson<Record<string, number>>(heldFile(), {});
+  if (held[key]) return false;
+  held[key] = now;
+  const keys = Object.keys(held);
+  for (const k of keys.slice(0, Math.max(0, keys.length - SEEN_MAX))) delete held[k];
+  try {
+    writeFileAtomic(heldFile(), JSON.stringify(held));
+  } catch {
+    // Not kept: the next try is held again, which is only one more round.
+  }
+  return true;
+}
+
+// ---- a short log of what the checks found, for the Writing page ----
+
+export interface WritingLogEntry {
+  at: number;
+  /** "docs/prd.md", "Slack message", "commit message" */
+  what: string;
+  agent: string;
+  cwd?: string;
+  /** "fix" (the agent was asked to fix it), "held" (held before sending) */
+  action: "fix" | "held";
+  summary: string;
+  findings: WritingFinding[];
+}
+
+const logFile = () => airbandFile("writing-log.jsonl");
+const LOG_KEEP = 200;
+
+export function logWriting(e: WritingLogEntry): void {
+  try {
+    const file = logFile();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.appendFileSync(file, `${JSON.stringify({ ...e, findings: e.findings.slice(0, 12) })}\n`);
+    if (fs.statSync(file).size > 400_000) {
+      const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
+      writeFileAtomic(file, `${lines.slice(-LOG_KEEP).join("\n")}\n`);
+    }
+  } catch {
+    // Only a log.
+  }
+}
+
+export function readWritingLog(max = 50): WritingLogEntry[] {
+  try {
+    return fs
+      .readFileSync(logFile(), "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .slice(-max)
+      .map((l) => JSON.parse(l) as WritingLogEntry)
+      .reverse();
+  } catch {
+    return [];
+  }
 }

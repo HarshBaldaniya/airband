@@ -31,6 +31,7 @@ test("connect adds Airband's hook to every event, keeps other settings, and disc
   assert.ok(isConnected(file));
   for (const e of HOOK_EVENTS) assert.ok(after.hooks[e].some((g: any) => g.hooks.some((h: any) => h.command.includes("airband-hook.js"))));
   assert.equal(after.hooks.Stop[0].hooks[0].command, "say done");
+  assert.equal(after.hooks.PreToolUse[0].matcher, "Bash|mcp__.*", "before a tool: only shell commands and MCP tools start the hook");
   assert.deepEqual(JSON.parse(fs.readFileSync(`${file}.airband-backup`, "utf8")), before);
   connect('"/usr/bin/node" "/h/.airband/airband-hook.js"', file);
   assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).hooks.Stop.length, 2);

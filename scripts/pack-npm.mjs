@@ -68,7 +68,7 @@ Once set up, your agents:
 - read what your other chats did (\`airband_flightlog\`) and leave notes for each other (\`airband_notes\`);
 - have ready-made commands (\`/airband:review\` in Claude Code, \`/prompts:review\` in Codex, \`/review\` in Gemini CLI);
 - have 15 skills they use by themselves, for developers, QA, product and finance: find code, recall past work, catch up, review a PR, check a change's impact, onboard, debug, write a test plan, hand off, pick up a ticket, say where work stands, write a standup, show AI spend, and write docs and messages people can read;
-- get short writing rules when they write a doc or a message, and a check after they write a doc (\`airband writing\`).
+- get short writing rules when they write a doc or a message, a check after they write a doc, and a check before they send a message, a PR or a commit (\`airband writing\`).
 
 The Map also works on its own: \`airband find "rate limiter"\`, \`airband outline src/api\`, \`airband graph RateLimiter\`, \`airband diff #128\`. So do your chats: \`airband standup\`, \`airband spend\`, \`airband writing check README.md\`.
 

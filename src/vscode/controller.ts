@@ -13,9 +13,10 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { CodexAdapter } from "../adapters/codex";
 import { GeminiAdapter } from "../adapters/gemini";
 import { claudeProjectFolder, claudeProjectsDir, codexSessionsDir, readJson, airbandFile, airbandHome, statusDir } from "../core/paths";
-import type { BoardTab, ConnectionView, FromWebview, ModelOption, ToWebview, ToolTotals, ViewState } from "../core/protocol";
+import type { BoardTab, ConnectionView, FromWebview, ModelOption, ToWebview, ToolTotals, ViewState, WritingView } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
 import { codeHits, codeMapView, codeModuleView, knownProjects, libraryView } from "./pages";
+import { checkWriting, DOCS_BRIEF, MESSAGES_BRIEF, projectFile, readWritingLog, REPLIES_BRIEF, setProjectWriting, writingSettings } from "../core/writing";
 import type { RunsService } from "./runs-service";
 import { claudePluginInstalled, installFiles } from "../core/setup";
 import { installSkills, removeSkills, skillsState } from "../core/skills";
@@ -759,6 +760,45 @@ export class Controller implements vscode.Disposable {
         case "setUpToolkit":
           await this.setUpToolkit();
           return this.post({ type: "library", data: libraryView() }, from);
+        case "writing":
+          return this.post({ type: "writing", data: this.writingView() }, from);
+        case "writingSet": {
+          // VS Code's setting is the source; the change is mirrored to ~/.airband for the hook.
+          await vscode.workspace.getConfiguration("airband").update(`writing.${m.key}`, m.on, vscode.ConfigurationTarget.Global);
+          this.syncConfig();
+          return this.post({ type: "writing", data: this.writingView() }, from);
+        }
+        case "writingTeam": {
+          const s = this.writingView().settings;
+          let file = "";
+          for (const k of ["docs", "messages", "replies", "beforeSend"] as const) file = setProjectWriting(m.root, k, s[k]);
+          this.post({ type: "writing", data: this.writingView() }, from);
+          this.post({ type: "toast", title: "Saved for the team", text: `${path.basename(file)} in ${path.basename(path.dirname(file))}. Commit it so everyone gets the same rules.`, icon: "info" });
+          return void vscode.window.showTextDocument(vscode.Uri.file(file), { preview: true });
+        }
+        case "writingOpen": {
+          const line = Math.max(0, (m.line ?? 1) - 1);
+          return void vscode.window.showTextDocument(vscode.Uri.file(m.path), { selection: new vscode.Range(line, 0, line, 0), preview: true });
+        }
+        case "writingCheck": {
+          const active = vscode.window.activeTextEditor?.document;
+          const picked = await vscode.window.showOpenDialog({
+            canSelectMany: false,
+            defaultUri: active?.uri.scheme === "file" ? active.uri : vscode.workspace.workspaceFolders?.[0]?.uri,
+            filters: { Docs: ["md", "mdx", "markdown", "txt", "rst", "adoc"], "All files": ["*"] },
+            openLabel: "Check",
+          });
+          const file = picked?.[0]?.fsPath;
+          if (!file) return;
+          let text = "";
+          try {
+            text = fs.readFileSync(file, "utf8");
+          } catch {
+            return void vscode.window.showWarningMessage(`Airband could not read ${path.basename(file)}.`);
+          }
+          const root = vscode.workspace.workspaceFolders?.find((f) => file.startsWith(f.uri.fsPath + path.sep))?.uri.fsPath;
+          return this.post({ type: "writingCheck", file, name: root ? path.relative(root, file).split(path.sep).join("/") : path.basename(file), findings: checkWriting(text, "docs") }, from);
+        }
         case "runs":
           if (this.runsService) this.post({ type: "runs", data: this.runsService.view() }, from);
           return;
@@ -1171,13 +1211,27 @@ export class Controller implements vscode.Disposable {
     return (v in CONTEXT_BUDGET ? v : "standard") as ContextSize;
   }
 
+  /** What the Writing page shows: the switches, each open folder's team file, the latest checks. */
+  writingView(): WritingView {
+    const cfg = vscode.workspace.getConfiguration("airband");
+    const settings = { docs: cfg.get<boolean>("writing.docs", true), messages: cfg.get<boolean>("writing.messages", true), replies: cfg.get<boolean>("writing.replies", false), beforeSend: cfg.get<boolean>("writing.beforeSend", true) };
+    const projects = (vscode.workspace.workspaceFolders ?? []).map((f) => {
+      const root = f.uri.fsPath;
+      const file = projectFile(root);
+      const team = file ? (readJson<{ writing?: Record<string, unknown> }>(file, {}).writing ?? {}) : {};
+      const pick = (k: string) => (typeof team[k] === "boolean" ? { [k]: team[k] as boolean } : {});
+      return { root, name: f.name, ...(file ? { file } : {}), team: { ...pick("docs"), ...pick("messages"), ...pick("replies"), ...pick("beforeSend") }, rules: writingSettings(root).rules };
+    });
+    return { settings, projects, log: readWritingLog(40), briefs: { docs: DOCS_BRIEF, messages: MESSAGES_BRIEF, replies: REPLIES_BRIEF } };
+  }
+
   /** The hook can't read VS Code's settings, so the ones it needs are mirrored to ~/.airband/config.json. */
   syncConfig(): void {
     try {
       const cfg = vscode.workspace.getConfiguration("airband");
       const autoDeliver = cfg.get<boolean>("autoDeliver", false);
       const notices = cfg.get<boolean>("notices", true);
-      const writing = { docs: cfg.get<boolean>("writing.docs", true), messages: cfg.get<boolean>("writing.messages", true), replies: cfg.get<boolean>("writing.replies", false) };
+      const writing = { docs: cfg.get<boolean>("writing.docs", true), messages: cfg.get<boolean>("writing.messages", true), replies: cfg.get<boolean>("writing.replies", false), beforeSend: cfg.get<boolean>("writing.beforeSend", true) };
       // Kept: anything else in the file (set from the terminal, or by a newer version).
       const file = airbandFile("config.json");
       writeFileAtomic(file, JSON.stringify({ ...readJson<Record<string, unknown>>(file, {}), contextSize: this.contextSize(), autoDeliver, notices, writing }));

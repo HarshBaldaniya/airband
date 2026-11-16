@@ -247,20 +247,22 @@ export async function main(argv: string[]): Promise<number> {
       }
       const forProject = flag(args, "--project", "--team");
       if (what) {
-        if (!WRITING_KINDS.includes(what as WritingKind) || (want !== "on" && want !== "off")) return usage("writing [docs|messages|replies on|off] [--project] | writing check <file>");
-        if (forProject) out(`${paint.ok("✓")} Written to ${setProjectWriting(folder, what as WritingKind, want === "on")}. Commit it so the whole team gets the same rules.`);
-        else setConfig({ writing: { ...readConfig().writing, [what]: want === "on" } });
+        const key = what === "before-send" ? "beforeSend" : what;
+        if (!(WRITING_KINDS.includes(key as WritingKind) || key === "beforeSend") || (want !== "on" && want !== "off")) return usage("writing [docs|messages|replies|before-send on|off] [--project] | writing check <file>");
+        if (forProject) out(`${paint.ok("✓")} Written to ${setProjectWriting(folder, key as WritingKind | "beforeSend", want === "on")}. Commit it so the whole team gets the same rules.`);
+        else setConfig({ writing: { ...readConfig().writing, [key]: want === "on" } });
       }
       const s = writingSettings(folder);
       if (asJson) {
         json(s);
         return 0;
       }
-      const line = (k: WritingKind, about: string) => out(`  ${s[k] ? paint.ok("on ") : paint.dim("off")}  ${k.padEnd(9)} ${about}`);
+      const line = (k: WritingKind, about: string) => out(`  ${s[k] ? paint.ok("on ") : paint.dim("off")}  ${k.padEnd(11)} ${about}`);
       out("Writing rules Airband adds when a chat needs them:");
       line("docs", "PRDs, specs, READMEs, PR descriptions; and a check after a doc is written");
       line("messages", "Slack, email, PR and ticket comments, announcements");
       line("replies", "short replies you can act on, in every chat");
+      out(`  ${s.beforeSend ? paint.ok("on ") : paint.dim("off")}  ${"before-send".padEnd(11)} check a message, PR or commit before it goes out, and hold it once to fix`);
       if (s.project) out(paint.dim(`  This project's ${path.relative(folder, s.project) || s.project} sets the team's choices${s.rules.length ? ` and ${s.rules.length} rules of its own` : ""}.`));
       out(paint.dim(`  Change: ${self()} writing replies on · for the team: ${self()} writing docs on --project · check a file: ${self()} writing check README.md`));
       return 0;
