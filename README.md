@@ -63,8 +63,21 @@ adds the `airband` command. Every settings file it touches is backed up first.
   Done. Restart open agent chats to pick it up.
 ```
 
-Then restart your agent chats. In Codex, type `/hooks` once and trust Airband's hook: Codex runs a
-new hook only after you approve it.
+Then restart your agent chats. Each new chat opens with a line from Airband, shown to you only:
+
+```text
+✓ Airband · map of my-app ready (1,284 files) · sharing with “Billing fix” (Codex)
+  Another chat worked here in the last 12 hours: “Fix login redirect” (Codex). Say “catch up” to hear what it did.
+```
+
+and when another chat's work rides along with your message:
+
+```text
+↪ Airband added what “Billing fix” (Codex) did to this message
+```
+
+In Codex, type `/hooks` once and trust Airband's hook: Codex runs a new hook only after you approve
+it.
 
 ## What you get
 
@@ -211,6 +224,7 @@ gemini extensions install https://github.com/HarshBaldaniya/airband --auto-updat
 | `airband doctor` | Check that everything works, with the exact fix for anything that doesn't |
 | `airband update` | Move to the newest version and refresh every agent (`--check` only looks) |
 | `airband remove` | Take Airband out of every agent (`--purge` also deletes its data) |
+| `airband notices off` | Hide Airband's lines in your agent's window (`on` shows them again) |
 | `airband find "rate limiter"` | Where something is in your code; also `outline`, `graph`, `overview` |
 | `airband changelog` | What changed in this version (`--all` for every version) |
 | `airband about` | Version, system, where it is installed, and the links |
@@ -261,6 +275,7 @@ Settings live under **Settings → Extensions → Airband**:
 | `airband.contextSize` | `"standard"` | How much of a chat another chat receives when they are first connected: `compact` (~2k tokens), `standard` (~6k) or `full` (~15k). The rest is always in its flightlog. |
 | `airband.autoDeliver` | `false` | Give waiting updates to a chat as soon as it finishes, at the cost of an extra turn. Off: they wait for your next message, at no extra cost. |
 | `airband.codeMap.enabled` | `true` | Keep a Map of each open folder (about 1 MB for a large project). |
+| `airband.notices` | `true` | Show Airband's line when a chat starts and when other chats' work is added to your message. Shown to you only; no tokens. |
 | `airband.backupFolder` | `""` | A folder to copy flightlogs and your own commands to every half hour, for example in iCloud Drive or Dropbox. |
 
 <details>

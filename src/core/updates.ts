@@ -7,7 +7,7 @@ import { redact } from "./redact";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ChatDigest, ChatMessage, ChatRef, InboxItem } from "./types";
-import { readJson, airbandFile, safeId } from "./paths";
+import { readJson, airbandFile, safeId, writeFileAtomic } from "./paths";
 
 export type ContextSize = "compact" | "standard" | "full";
 /** Characters of conversation sent on connecting (tokens ≈ chars / 4). */
@@ -25,12 +25,28 @@ export interface AirbandConfig {
   contextSize: ContextSize;
   /** Deliver waiting updates as soon as a chat finishes a reply (not only with its next message). */
   autoDeliver: boolean;
+  /** Show the person a short line when a chat starts and when other chats' work rides along. */
+  notices: boolean;
 }
 
 export function readConfig(): AirbandConfig {
   const c = readJson<Partial<AirbandConfig>>(airbandFile("config.json"), {});
   // Delivering at once costs the chat an extra turn, so it is off unless chosen.
-  return { contextSize: c.contextSize && c.contextSize in CONTEXT_BUDGET ? c.contextSize : "standard", autoDeliver: c.autoDeliver === true };
+  return {
+    contextSize: c.contextSize && c.contextSize in CONTEXT_BUDGET ? c.contextSize : "standard",
+    autoDeliver: c.autoDeliver === true,
+    // On unless turned off: they tell the person Airband is working, at no token cost.
+    notices: c.notices !== false,
+  };
+}
+
+/** Changes some of Airband's settings in config.json, keeping the rest. (VS Code's own settings,
+ *  when the extension runs, are mirrored here too and win on its next start.) */
+export function setConfig(patch: Partial<AirbandConfig>): AirbandConfig {
+  const file = airbandFile("config.json");
+  const next = { ...readJson<Partial<AirbandConfig>>(file, {}), ...patch };
+  writeFileAtomic(file, JSON.stringify(next));
+  return readConfig();
 }
 
 /** What Claude is asked to do with updates delivered when it finishes a reply. */

@@ -15,6 +15,7 @@ import { aboutInfo, bugUrl, CHANGELOG, DOCS, openUrl, REPO } from "./about";
 import { closest, commandInfo, completion, renderCommandHelp, renderHelp, SHELLS, type Shell } from "./help";
 import { globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, pmCommand, startedBy, type OurCommand, type PackageManager } from "./pm";
 import { columns, out, paint, plain } from "./ui";
+import { readConfig, setConfig } from "../core/updates";
 import { changesSince, releases } from "./changes";
 import { completionOn, currentShell, refreshCompletion, turnCompletionOff, turnCompletionOn } from "./shell";
 import * as readline from "node:readline/promises";
@@ -184,6 +185,13 @@ export async function main(argv: string[]): Promise<number> {
       const c = theCommand();
       if (c) out(`  ${paint.dim(`The airband command stays until: ${uninstallLine(c)}`)}`);
       out("");
+      return 0;
+    }
+    case "notices": {
+      const want = rest.toLowerCase();
+      if (want && want !== "on" && want !== "off") return usage("notices [on|off]");
+      const on = want ? setConfig({ notices: want === "on" }).notices : readConfig().notices;
+      out(on ? `${paint.ok("✓")} Airband's lines in your agent's window are on (when a chat starts, and when other chats' work is added).` : `Airband's lines in your agent's window are off. Turn them back on: ${self()} notices on`);
       return 0;
     }
     case "version": {

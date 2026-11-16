@@ -68,6 +68,11 @@
           "default": false,
           "description": "When a connected chat finishes a reply, give it the updates that arrived while it worked right away. That costs it an extra turn (and its tokens) just to read them. Off (the default): updates wait for its next message, at no extra cost."
         },
+        "airband.notices": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a short line in your agent's window when a chat starts (Airband is on, the map is ready, who it shares with, what other chats did here lately) and when another chat's work is added to your message. Shown to you only: it costs no tokens. Claude Code and Gemini CLI."
+        },
         "airband.codeMap.enabled": {
           "type": "boolean",
           "default": true,

@@ -59,6 +59,14 @@ export const COMMANDS: CommandInfo[] = [
     aliases: ["upgrade"],
   },
   {
+    name: "notices",
+    group: "Get started",
+    args: "[on|off]",
+    summary: "Turn the short Airband lines in your agent's window on or off",
+    about: "When a chat starts, Airband shows one line: that it is on, the map is ready, who the chat shares with, and which other chats worked in the folder lately. When another chat's work is added to your message, it says so. They are shown to you only and cost no tokens (Claude Code and Gemini CLI). With nothing after it, says whether they are on.",
+    examples: ["airband notices", "airband notices off", "airband notices on"],
+  },
+  {
     name: "remove",
     group: "Get started",
     summary: "Take Airband out of every agent",

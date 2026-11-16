@@ -1174,8 +1174,10 @@ export class Controller implements vscode.Disposable {
   /** The hook can't read VS Code's settings, so the ones it needs are mirrored to ~/.airband/config.json. */
   syncConfig(): void {
     try {
-      const autoDeliver = vscode.workspace.getConfiguration("airband").get<boolean>("autoDeliver", false);
-      writeFileAtomic(airbandFile("config.json"), JSON.stringify({ contextSize: this.contextSize(), autoDeliver }));
+      const cfg = vscode.workspace.getConfiguration("airband");
+      const autoDeliver = cfg.get<boolean>("autoDeliver", false);
+      const notices = cfg.get<boolean>("notices", true);
+      writeFileAtomic(airbandFile("config.json"), JSON.stringify({ contextSize: this.contextSize(), autoDeliver, notices }));
     } catch {
       // Defaults apply.
     }

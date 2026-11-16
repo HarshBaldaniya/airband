@@ -11,7 +11,7 @@
 // It never blocks a chat: errors are swallowed, it always exits 0, and it
 // prints nothing except the context it delivers.
 import * as path from "node:path";
-import type { ChatMessage, HookStatus, Status, Tool } from "../core/types";
+import type { ChatMessage, HookStatus, InboxItem, Status, Tool } from "../core/types";
 import { safeId, statusDir, writeFileAtomic } from "../core/paths";
 import {
   addConnection,
@@ -30,6 +30,7 @@ import { claudeMessages, cleanText, fileSize, readLinesFrom } from "../core/tran
 import { codexMessages } from "../adapters/codex";
 import { geminiMessages, loadGeminiChat } from "../adapters/gemini";
 import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
+import { deliveryNotice, noticesOn, startNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
 
 export type HookTool = "claude" | "codex" | "gemini";
@@ -47,6 +48,8 @@ export interface HookInput {
   last_assistant_message?: string | null;
   /** The same, as Gemini CLI names it (AfterAgent). */
   prompt_response?: string | null;
+  /** SessionStart: why the chat is starting (startup, resume, clear, compact). */
+  source?: string;
 }
 
 /** Each tool's event names, as the one set Airband works with. */
@@ -225,21 +228,24 @@ export function bindBranch(input: HookInput, now = Date.now(), tool: HookTool = 
   if (p.keepConnected) addConnection(p.from, { id, tool: TOOL_NAME[tool], title: p.title }, now);
 }
 
-/** Everything waiting for this chat, as context for the message it just got. */
-export function deliver(input: HookInput, now = Date.now()): string | undefined {
+/** Everything waiting for this chat, as context for the message it just got, and what it came from. */
+export function deliver(input: HookInput, now = Date.now()): { text: string; items: InboxItem[] } | undefined {
   const id = input.session_id;
   if (!id) return undefined;
   const items = takeInbox(id);
   if (!items.length) return undefined;
   const text = formatDelivery(items, undefined, input.cwd);
   for (const i of items) logDelivery({ at: now, connectionId: i.connectionId, from: i.from.id, to: id, chars: i.text.length });
-  return text;
+  return { text, items };
 }
 
-/** Extra context in the shape the tool expects for this event. */
-function contextOut(tool: HookTool, event: "UserPromptSubmit" | "SessionStart", text: string): string {
-  const name = tool === "gemini" && event === "UserPromptSubmit" ? "BeforeAgent" : event;
-  return JSON.stringify({ hookSpecificOutput: { hookEventName: name, additionalContext: text } });
+/** The hook's answer in the shape the tool expects: context for the model, and a line for the person
+ *  (systemMessage, which the model never sees). Codex can't show a line, so it gets none. */
+function out(tool: HookTool, event: "UserPromptSubmit" | "SessionStart", context: string | undefined, notice: string | undefined): string | undefined {
+  const o: Record<string, unknown> = {};
+  if (context) o.hookSpecificOutput = { hookEventName: tool === "gemini" && event === "UserPromptSubmit" ? "BeforeAgent" : event, additionalContext: context };
+  if (notice && tool !== "codex") o.systemMessage = notice;
+  return Object.keys(o).length ? JSON.stringify(o) : undefined;
 }
 
 export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claude"): string | undefined {
@@ -261,17 +267,24 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
       // reason makes Claude Code, Codex and Gemini CLI (AfterAgent) keep the reply and continue
       // the turn with the reason as the next message, flagged stop_hook_active.
       if (!readConfig().autoDeliver) return undefined;
-      const context = deliver(input, now);
-      return context ? JSON.stringify({ decision: "block", reason: `${context}\n\n${AUTO_DELIVERY_ASK}` }) : undefined;
+      const d = deliver(input, now);
+      if (!d) return undefined;
+      const notice = tool === "claude" && noticesOn() ? deliveryNotice(d.items) : undefined;
+      return JSON.stringify({ decision: "block", reason: `${d.text}\n\n${AUTO_DELIVERY_ASK}`, ...(notice ? { systemMessage: notice } : {}) });
     }
     case "UserPromptSubmit": {
       bindBranch(input, now, tool);
-      const context = deliver(input, now);
-      return context ? contextOut(tool, "UserPromptSubmit", context) : undefined;
+      const d = deliver(input, now);
+      // Gemini shows a line at a chat's start only, so the "added what … did" line is Claude's.
+      const notice = d && tool === "claude" && noticesOn() ? deliveryNotice(d.items) : undefined;
+      return out(tool, "UserPromptSubmit", d?.text, notice);
     }
     case "SessionStart": {
-      const context = deliver(input, now);
-      return context ? contextOut(tool, "SessionStart", context) : undefined;
+      const d = deliver(input, now);
+      // Once per chat: when it starts, is resumed or cleared; not after every compaction.
+      const showStart = noticesOn() && input.source !== "compact";
+      const lines = [showStart ? startNotice({ sessionId: input.session_id, cwd: input.cwd, now }) : "", d && noticesOn() ? deliveryNotice(d.items) : ""].filter(Boolean);
+      return out(tool, "SessionStart", d?.text, lines.join("\n") || undefined);
     }
     default:
       return undefined;

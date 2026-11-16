@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Airband says what it's doing.** When a chat starts, one line in the agent's window: Airband
+  is on, the map of the folder is ready, who the chat shares with, and which other chats worked
+  there in the last 12 hours, with what to say to catch up. When another chat's work is added to
+  your message, a line names it. Shown to you only, so they cost no tokens (Claude Code; Gemini
+  CLI at the start). Turn them off with `airband notices off` or the `airband.notices` setting.
+
 ## 0.0.1 (first release)
 
 Airband was called Crosstalk. Installing Airband moves a Crosstalk setup over by itself: its data
