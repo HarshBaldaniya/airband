@@ -70,11 +70,20 @@ Then restart your agent chats. Each new chat opens with a line from Airband, sho
   Another chat worked here in the last 12 hours: “Fix login redirect” (Codex). Say “catch up” to hear what it did.
 ```
 
-and when another chat's work rides along with your message:
+when another chat's work rides along with your message:
 
 ```text
 ↪ Airband added what “Billing fix” (Codex) did to this message
 ```
+
+and after your agent asks Airband something, what it found and what it saved (Claude Code):
+
+```text
+↪ Airband: “syncSeats” and the 4 places that use it · about 300 tokens instead of about 9,800 to read the 5 files
+```
+
+The saving is measured, not guessed: the answer's own length against the real size of the files
+it points to. It shows only when it is a real saving.
 
 In Codex, type `/hooks` once and trust Airband's hook: Codex runs a new hook only after you approve
 it.
@@ -93,12 +102,12 @@ it.
 ### What your agents get
 
 Setup gives each agent three tools over MCP (under 400 tokens of definitions in all), the
-instructions to use them, and three skills they pick up by themselves when a task matches:
+instructions to use them, and seven skills they pick up by themselves when a task matches:
 
 | Tool | What an agent does with it |
 |---|---|
-| `airband_map` | `find` code by name or meaning, ranked, with `path:start-end`; `outline` a file or folder; `graph` who uses what; `check` unused code and stale docs; or an overview of the project |
-| `airband_flightlog` | Read another chat's asks and outcomes, or search every chat |
+| `airband_map` | `find` code by name or meaning, ranked, with `path:start-end`; `outline` a file or folder; `graph` who uses what; `check` unused code and stale docs; `diff` what a branch or pull request changed; `in` another project you mapped; or an overview of the project |
+| `airband_flightlog` | Read another chat's asks and outcomes, or search every chat, by words, code names, tickets (`ENG-142`), PRs (`#128`) or Figma links |
 | `airband_notes` | Read and leave notes for the next chat in this project |
 
 | Skill | Used when |
@@ -106,9 +115,40 @@ instructions to use them, and three skills they pick up by themselves when a tas
 | `airband-find-code` | the agent needs to find where something is, or what uses it |
 | `airband-recall` | you ask what was done before, or which chat changed something |
 | `airband-catchup` | you ask what the other chats did while you were away |
+| `airband-review` | you ask to review a pull request or branch, or your own changes before a PR |
+| `airband-impact` | you ask what a change would break, or whether something is safe to rename or delete |
+| `airband-handoff` | you say hand off, wrap up, or that another chat will continue the work |
+| `airband-ticket` | you name a ticket, issue, PR number or Figma link to work on |
 
 The commands are there to run by hand too: `/airband:review` in Claude Code, `/prompts:review` in
 Codex, `/review` in Gemini CLI.
+
+### Reviewing a pull request
+
+`airband_map` with `diff: "#128"` (or `airband diff #128` in a terminal) reads the pull request from
+git without checking it out: every function, class and type it added, changed, moved or removed,
+with `path:start-end`, who calls each one and which tests reach it. Removed code that something
+still calls is flagged. A number is fetched from `origin` first; a branch name or `main..feature`
+works too, and with nothing given it compares this branch with the default one.
+
+```text
+main...#128 (4f1c2a9e0 → 9b77d03c1): 6 declarations changed in 3 files.
+src/billing/seats.ts
+  removed oldSeatCount function was :12-30 · still used by 1: invoiceLines src/billing/invoice.ts (check these)
+  changed syncSeats function :40-88 · used by 4: onMemberJoined src/team/members.ts, … · tests: test/seats.test.ts
+src/team/members.ts
+  changed onMemberLeft function :61-79 · used by 2: removeMember src/team/api.ts, … · no test reaches it
+```
+
+With `in: "my-api"` (or `--in my-api`) the same questions go to another project you have
+mapped, by its folder's name, so a chat in your app can look up the API route it calls.
+
+### Tickets, issues and designs
+
+Each chat's record keeps the tickets and links named in it: Linear and Jira ids (`ENG-142`), GitHub
+pull requests and issues (`#128`, links), and Figma files and frames. Ask any agent "what did we do
+for ENG-142?" and it finds the chats, in any agent, that worked on it. Airband does not connect to
+Linear, GitHub or Figma; it remembers what your chats did with them.
 
 ## How it works
 
@@ -226,6 +266,7 @@ gemini extensions install https://github.com/HarshBaldaniya/airband --auto-updat
 | `airband remove` | Take Airband out of every agent (`--purge` also deletes its data) |
 | `airband notices off` | Hide Airband's lines in your agent's window (`on` shows them again) |
 | `airband find "rate limiter"` | Where something is in your code; also `outline`, `graph`, `overview` |
+| `airband diff #128` | What a pull request or branch changed: functions, their callers, the tests |
 | `airband changelog` | What changed in this version (`--all` for every version) |
 | `airband about` | Version, system, where it is installed, and the links |
 | `airband bug` | Open a GitHub issue with your version and system filled in |
@@ -258,10 +299,12 @@ For CI and cloud agents:
 airband find "rate limiter"        # ranked matches, path:start-end
 airband outline src/api/limits.ts  # one level of a file or folder
 airband graph RateLimiter          # who uses it, what it uses
+airband diff #128                  # what a PR changed, who calls it, which tests reach it
 airband check docs                 # exits 1 when a doc names code that is gone
 ```
 
-`--in <folder>` points it at another project. The parsers for TypeScript, JavaScript and Python are
+`--in <folder>` points it at another project, and so does the name of one already mapped
+(`--in my-api`). The parsers for TypeScript, JavaScript and Python are
 built in; Go, Rust, Java, C#, Ruby and PHP are downloaded once, the first time a project has them,
 and used only if they match a fingerprint built into Airband.
 </details>

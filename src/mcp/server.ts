@@ -9,6 +9,8 @@ import { z } from "zod";
 import { listNotes, readNote, saveNote } from "../core/notes";
 import { catchUpRecord, exchangeText, listHeads, readAsks, recordBehind, type RecordAsk, type RecordHead } from "../core/record";
 import { CodeMap } from "../codemap/index";
+import { diffReport, renderDiff } from "../codemap/diff";
+import { findProject } from "../codemap/where";
 import { renderTokenReport, tokenReport } from "../core/tokens";
 import { allCommands, renderCommand, userLibraryDir, type LibraryCommand } from "../library/index";
 
@@ -19,7 +21,8 @@ const root = process.env.AIRBAND_ROOT || process.cwd();
 const INSTRUCTIONS = [
   "Airband gives this project a map of its code and the records of the person's other AI chats on this computer.",
   "- To find code (where something is defined, what calls or imports it, how a folder is laid out), call airband_map before grep, glob or reading whole files: find for a name or plain words, outline for a file or folder, graph for who uses what, no arguments for an overview. It answers in a few hundred tokens.",
-  "- When the person refers to earlier work or another chat (what was done, which chat changed something, what happened while they were away), call airband_flightlog: with query to search every chat, or with chat to read one.",
+  "- To review a branch or pull request, call airband_map with diff first (\"main..feature\", a branch, or \"#128\"): what it changed, who calls each change and which tests reach it, without checking it out. Add in to ask another project the person mapped (\"my-api\").",
+  "- When the person refers to earlier work or another chat (what was done, which chat changed something, what happened while they were away, a ticket like ENG-142, a PR like #128), call airband_flightlog: with query to search every chat, or with chat to read one.",
   "- airband_notes holds notes chats left for this project; read them before working in an unfamiliar area, and save one when you learn something the next chat should know.",
 ].join("\n");
 
@@ -29,16 +32,18 @@ const text = (t: string, isError = false) => ({ content: [{ type: "text" as cons
 
 // ---- the code map: where things are in this codebase, in a few hundred tokens, no AI ----
 
-const codeMap = new CodeMap(root);
-let lastSweep = 0;
+const maps = new Map<string, { map: CodeMap; at: number }>();
 
-/** The map, brought up to date first: only files whose size or time changed are read again. */
-async function freshMap(): Promise<CodeMap> {
-  if (Date.now() - lastSweep > 1500) {
-    await codeMap.refresh();
-    lastSweep = Date.now();
+/** A folder's map (this project's unless another is named), brought up to date first: only files
+ *  whose size or time changed are read again. */
+async function freshMap(folder = root): Promise<CodeMap> {
+  let m = maps.get(folder);
+  if (!m) maps.set(folder, (m = { map: new CodeMap(folder), at: 0 }));
+  if (Date.now() - m.at > 1500) {
+    await m.map.refresh();
+    m.at = Date.now();
   }
-  return codeMap;
+  return m.map;
 }
 
 /**
@@ -59,26 +64,41 @@ server.registerTool(
   "airband_map",
   {
     description:
-      "This codebase's map (no AI). find: words or a name → ranked code with path:start-end; cheaper than grep and reading files. outline: a path or name → its parts with lines. graph: who uses it, what it uses. check: unused code or stale docs. None: overview.",
+      "Code map (no AI), cheaper than grep or reading files. find: words/name → ranked code, path:start-end. outline: path/name → parts. graph: its users and uses. check: unused code, stale docs. diff: branch, a..b or #PR → changes, callers, tests. in: another project. None: overview.",
     inputSchema: {
       find: z.string().optional(),
       outline: z.string().optional(),
       graph: z.string().optional(),
       hops: z.number().int().min(1).max(2).optional(),
       check: z.enum(["unused", "docs"]).optional(),
+      diff: z.string().optional(),
+      in: z.string().optional(),
     },
   },
-  async ({ find, outline, graph, hops, check }) => {
-    const map = await freshMap();
-    if (check === "unused") return text(map.unusedText());
+  async ({ find, outline, graph, hops, check, diff, in: other }) => {
+    let folder = root;
+    let label = "";
+    if (other) {
+      const p = findProject(other, root);
+      if (typeof p === "string") return text(p, true);
+      folder = p.root;
+      label = folder === root ? "" : `In ${p.name} (${p.root}):\n`;
+    }
+    const map = await freshMap(folder);
+    const answer = (t: string) => text(label + t);
+    if (diff !== undefined) {
+      const r = await diffReport(map, diff);
+      return typeof r === "string" ? text(r, true) : answer(renderDiff(r));
+    }
+    if (check === "unused") return answer(map.unusedText());
     if (check === "docs") {
       const stale = map.staleDocs();
-      return text(stale.length ? stale.map((d) => `${d.file}:${d.line}  names ${d.missing} (${d.kind}), which no longer exists`).join("\n") : "Every file, hook and script the docs name exists.");
+      return answer(stale.length ? stale.map((d) => `${d.file}:${d.line}  names ${d.missing} (${d.kind}), which no longer exists`).join("\n") : "Every file, hook and script the docs name exists.");
     }
-    if (find) return text(map.find(find, { focus: recentFiles() }));
-    if (outline) return text(map.outline(outline));
-    if (graph) return text(map.graphOf(graph, (hops ?? 1) as 1 | 2));
-    return text(map.overview());
+    if (find) return answer(map.find(find, { focus: folder === root ? recentFiles() : [] }));
+    if (outline) return answer(map.outline(outline));
+    if (graph) return answer(map.graphOf(graph, (hops ?? 1) as 1 | 2));
+    return answer(map.overview());
   },
 );
 
@@ -109,7 +129,7 @@ server.registerTool(
   "airband_flightlog",
   {
     description:
-      "What AI chats on this computer were asked and did, a line per ask. No chat: lists them; with query, searches all (words or code names). n: one ask in full. tokens: where its tokens went.",
+      "What AI chats on this computer were asked and did, a line per ask. No chat: list; query: search all (words, code, tickets, PRs). n: one ask whole. tokens: its token use.",
     inputSchema: {
       chat: z.string().optional(),
       query: z.string().optional(),
@@ -206,7 +226,7 @@ async function recall(query: string): Promise<string> {
 server.registerTool(
   "airband_notes",
   {
-    description: "Notes chats leave for this project. None: list. name: read one. title and text: save one (to hand over work).",
+    description: "Notes chats leave for this project. None: list. name: read one. title and text: save one (a handover).",
     inputSchema: {
       name: z.string().optional(),
       title: z.string().optional(),

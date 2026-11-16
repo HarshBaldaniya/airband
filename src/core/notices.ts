@@ -84,3 +84,102 @@ export function deliveryNotice(items: InboxItem[]): string | undefined {
   if (!from.length) return `↪ Airband passed on ${changes === 1 ? "a channel change" : `${changes} channel changes`}`;
   return `↪ Airband added what ${list(from)} did to this message`;
 }
+
+// ---- after an Airband tool: one line saying what it found and what it saved ----
+
+/** What a tool call handed back, as text, whatever shape the agent passes it in. */
+function responseText(r: unknown): string {
+  if (typeof r === "string") return r;
+  const parts: string[] = [];
+  const walk = (v: unknown, depth: number) => {
+    if (depth > 4 || v == null) return;
+    if (Array.isArray(v)) v.forEach((x) => walk(x, depth + 1));
+    else if (typeof v === "object") {
+      const o = v as Record<string, unknown>;
+      if (typeof o.text === "string") parts.push(o.text);
+      else for (const k of ["content", "result", "structuredContent"]) walk(o[k], depth + 1);
+    }
+  };
+  walk(r, 0);
+  return parts.join("\n");
+}
+
+const FILE_REF = /(?<![\w@/.-])((?:[\w@.-]+\/)*[\w@.-]+\.[A-Za-z][A-Za-z0-9]{0,5})(?::\d+(?:-\d+)?)?(?![\w/])/g;
+
+/** The files an answer points to, that exist under its project: what the agent would otherwise read. */
+function filesNamed(answer: string, root: string): { count: number; bytes: number } {
+  const seen = new Set<string>();
+  let bytes = 0;
+  for (const m of answer.matchAll(FILE_REF)) {
+    const rel = m[1];
+    if (seen.has(rel) || seen.size >= 60 || rel.startsWith("..")) continue;
+    try {
+      const st = fs.statSync(path.join(root, rel));
+      if (!st.isFile()) continue;
+      seen.add(rel);
+      bytes += st.size;
+    } catch {
+      // Not a file here (a name like "e.g." or a package).
+    }
+  }
+  return { count: seen.size, bytes };
+}
+
+/** "about 300", "about 9,800", "about 41,000": a round number, as an estimate should be. */
+function about(tokens: number): string {
+  const r = tokens < 1000 ? Math.max(10, Math.round(tokens / 10) * 10) : Math.round(tokens / 100) * 100;
+  return `about ${r.toLocaleString("en-US")}`;
+}
+
+const quote = (s: string) => `“${s.length > 40 ? `${s.slice(0, 39)}…` : s}”`;
+
+/**
+ * The line shown after an Airband tool call (Claude Code only): what it found, how many tokens the
+ * answer cost, and what reading the files it points to would have cost instead. The comparison is
+ * measured, not claimed: the answer's own length, and the real size on disk of every file it names.
+ * Said only when it is a real saving; nothing for errors or small answers.
+ */
+export function toolNotice(toolName: string | undefined, toolInput: unknown, toolResponse: unknown, cwd: string | undefined): string | undefined {
+  const tool = /airband_(map|flightlog|notes)$/.exec(toolName ?? "")?.[1];
+  if (!tool) return undefined;
+  const input = (toolInput && typeof toolInput === "object" ? toolInput : {}) as Record<string, unknown>;
+  if ((toolResponse as { isError?: boolean } | undefined)?.isError) return undefined;
+  const answer = responseText(toolResponse);
+  if (!answer.trim()) return undefined;
+  const str = (k: string) => (typeof input[k] === "string" && (input[k] as string).trim() ? (input[k] as string).trim() : undefined);
+
+  if (tool === "notes") return str("title") && str("text") ? `↪ Airband saved a note for the next chat: ${quote(str("title")!)}` : undefined;
+  if (tool === "flightlog") {
+    const q = str("query");
+    if (!q || str("chat")) return undefined;
+    if (/^No chat's asks mention/.test(answer)) return `↪ Airband searched every chat for ${quote(q)}: nothing yet`;
+    const n = answer.split("\n").filter((l) => / · .* → /.test(l)).length;
+    return n ? `↪ Airband found ${n} earlier ask${n === 1 ? "" : "s"} about ${quote(q)} in your chats` : undefined;
+  }
+
+  // The map: what it found, and the measured saving.
+  const other = /^In ([^\n]+?) \(([^\n]+)\):\n/.exec(answer);
+  const root = other?.[2] ?? cwd;
+  const where = other ? ` in ${other[1]}` : "";
+  let what: string;
+  const diff = str("diff");
+  if (diff !== undefined || input.diff === "") {
+    const head = /: (\d+) declarations? changed in (\d+) files?/.exec(answer);
+    what = head ? `${diff || "this branch"} changes ${head[1]} declaration${head[1] === "1" ? "" : "s"} in ${head[2]} file${head[2] === "1" ? "" : "s"}, with callers and tests` : `read what ${diff || "this branch"} changed`;
+  } else if (str("graph")) {
+    const used = /used by (\d+)/.exec(answer)?.[1] ?? /imported by (\d+)/.exec(answer)?.[1];
+    what = used ? `${quote(str("graph")!)} and ${used === "1" ? "the one place that uses it" : `the ${used} places that use it`}` : `who uses ${quote(str("graph")!)}`;
+  } else if (str("find")) {
+    if (/^Nothing in the code map|still being built/.test(answer)) return undefined;
+    what = `found ${quote(str("find")!)}`;
+  } else if (str("outline")) what = `the outline of ${quote(str("outline")!)}`;
+  else if (input.check) what = input.check === "unused" ? "checked for unused code" : "checked the docs for stale names";
+  else what = "the project overview";
+
+  const cost = Math.ceil(answer.length / 4);
+  const named = root ? filesNamed(answer, root) : { count: 0, bytes: 0 };
+  const instead = Math.ceil(named.bytes / 4);
+  const saving = named.count >= 1 && instead >= cost * 2 && instead - cost >= 500;
+  const tail = saving ? ` · ${about(cost)} tokens instead of ${about(instead)} to read the ${named.count === 1 ? "file" : `${named.count} files`}` : "";
+  return `↪ Airband${where}: ${what}${tail}`;
+}

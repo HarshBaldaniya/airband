@@ -1577,7 +1577,7 @@ export class Controller implements vscode.Disposable {
     const what = picks.map((p) => p.label).join(", ");
     const ok = await vscode.window.showInformationMessage(
       `Add Airband to ${what}?`,
-      { modal: true, detail: "Each agent's settings are backed up first. Claude Code: added through its own `claude mcp add`, plus three skills in ~/.claude/skills. Codex: a [mcp_servers.airband] table in config.toml, the commands as prompt files, and the skills in ~/.agents/skills. Gemini CLI: an mcpServers entry in settings.json. Remove it any time with \"Airband: Remove the toolkit\"." },
+      { modal: true, detail: "Each agent's settings are backed up first. Claude Code: added through its own `claude mcp add`, plus its skills in ~/.claude/skills. Codex: a [mcp_servers.airband] table in config.toml, the commands as prompt files, and the skills in ~/.agents/skills. Gemini CLI: an mcpServers entry in settings.json. Remove it any time with \"Airband: Remove the toolkit\"." },
       "Add",
     );
     if (ok !== "Add") return;

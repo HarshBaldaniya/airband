@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+- **Review pull requests from the map.** `airband_map` with `diff` (and `airband diff`) takes a
+  branch, `main..feature` or a PR number (`#128`, fetched from origin, nothing checked out) and
+  lists every function, class and type it added, changed, moved or removed, with who calls each
+  one and which tests reach it. Removed code that something still calls is flagged.
+- **Ask another project.** `in: "my-api"` (or `--in my-api`) sends any map question to
+  another project you have mapped, by its folder's name.
+- **Tickets, issues and designs are remembered.** Chat records keep Linear and Jira ids
+  (`ENG-142`), GitHub PRs and issues (`#128`, links) and Figma links, from the person's words and
+  the replies, so "what did we do for ENG-142" finds the chats that worked on it, in any agent.
+- **Four new skills** agents use by themselves: `airband-review`, `airband-impact`,
+  `airband-handoff` and `airband-ticket`.
+- **A line after each Airband answer** (Claude Code): what it found, and the tokens it saved
+  against reading the files it points to, measured from their real size. Shown only when it is a
+  real saving; `airband notices off` hides it with the others.
+
 ## 0.0.2
 - **Airband says what it's doing.** When a chat starts, one line in the agent's window: Airband
   is on, the map of the folder is ready, who the chat shares with, and which other chats worked

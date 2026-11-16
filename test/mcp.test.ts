@@ -44,6 +44,12 @@ test("the MCP server lists, saves and reads notes", { skip: !fs.existsSync(built
     const definitions = Math.ceil(JSON.stringify(tools.result.tools).length / 4);
     assert.ok(definitions < 400, `every chat pays ${definitions} tokens for Airband's tool definitions`);
 
+    const elsewhere = await call("tools/call", { name: "airband_map", arguments: { in: "no-such-project", find: "x" } });
+    assert.equal(elsewhere.result.isError, true);
+    assert.match(elsewhere.result.content[0].text, /No mapped project called "no-such-project"/);
+    const notGit = await call("tools/call", { name: "airband_map", arguments: { diff: "main..feature" } });
+    assert.equal(notGit.result.isError, true, "a folder with no git history says so");
+
     const empty = await call("tools/call", { name: "airband_notes", arguments: {} });
     assert.match(empty.result.content[0].text, /No notes yet/);
 

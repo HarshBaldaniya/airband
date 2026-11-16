@@ -92,6 +92,14 @@ export const COMMANDS: CommandInfo[] = [
     options: [["--hops 2", "One more step out"]],
     examples: ["airband graph RateLimiter", "airband graph src/api/auth.ts --hops 2"],
   },
+  {
+    name: "diff",
+    group: "Find your way in code",
+    args: "[range|#PR]",
+    summary: "What a branch or PR changed: functions, their callers, the tests",
+    about: "Reads both ends from git without checking anything out. A pull request number is fetched from origin first. With nothing after it, compares this branch with the default one.",
+    examples: ["airband diff", "airband diff #128", "airband diff main..feature/seats", "airband diff #120 --in my-api"],
+  },
   { name: "overview", group: "Find your way in code", summary: "The project: commands, entry points, main parts, conventions", examples: ["airband overview"] },
   { name: "map", group: "Find your way in code", args: "[folder]", summary: "Build or refresh the code map (about 1 MB, no AI)", examples: ["airband map", "airband map ../other-project"] },
   {
@@ -128,7 +136,7 @@ export const COMMANDS: CommandInfo[] = [
 ];
 
 export const GLOBAL_OPTIONS: [string, string][] = [
-  ["--in <folder>", "Work on this folder (default: the one you are in)"],
+  ["--in <folder|project>", "Work on this folder, or a project already mapped by its name (default: the one you are in)"],
   ["--json", "Output as JSON (status, doctor, version, about)"],
   ["--no-color", "Plain text, no colour"],
   ["-h, --help", "Help for Airband or a command"],

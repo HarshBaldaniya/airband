@@ -30,7 +30,7 @@ import { claudeMessages, cleanText, fileSize, readLinesFrom } from "../core/tran
 import { codexMessages } from "../adapters/codex";
 import { geminiMessages, loadGeminiChat } from "../adapters/gemini";
 import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
-import { deliveryNotice, noticesOn, startNotice } from "../core/notices";
+import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
 
 export type HookTool = "claude" | "codex" | "gemini";
@@ -50,6 +50,10 @@ export interface HookInput {
   prompt_response?: string | null;
   /** SessionStart: why the chat is starting (startup, resume, clear, compact). */
   source?: string;
+  /** PostToolUse: the tool that just ran, what it was asked and what it answered. */
+  tool_name?: string;
+  tool_input?: unknown;
+  tool_response?: unknown;
 }
 
 /** Each tool's event names, as the one set Airband works with. */
@@ -285,6 +289,13 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
       const showStart = noticesOn() && input.source !== "compact";
       const lines = [showStart ? startNotice({ sessionId: input.session_id, cwd: input.cwd, now }) : "", d && noticesOn() ? deliveryNotice(d.items) : ""].filter(Boolean);
       return out(tool, "SessionStart", d?.text, lines.join("\n") || undefined);
+    }
+    case "PostToolUse": {
+      // After an Airband tool, one line for the person: what it found and the tokens it saved.
+      // Claude Code shows it; the others have no place for a line here.
+      if (tool !== "claude" || !/airband_(map|flightlog|notes)$/.test(input.tool_name ?? "") || !noticesOn()) return undefined;
+      const notice = toolNotice(input.tool_name, input.tool_input, input.tool_response, input.cwd);
+      return notice ? JSON.stringify({ systemMessage: notice }) : undefined;
     }
     default:
       return undefined;

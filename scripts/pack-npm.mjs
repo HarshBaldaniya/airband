@@ -67,9 +67,9 @@ Once set up, your agents:
 - find code through the Map (\`airband_map\`) before grepping, in a few hundred tokens;
 - read what your other chats did (\`airband_flightlog\`) and leave notes for each other (\`airband_notes\`);
 - have ready-made commands (\`/airband:review\` in Claude Code, \`/prompts:review\` in Codex, \`/review\` in Gemini CLI);
-- have three skills they use by themselves: find code, recall past work, catch up on other chats.
+- have seven skills they use by themselves: find code, recall past work, catch up on other chats, review a PR, check a change's impact, hand off work, pick up a ticket.
 
-The Map also works on its own: \`airband find "rate limiter"\`, \`airband outline src/api\`, \`airband graph RateLimiter\`.
+The Map also works on its own: \`airband find "rate limiter"\`, \`airband outline src/api\`, \`airband graph RateLimiter\`, \`airband diff #128\`.
 
 Works on macOS (Apple silicon and Intel), Windows and Linux, with Node.js 20 or newer. The full app,
 with the Tower board, Fuel and the Map as a picture, is the VS Code extension:

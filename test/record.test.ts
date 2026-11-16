@@ -224,3 +224,12 @@ test("from what commands printed, only git's own commit output and PR links coun
   const [a] = updateRecord("refs", "claude", file);
   assert.deepEqual(a.refs.sort(), ["87aa2f750", "PR #901"]);
 });
+
+test("tickets, issues, bare PR numbers and Figma links are kept, from the ask and the reply; colours and standards are not", () => {
+  const file = chat(
+    you("Pick up ENG-142 and #128, design at https://www.figma.com/design/AbCdEf123456/Billing-Page?node-id=12-34") +
+      ai("Done for ENG-142. Text is #333 colour, UTF-8 safe, see ISO-8601. Also closes issue #77 and https://github.com/acme/app/issues/78 and ENG-42."),
+  );
+  const [a] = updateRecord("tix", "claude", file);
+  assert.deepEqual(a.refs.sort(), ["#128", "ENG-42", "Figma Billing-Page node 12:34", "ENG-142", "issue #77", "issue #78"].sort());
+});

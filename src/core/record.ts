@@ -27,7 +27,7 @@ export interface RecordAsk {
   /** A question or "Next:" the reply ended on. */
   open?: string;
   files: string[];
-  /** Commits, PRs and links mentioned in the reply or in what its commands printed. */
+  /** Commits, PRs, issues, tickets and Figma links named in the ask, the reply or what its commands printed. */
   refs: string[];
   /** Where this exchange is in the agent's file: byte offsets (Claude, Codex) or message indexes (Gemini). */
   src: [number, number];
@@ -52,7 +52,7 @@ export interface RecordHead {
 const ASK_MAX = 600;
 const DID_MAX = 400;
 const OPEN_MAX = 200;
-const REFS_MAX = 8;
+const REFS_MAX = 12;
 /** A new chat's record is started by the hook; an older, bigger one is caught up in the background. */
 export const HOOK_START_MAX = 8 * 1024 * 1024;
 /** The most the hook reads in one go: more is left to the background catch-up. */
@@ -144,6 +144,28 @@ interface Exchange {
 
 const PR_URL = /github\.com\/[\w.-]+\/[\w.-]+\/pull\/(\d+)/g;
 const PR_WORD = /\b(?:PR|pull request) #(\d{1,6})\b/gi;
+const ISSUE_URL = /github\.com\/[\w.-]+\/[\w.-]+\/issues\/(\d+)/g;
+const ISSUE_WORD = /\bissue #(\d{1,6})\b/gi;
+/** A bare "#128" the person or the agent wrote: a pull request or issue. */
+const HASH_NUMBER = /(?<![\w&/#])#(\d{2,6})(?![\w-])/g;
+const COLOUR_NEAR = /colou?r|css|hex|rgb|background|fill|stroke|border|text-\[|bg-\[/i;
+/** Linear and Jira tickets: ENG-142, ENG-42. */
+const TICKET = /(?<![\w-])(([A-Z][A-Z0-9]{1,9})-\d{1,6})(?![\w-])/g;
+/** Names that look like tickets but are standards and versions. */
+const NOT_TICKETS = new Set("UTF SHA ISO ES GPT HTTP RFC CVE COVID MD AES RSA TLS SSL IPV ECMA PEP WCAG CSS HTML ARM UTC GMT IST PST CET EST ID OS AI TS JS UI UX API URL SQL NS IE PS RS XP UTF8 H2 R2 S3 EC2 K8S".split(" "));
+const TICKET_URL = /(?:linear\.app\/[\w-]+\/issue|atlassian\.net\/browse)\/([A-Za-z][A-Za-z0-9]{1,9}-\d{1,6})/g;
+const FIGMA_URL = /figma\.com\/(?:design|file|board|proto|make|slides)\/([A-Za-z0-9]{10,})(?:\/([^\s?#)\]"'`]+))?(?:\?[^\s)\]"'`]*?node-id=([\d]+[-:][\d]+))?/g;
+
+function figmaRef(m: RegExpMatchArray): string {
+  let name: string | undefined = m[2];
+  try {
+    name = name ? decodeURIComponent(name) : undefined;
+  } catch {
+    // Keep it as written.
+  }
+  const node = m[3] ? ` node ${m[3].replace("-", ":")}` : "";
+  return `Figma ${(name ?? m[1]).slice(0, 40)}${node}`;
+}
 /**
  * What `git commit` prints: "[branch abc1234] message", then " 2 files changed". Both are needed,
  * so a file that merely contains "[branch abc1234]" (read by a command) doesn't count. In a raw chat
@@ -154,12 +176,27 @@ const COMMIT_LINE = /\[[\w./-]+ ([0-9a-f]{7,12})\][^\[]{0,300}?(?:\n|\\n) ?\d+ f
 const COMMIT_QUOTED = /`([0-9a-f]{7,12})`/g;
 
 /**
- * Commits and PRs: from a reply, as it names them; from what a command printed (`raw`), only git's
- * own commit output and PR links, since printed text often just mentions other work.
+ * Commits, PRs, issues, tickets (Linear, Jira) and Figma links: from the person's ask and the reply, as
+ * they name them; from what a command printed (`raw`), only git's own commit output and links, since
+ * printed text often just mentions other work.
  */
 function refsIn(text: string, into: Set<string>, raw: boolean): void {
   for (const m of text.matchAll(PR_URL)) into.add(`PR #${m[1]}`);
-  if (!raw) for (const m of text.matchAll(PR_WORD)) into.add(`PR #${m[1]}`);
+  for (const m of text.matchAll(ISSUE_URL)) into.add(`issue #${m[1]}`);
+  for (const m of text.matchAll(TICKET_URL)) into.add(m[1].toUpperCase());
+  for (const m of text.matchAll(FIGMA_URL)) into.add(figmaRef(m));
+  if (!raw) {
+    for (const m of text.matchAll(PR_WORD)) into.add(`PR #${m[1]}`);
+    for (const m of text.matchAll(ISSUE_WORD)) into.add(`issue #${m[1]}`);
+    for (const m of text.matchAll(TICKET)) if (!NOT_TICKETS.has(m[2])) into.add(m[1]);
+    for (const m of text.matchAll(HASH_NUMBER)) {
+      const n = m[1];
+      if (into.has(`PR #${n}`) || into.has(`issue #${n}`)) continue;
+      // "#333" next to colour words is a colour, not a pull request.
+      if (COLOUR_NEAR.test(text.slice(Math.max(0, (m.index ?? 0) - 40), (m.index ?? 0) + 12))) continue;
+      into.add(`#${n}`);
+    }
+  }
   for (const m of text.matchAll(raw ? COMMIT_LINE : COMMIT_QUOTED)) if (/\d/.test(m[1]) && /[a-f]/.test(m[1])) into.add(m[1].slice(0, 9));
 }
 
@@ -292,6 +329,8 @@ function openItem(reply: string): string | undefined {
 
 function toAsk(e: Exchange, n: number): RecordAsk {
   const refs = new Set<string>();
+  // The ticket or PR the person names comes first.
+  refsIn(e.ask, refs, false);
   refsIn(e.reply, refs, false);
   for (const r of e.refs) refs.add(r);
   const ask: RecordAsk = {

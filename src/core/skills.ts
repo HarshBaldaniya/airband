@@ -8,12 +8,20 @@ import * as path from "node:path";
 import findCode from "../../skills/airband-find-code/SKILL.md";
 import recall from "../../skills/airband-recall/SKILL.md";
 import catchup from "../../skills/airband-catchup/SKILL.md";
+import review from "../../skills/airband-review/SKILL.md";
+import impact from "../../skills/airband-impact/SKILL.md";
+import handoff from "../../skills/airband-handoff/SKILL.md";
+import ticket from "../../skills/airband-ticket/SKILL.md";
 import { guardRealHome, writeFileAtomic } from "./paths";
 
 export const SKILLS: { name: string; text: string }[] = [
   { name: "airband-find-code", text: findCode },
   { name: "airband-recall", text: recall },
   { name: "airband-catchup", text: catchup },
+  { name: "airband-review", text: review },
+  { name: "airband-impact", text: impact },
+  { name: "airband-handoff", text: handoff },
+  { name: "airband-ticket", text: ticket },
 ];
 
 /** A file in each skill folder Airband wrote, so it only ever replaces or removes its own. */

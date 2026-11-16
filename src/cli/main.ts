@@ -6,6 +6,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { airbandHome } from "../core/paths";
 import { CodeMap } from "../codemap/index";
+import { diffReport, renderDiff } from "../codemap/diff";
+import { findProject } from "../codemap/where";
 import { backUp, restore } from "../core/backup";
 import { renderTokenReport, tokenReport } from "../core/tokens";
 import { allCommands, suggest } from "../library/index";
@@ -69,7 +71,17 @@ export async function main(argv: string[]): Promise<number> {
     out(renderCommandHelp(info, self()));
     return 0;
   }
-  const folder = path.resolve(option(args, "--in") ?? process.cwd());
+  // --in takes a folder, or the name of a project already mapped ("my-api").
+  const inArg = option(args, "--in");
+  let folder = path.resolve(inArg ?? process.cwd());
+  if (inArg && !fs.existsSync(folder)) {
+    const p = findProject(inArg);
+    if (typeof p === "string") {
+      out(p);
+      return 1;
+    }
+    folder = p.root;
+  }
   const hops = option(args, "--hops") === "2" ? 2 : 1;
   const limit = Number(option(args, "--limit") ?? "") || undefined;
   const rest = args.filter((a) => !a.startsWith("--")).join(" ").trim();
@@ -103,6 +115,15 @@ export async function main(argv: string[]): Promise<number> {
     case "overview":
       out((await freshMap()).overview(1200));
       return 0;
+    case "diff": {
+      const r = await diffReport(await freshMap(), rest);
+      if (typeof r === "string") {
+        out(r);
+        return 1;
+      }
+      out(asJson ? JSON.stringify(r, null, 2) : renderDiff(r, 4000));
+      return 0;
+    }
     case "check": {
       const m = await freshMap();
       if (rest === "unused") out(m.unusedText(3000));
