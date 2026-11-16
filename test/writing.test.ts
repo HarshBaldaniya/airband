@@ -17,7 +17,6 @@ import {
   MESSAGES_BRIEF,
   notYetGiven,
   outgoingText,
-  readWritingLog,
   REPLIES_BRIEF,
   setProjectWriting,
   summarise,
@@ -268,7 +267,7 @@ test("the same words are held once, then go through", () => {
   assert.equal(holdOnce("s2", "Hi team, hope you're well"), true, "another chat is its own");
 });
 
-test("the hook holds a send once in Claude Code and Gemini CLI, and logs it for the Writing page", () => {
+test("the hook holds a send once in Claude Code and Gemini CLI", () => {
   const pre = (tool: "claude" | "gemini" | "codex", sid = "c1") =>
     handle({ hook_event_name: tool === "gemini" ? "BeforeTool" : "PreToolUse", session_id: sid, cwd: project, tool_name: tool === "gemini" ? "run_shell_command" : "Bash", tool_input: { command: HEREDOC_PR } }, Date.now(), tool);
   const first = JSON.parse(pre("claude")!);
@@ -282,9 +281,6 @@ test("the hook holds a send once in Claude Code and Gemini CLI, and logs it for 
   assert.equal(gem.decision, "deny");
   assert.match(gem.reason, /^Airband held this PR description/);
   assert.equal(pre("codex", "x1"), undefined, "Codex is not asked before a tool");
-  const log = readWritingLog();
-  assert.equal(log.length, 2);
-  assert.deepEqual([log[0].action, log[0].what, log[0].agent], ["held", "PR description", "gemini"], "newest first");
   // Off: nothing is held.
   setConfig({ writing: { docs: true, messages: true, replies: false, beforeSend: false } });
   assert.equal(pre("claude", "c9"), undefined);

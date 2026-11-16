@@ -204,9 +204,7 @@ to PRs, because its built-in instructions tell it to. `airband writing ai-credit
 at the source, in Claude Code's own `attribution` setting. Airband backs up the settings file first,
 and `ai-credit on` puts back whatever was there.
 
-The **Writing** page in the VS Code extension shows all of this. It has the switches and the team
-file for each open project. A "Check a file" button checks a doc on the spot. The page also lists
-what the checks found lately, each with a click to its line.
+The **Writing** page in the VS Code extension has a switch for each of these.
 
 ```bash
 airband writing                       # what is on

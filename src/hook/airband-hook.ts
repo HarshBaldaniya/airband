@@ -35,7 +35,7 @@ import { geminiMessages, loadGeminiChat } from "../adapters/gemini";
 import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
-import { briefFor, checkOutgoing, checkWrittenDoc, forgetGiven, holdOnce, logWriting, notYetGiven, outgoingText, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
+import { briefFor, checkOutgoing, checkWrittenDoc, forgetGiven, holdOnce, notYetGiven, outgoingText, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
 
 export type HookTool = "claude" | "codex" | "gemini";
 
@@ -347,7 +347,6 @@ export function docCheck(input: HookInput, tool: HookTool): string | undefined {
     ].filter(Boolean).join("\n");
     const o: Record<string, unknown> = { hookSpecificOutput: { hookEventName: tool === "gemini" ? "AfterTool" : "PostToolUse", additionalContext: context } };
     if (tool === "claude" && noticesOn()) o.systemMessage = `↪ Airband checked ${name}: ${summarise(found)}`;
-    logWriting({ at: Date.now(), what: name, agent: tool, cwd: input.cwd, action: "fix", summary: summarise(found), findings: found });
     return JSON.stringify(o);
   } catch {
     return undefined;
@@ -375,7 +374,6 @@ export function sendCheck(input: HookInput, tool: HookTool): string | undefined 
       found.length > 12 ? `… and ${found.length - 12} more.` : "",
       `Rewrite it and send it again, keeping every fact, name, date and link. If the person asked for this exact wording, send it again unchanged: it will go through.`,
     ].filter(Boolean).join("\n");
-    logWriting({ at: Date.now(), what: o.where, agent: tool, cwd: input.cwd, action: "held", summary: summarise(found), findings: found });
     if (tool === "gemini") return JSON.stringify({ decision: "deny", reason });
     const out: Record<string, unknown> = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } };
     if (noticesOn()) out.systemMessage = `↪ Airband held a ${o.where} to fix first: ${summarise(found)}`;

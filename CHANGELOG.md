@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.4
+- **A simpler Writing page.** It is now only the switches, in two groups: how agents write, and
+  what happens before anything goes out. "Hide AI credit lines" is one of them. The page uses
+  Airband's own orange. The team-file section, "What the agent gets", "Check a file" and the list
+  of past checks are gone. A project's `.airband.json` still works, and the page says when it
+  overrides a switch. `airband writing check <file>` still checks a doc from a terminal or CI.
+  Airband no longer keeps `~/.airband/writing-log.jsonl`.
+
 ## 0.0.3
 - **Review pull requests from the map.** `airband_map` with `diff` (and `airband diff`) takes a
   branch, `main..feature` or a PR number. A number like `#128` is fetched from origin, and nothing

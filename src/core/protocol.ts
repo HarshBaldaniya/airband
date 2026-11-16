@@ -121,22 +121,13 @@ export interface RunsView {
   audit: { at: number; automation: string; event: string; decision: "started" | "skipped"; why?: string; run?: string }[];
 }
 
-
-/** The Writing page: the rules agents get, the team's file per project, and what the checks found. */
+/** The Writing page: the rules agents get, and any project file that overrides them. */
 export interface WritingView {
   settings: { docs: boolean; messages: boolean; replies: boolean; beforeSend: boolean };
   /** Claude Code adds its own "Co-Authored-By: Claude" and "Generated with Claude Code" lines */
   claudeAiCredit: boolean;
-  projects: { root: string; name: string; file?: string; team: Partial<Record<"docs" | "messages" | "replies" | "beforeSend", boolean>>; rules: string[] }[];
-  log: { at: number; what: string; agent: string; cwd?: string; action: "fix" | "held"; summary: string; findings: WritingFindingView[] }[];
-  briefs: { docs: string; messages: string; replies: string };
-}
-
-export interface WritingFindingView {
-  line: number;
-  rule: string;
-  text: string;
-  fix?: string;
+  /** Open projects whose committed .airband.json sets a writing switch: it wins over the person's own */
+  projects: { name: string; team: Partial<Record<"docs" | "messages" | "replies" | "beforeSend", boolean>> }[];
 }
 
 export interface Ask {
@@ -168,8 +159,6 @@ export type ToWebview =
   | { type: "librarySuggest"; q: string; names: string[] }
   | { type: "runs"; data: RunsView }
   | { type: "writing"; data: WritingView }
-  /** A file checked from the Writing page */
-  | { type: "writingCheck"; file: string; name: string; findings: WritingFindingView[] }
   | { type: "models"; tool: Tool; models: ModelOption[]; error?: string };
 
 export type BoardTab = "board" | "usage" | "code" | "library" | "writing" | "runs";
@@ -209,12 +198,7 @@ export type FromWebview =
   | { type: "runs" }
   | { type: "writing" }
   | { type: "writingSet"; key: "docs" | "messages" | "replies" | "beforeSend"; on: boolean }
-  /** Save the current choices in this project's .airband.json, for the team */
-  | { type: "writingTeam"; root: string }
-  | { type: "writingOpen"; path: string; line?: number }
   | { type: "writingAiCredit"; show: boolean }
-  /** Pick a file and check it */
-  | { type: "writingCheck" }
   | { type: "runStart"; task: string; agents: ("claude" | "codex" | "gemini")[]; tokens?: number; minutes?: number; leases: string[] }
   | { type: "run"; id: string; action: "stop" | "apply" | "discard" | "log" | "open" }
   | { type: "stopAll" }
