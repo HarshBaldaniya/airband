@@ -146,10 +146,18 @@ export class PhoneLink {
     this.station.on("change", this.onChange);
     this.station.on("request", this.onRequest);
     this.station.on("finished", this.onFinished);
-    const saved = readJson<LinkFile | null>(linkFile(), null);
+    const saved = readJson<(LinkFile & { phones?: LinkedPhone[] }) | null>(linkFile(), null);
     if (!saved?.room || !saved.secret || !saved.vapid) return;
-    // A code nobody scanned before the Mac stopped: gone.
-    if (saved.codeUntil && saved.codeUntil <= this.now()) return this.clear();
+    // From the first version, a list of phones: its first one holds the link, as the only iPhone.
+    if (saved.phones) {
+      if (!saved.phone && saved.phones[0]) saved.phone = saved.phones[0];
+      delete saved.phones;
+    }
+    // A code nobody scanned before the Mac stopped, or a link no iPhone ever took: gone.
+    if ((saved.codeUntil && saved.codeUntil <= this.now()) || (!saved.codeUntil && !saved.phone)) {
+      void this.forgetRoom(saved.room, await openBox(saved.secret));
+      return this.clear();
+    }
     this.file = saved;
     this.box = await openBox(saved.secret);
     if (saved.codeUntil) this.expireAt(saved.codeUntil);
@@ -256,6 +264,8 @@ export class PhoneLink {
     this.ws = ws;
     this.watching = 0;
     ws.addEventListener("open", () => {
+      // A connection let go of before it opened (Unlink, a new code, stop): closed, nothing started.
+      if (this.ws !== ws) return void ws.close();
       this.online = true;
       this.retryMs = 1000;
       this.lastSent = "";

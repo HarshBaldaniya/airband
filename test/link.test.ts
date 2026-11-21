@@ -211,6 +211,7 @@ class FakeSocket extends EventTarget {
     const u = new URL(this.url);
     const role = u.searchParams.get("role") as Role;
     const verdict = await this.room.logic.admit(role, u.searchParams.get("token"));
+    if (this.readyState === 3) return;
     if (verdict !== "ok") return this.close(4003);
     const me = this;
     const s = { role, got: [] as string[], closed: undefined as number | undefined, send: (t: string) => queueMicrotask(() => me.dispatchEvent(Object.assign(new Event("message"), { data: t }))), close: (code: number) => me.close(code) };
@@ -459,4 +460,22 @@ test("Test on the Mac: a pretend request reaches the iPhone at once, and the ans
   await own.say({ t: "test", n: 4 });
   await until(() => own.heard.some((m) => m.n === 4 && m.ok), "Send me a test alert");
   assert.equal(JSON.parse(unlockOnPhone(pushes.at(-1)!.body, ph.ecdh, ph.auth)).title, "Test from your Mac");
+});
+
+test("a link from the first version with no iPhone is cleaned up; one with an iPhone carries over", async () => {
+  const home = process.env.AIRBAND_HOME!;
+  const file = path.join(home, "phone-link.json");
+  const vapid = newVapidKeys();
+  fs.writeFileSync(file, JSON.stringify({ room: randomB64u(16), secret: randomB64u(32), vapid, phones: [] }));
+  const relay = memoryRelay();
+  station = newStation(relay, []);
+  await station.start();
+  assert.deepEqual(station.snapshot().link, { linked: false, online: false, phones: [] }, "no half link");
+  assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).vapid.publicKey, vapid.publicKey, "the alert key stays");
+  await station.stop();
+  fs.writeFileSync(file, JSON.stringify({ room: randomB64u(16), secret: randomB64u(32), vapid, phones: [{ id: "a1b2c3d4e5f6", name: "iPhone", at: 1, push: { endpoint: "https://web.push.apple.com/x", keys: newPhone().keys } }] }));
+  station = newStation(relay, []);
+  await station.start();
+  assert.equal(station.snapshot().link!.linked, true);
+  assert.deepEqual(station.snapshot().link!.phones.map((p) => [p.name, p.alerts]), [["iPhone", true]]);
 });
