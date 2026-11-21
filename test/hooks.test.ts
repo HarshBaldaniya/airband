@@ -215,7 +215,8 @@ test("a computer with no Node: the app's own Node runs the hook, on macOS, Linux
   const sh = fs.readFileSync(mac, "utf8");
   assert.match(sh, /^#!\/bin\/sh\n/);
   assert.match(sh, /ELECTRON_RUN_AS_NODE=1 exec '\/Applications\/Air band'\\''s\.app\/Contents\/MacOS\/Airband' "\$@"/, "a path with a space and a quote stays one word");
-  assert.ok(fs.statSync(mac).mode & 0o100, "it can be run");
+  // Windows has no "can be run" bit: there the app writes node.cmd instead.
+  if (process.platform !== "win32") assert.ok(fs.statSync(mac).mode & 0o100, "it can be run");
   const win = appNode("C:\\Users\\Ana\\AppData\\Local\\Programs\\Airband\\Airband.exe", dir, "win32");
   assert.equal(path.basename(win), "node.cmd");
   assert.equal(fs.readFileSync(win, "utf8"), '@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"C:\\Users\\Ana\\AppData\\Local\\Programs\\Airband\\Airband.exe" %*\r\n');
