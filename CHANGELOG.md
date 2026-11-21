@@ -15,8 +15,9 @@
   **Your phone** and scan the code with your iPhone. Add Airband to the Home Screen (iOS 16.4 or
   later) and it links by itself. Your iPhone shows what needs you, with big Allow, Always and Deny
   buttons, what is working, and what finished today with a short summary. Alerts reach the Lock
-  Screen for every request and finished chat (**Alert my phone always**, on at first; off, only when
-  your Mac is locked or idle). **Test** sends a pretend request and says what happened.
+  Screen for every request and finished chat. That is **Alert my phone always**, on at first. Turned
+  off, alerts come only when your Mac is locked or idle. **Test** sends a pretend request and says
+  what happened.
 - **One Mac, one iPhone, nobody else.** The code works once, for 10 minutes. The first iPhone to use
   it gets a secret of its own, and the code is deleted at once, so a photo of it is worth nothing.
   To change iPhones, unlink and link again. Only a Mac offers the link, alerts go only through
