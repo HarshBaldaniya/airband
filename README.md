@@ -270,9 +270,6 @@ Claude Code, Codex and Gemini CLI, so you don't have to check each one.
   chat that the route changed", "allow it", "hide". If he isn't sure which chat you mean, he asks.
 - **Move him:** drag him anywhere. Tuck him away small with the **–** button, and click to bring him
   back. Right-click him for the menu, or use ⌥⌘R.
-- **On your phone:** turn on **Phone link** in his settings and scan the code with the phone's camera.
-  The page shows what needs you (Allow, Always, Deny) and what finished. It works in the browser on
-  iPhone and Android, with nothing to install. Your phone must be on the same Wi-Fi.
 
 Roger's name and look are settings, so you can call him something else.
 
@@ -282,8 +279,7 @@ npm run desktop:install      # from a clone of this repository: builds the Mac a
 
 On first start the app sets up Airband in every agent it finds, so that is the only step. With no
 app running, nothing changes: each chat asks in its own terminal, as before. On any computer,
-`airband station --phone` gives the same requests and chats in a browser or on a phone, without the
-app.
+`airband station` gives the same requests and chats in a browser, without the app.
 
 ## How it works
 
@@ -491,9 +487,8 @@ Press `?` on any page for the full list.
   flightlog. Any other question gets only web search. Neither gets file or shell tools or your other
   connections, and nothing of it is saved as a chat. A question that asks to read your files or
   folders is refused.
-- **Permission requests stay on your computer.** The app listens on this computer only. The phone
-  link, when you turn it on, answers on your local network and needs the phone's own key. A phone
-  can answer requests and see what finished. It can't ask, message a chat or change settings.
+- **Permission requests stay on your computer.** The app listens on this computer only, never on
+  your network. A phone link will come with Airband's own iPhone app.
 - **Nothing is sent anywhere by Airband.** It reads the session files your agents already write and
   keeps its own data in `~/.airband`, readable only by you. No server, no account, no telemetry.
 - **Online for two things only:** a daily npm version check, and a language parser the first time a

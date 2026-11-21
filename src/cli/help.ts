@@ -127,10 +127,10 @@ export const COMMANDS: CommandInfo[] = [
   {
     name: "station",
     group: "Chats and commands",
-    summary: "Approve your chats' requests from a browser or your phone, without the Mac app",
-    about: "Starts Airband's Station: it shows every chat, and while it runs, Claude Code and Codex send their permission requests to it. Answer them on the page it prints, or on your phone with --phone (same Wi-Fi). The Airband app for Mac runs the same Station with its companion on your desktop.",
-    options: [["--phone", "Also answer on the local network, for your phone"]],
-    examples: ["airband station", "airband station --phone"],
+    summary: "Approve your chats' requests from a browser, without the Mac app",
+    about: "Starts Airband's Station: it shows every chat, and while it runs, Claude Code and Codex send their permission requests to it. Answer them on the page it prints. The Airband app for Mac runs the same Station with its companion on your desktop.",
+    options: [],
+    examples: ["airband station"],
   },
   {
     name: "standup",

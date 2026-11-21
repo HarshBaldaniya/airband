@@ -399,3 +399,14 @@ test("the page's mode classes (body.desktop, body.phone) are never reused by a p
   const clash = css.split("\n").filter((l) => /(^|[\s,}>+~])\.(phone|desktop)(?![\w-])/.test(l));
   assert.deepEqual(clash, []);
 });
+
+test("the phone link is parked: no setting turns it on, and the Station listens on this computer only", async () => {
+  fs.mkdirSync(process.env.AIRBAND_HOME!, { recursive: true });
+  fs.writeFileSync(path.join(process.env.AIRBAND_HOME!, "station-settings.json"), JSON.stringify({ phone: true }));
+  const s = await start();
+  assert.equal(s.snapshot().settings.phone, false, "an old saved setting does not turn it on");
+  assert.equal((await s.setSettings({ phone: true })).phone, false);
+  assert.equal(s.snapshot().phoneUrl, undefined, "no phone address is offered");
+  const addr = (s as unknown as { server: http.Server }).server.address() as { address: string };
+  assert.equal(addr.address, "127.0.0.1");
+});

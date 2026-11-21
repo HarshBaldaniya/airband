@@ -16,6 +16,7 @@ import type { Status } from "../core/types";
 import { VERSION } from "../core/setup";
 import { AGENT_NAME, liveChats, titleOf, type Agent, type LiveChat } from "./chats";
 import { DECISION_MS, readStationInfo, stationFile, type StationInfo } from "./client";
+import { PHONE_LINK } from "./phone";
 import { cleanDesign, cleanName, DEFAULT_COMPANION, type CompanionSettings } from "./companion";
 import { ask, headline, tellText, type CompanionAnswer } from "./manager";
 import { openChat } from "./open";
@@ -103,7 +104,7 @@ export const defaultSettings = (): StationSettings => ({ approvals: true, phone:
 
 export function readSettings(): StationSettings {
   const saved = readJson<Partial<StationSettings>>(settingsFile(), {});
-  return { ...defaultSettings(), ...saved, companion: { name: cleanName(saved.companion?.name), design: cleanDesign(saved.companion?.design) } };
+  return { ...defaultSettings(), ...saved, phone: PHONE_LINK && saved.phone === true, companion: { name: cleanName(saved.companion?.name), design: cleanDesign(saved.companion?.design) } };
 }
 
 // Adapters that are not the home network: virtual machines, containers, VPNs and tunnels. A phone on
@@ -406,6 +407,7 @@ export class Station extends EventEmitter {
   }
 
   async setSettings(patch: Partial<StationSettings>): Promise<StationSettings> {
+    if (!PHONE_LINK) patch = { ...patch, phone: false };
     const before = this.settings;
     this.settings = { ...before, ...patch };
     writeFileAtomic(settingsFile(), JSON.stringify(this.settings));

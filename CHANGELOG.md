@@ -7,15 +7,12 @@
   happening?" from Airband's records. Drag him anywhere, tuck him away, or rename him: his name and
   look are settings. `npm run desktop:install` builds and installs the app, and on first start it sets
   up every agent.
-- **Your phone too.** Turn on **Phone link** and scan the code. Your phone shows what needs you, with
-  Allow, Always and Deny, and what finished, over your own Wi-Fi. It is a page in the phone's
-  browser, on iPhone and Android, with nothing to install. Typing stays on the computer: a phone
-  cannot ask, message a chat or change settings. `airband station --phone` does the same without
-  the app.
 - **Private by design.** The companion sees only your chats' records, and never reads your files or
   folders. **Look things up** (a setting, on at first) passes a question to Claude Code: a question
   about your chats gets only Airband's read-only flightlog, and any other question gets only web
   search. Neither gets file or shell tools, and nothing is saved as a chat.
+- **A phone link waits for Airband's own iPhone app.** A web page on the Wi-Fi would be plain http,
+  marked "Not Secure", so until the app everything stays on your computer.
 - **No Node needed.** On a computer without Node, the app runs Airband's hook and tools itself.
 - **Claude Code's permission requests** now pass through Airband's hook, which waits up to 110 s for
   the app and otherwise lets the terminal ask at once.
