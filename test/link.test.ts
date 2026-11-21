@@ -337,3 +337,59 @@ test("pair a phone, see a request on it, allow it there: the chat gets the answe
   assert.equal(s.snapshot().link!.linked, false);
   assert.equal(await relay.logic.check(box.token), 410);
 });
+
+test("Test on the computer: a pretend request reaches the phone at once, and the answer comes back", async () => {
+  const relay = memoryRoom();
+  let status = 201;
+  const pushes: Buffer[] = [];
+  const fakeFetch = (async (url: string | URL, init?: RequestInit) => {
+    if (String(url).endsWith("/forget")) return new Response(null, { status: 200 });
+    pushes.push(Buffer.from(init?.body as Uint8Array));
+    return new Response(null, { status });
+  }) as typeof fetch;
+  station = new Station({ port: 0, claude: null, pollMs: 60_000, link: { relay: "https://relay.test", WebSocket: class extends FakeSocket { constructor(url: string) { super(url, relay); } } as unknown as typeof WebSocket, fetch: fakeFetch, away: () => false } });
+  await station.start();
+  const s = station;
+  const pairing = parsePairing(new URL(await s.link!.link()).hash)!;
+  await until(() => s.snapshot().link!.online, "online");
+  assert.deepEqual(await s.link!.sample(), [], "no phone with alerts yet: nothing sent, and the caller says so");
+  const box = await openBox(pairing.secret);
+  const phone = new FakeSocket(`wss://relay.test/r/${pairing.room}/ws?role=phone&token=${box.token}`, relay);
+  const replies: { n: number; ok: boolean; error?: string }[] = [];
+  phone.addEventListener("message", (e) => {
+    const f = JSON.parse((e as MessageEvent).data as string) as { d?: string };
+    if (f.d) void unseal<{ t: string }>(box, f.d).then((m) => m?.t === "reply" && replies.push(m as never));
+  });
+  await until(() => phone.readyState === 1, "phone");
+  const say = async (m: unknown) => phone.send(JSON.stringify({ k: "msg", d: await seal(box, m) }));
+  const ph = newPhone();
+  await say({ t: "subscribe", n: 1, id: "p1", name: "iPhone", sub: { endpoint: "https://web.push.apple.com/abc", keys: ph.keys } });
+  await until(() => replies.some((r) => r.n === 1), "subscribed");
+  await until(() => pushes.length === 1, "the hello alert");
+
+  // At the computer, and still the test goes at once.
+  const reports = await s.link!.sample();
+  assert.deepEqual(reports, [{ name: "iPhone", ok: true, status: 201 }]);
+  const note = JSON.parse(unlockOnPhone(pushes[1], ph.ecdh, ph.auth)) as { title: string; kind: string; id: string };
+  assert.equal(note.kind, "request");
+  const pending = s.snapshot().pending;
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].sample, true);
+  await say({ t: "decide", n: 2, id: note.id, decision: "always" });
+  await until(() => s.snapshot().test?.answer === "always", "the answer reaches the computer");
+  assert.equal(s.snapshot().test?.from, "phone");
+  assert.equal(s.snapshot().pending.length, 0);
+  assert.ok(!fs.existsSync(path.join(process.env.AIRBAND_HOME!, "station-rules.json")), "a test's Always remembers nothing");
+
+  // Send me a test alert, from the phone.
+  await say({ t: "test", n: 3 });
+  await until(() => replies.some((r) => r.n === 3 && r.ok), "the phone hears it was sent");
+  assert.equal(JSON.parse(unlockOnPhone(pushes.at(-1)!, ph.ecdh, ph.auth)).title, "Test from your computer");
+
+  // The phone turned alerts off: the report says what to do, and the phone is dropped.
+  status = 410;
+  const off = await s.link!.sample();
+  assert.equal(off[0].ok, false);
+  assert.match(off[0].why!, /turned its alerts off/);
+  assert.deepEqual(s.link!.status().phones, []);
+});

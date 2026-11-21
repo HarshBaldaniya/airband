@@ -132,6 +132,11 @@ function LinkedView({ link, pairing, onUnlinked }: { link: RelayLink; pairing: P
       )}
       {state && <Panel state={state} name={c.name} design={c.design} onSay={setNote} onError={setNote} />}
       <footer className="phonefoot">
+        {!(ios() && !installed()) && pushable() && (
+          <button className="linkbtn" disabled={!up} onClick={() => void link.testAlert().then(() => setNote("Sent. The alert arrives in a few seconds. If it doesn't, check Settings, then Notifications, then Airband."), (e: Error) => setNote(e.message))}>
+            Send me a test alert
+          </button>
+        )}
         <button className="linkbtn" onClick={() => void unlink()}>
           Unlink this phone
         </button>

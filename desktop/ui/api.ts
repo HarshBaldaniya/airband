@@ -37,6 +37,7 @@ export const api = {
   linkPhone: () => post<{ url: string }>("/api/phone/link", {}),
   phoneCode: () => post<{ url?: string }>("/api/phone/code", {}),
   unlinkPhone: () => post<{ ok: boolean }>("/api/phone/unlink", {}),
+  testPhone: () => post<{ results: { name: string; ok: boolean; status: number; why?: string }[] }>("/api/phone/test", {}),
 };
 
 /** The Station's state as it changes. */

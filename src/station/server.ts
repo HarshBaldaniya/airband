@@ -39,6 +39,8 @@ export interface PendingView {
   questions?: Question[];
   at: number;
   expiresAt: number;
+  /** A pretend request to try the phone link (Test in the settings): no chat waits on it. */
+  sample?: true;
 }
 
 export interface FinishedView {
@@ -76,6 +78,8 @@ export interface StationState {
   phoneUrl?: string;
   /** The phone link through Airband's relay: whether a phone is linked, and which. */
   link?: LinkStatus;
+  /** How the latest test request was answered, and where ("none": nobody answered in time). */
+  test?: { answer: string; from?: "phone" | "computer"; at: number };
 }
 
 export interface StationOptions {
@@ -170,6 +174,8 @@ export class Station extends EventEmitter {
 
   /** The phone link through Airband's relay. */
   readonly link?: PhoneLink;
+  private lastTest?: { answer: string; from?: "phone" | "computer"; at: number };
+  private testFrom?: "phone" | "computer";
 
   private now(): number {
     return this.o.now?.() ?? Date.now();
@@ -286,6 +292,7 @@ export class Station extends EventEmitter {
       settings: this.settings,
       ...(this.settings.phone ? { phoneUrl: this.phoneUrl() } : {}),
       ...(this.link ? { link: this.link.status() } : {}),
+      ...(this.lastTest ? { test: this.lastTest } : {}),
     };
   }
 
@@ -359,10 +366,34 @@ export class Station extends EventEmitter {
   }
 
   /** The person's answer to a request. "always" also allows the same thing in that folder from now on. */
-  decide(id: string, a: Answer): boolean {
+  /** A pretend request to try the phone link: it shows like a real one, and no chat waits on it. */
+  sample(): PendingView {
+    for (const w of this.pending.values()) if (w.sample) w.reply(undefined);
+    const now = this.now();
+    const id = crypto.randomUUID();
+    const wait = 90_000;
+    this.lastTest = undefined;
+    const finish = (a: Answer | undefined) => {
+      if (!this.pending.has(id)) return;
+      clearTimeout(timer);
+      this.pending.delete(id);
+      this.lastTest = { answer: a?.decision ?? "none", ...(a && this.testFrom ? { from: this.testFrom } : {}), at: this.now() };
+      this.changed();
+    };
+    const timer = setTimeout(() => finish(undefined), wait);
+    const view: Waiting = { id, agent: "claude", agentName: "Airband", chatTitle: "Airband test", project: "test", title: "A test from your computer", detail: "Tap Allow or Deny. Nothing runs.", at: now, expiresAt: now + wait, reply: finish, sample: true };
+    this.pending.set(id, view);
+    this.changed();
+    const { reply: _r, toolInput: _i, ...shown } = view;
+    this.emit("request", shown);
+    return shown;
+  }
+
+  decide(id: string, a: Answer, from: "phone" | "computer" = "computer"): boolean {
     const w = this.pending.get(id);
     if (!w) return false;
-    if (a.decision === "always" && !w.questions) this.remember(ruleKey(w.agent, w.cwd, w.toolName, w.toolInput));
+    if (w.sample) this.testFrom = from;
+    if (a.decision === "always" && !w.questions && !w.sample) this.remember(ruleKey(w.agent, w.cwd, w.toolName, w.toolInput));
     w.reply(a);
     return true;
   }
@@ -517,10 +548,12 @@ export class Station extends EventEmitter {
         // Linking a phone happens on the computer only: the code it shows holds the pair's secret.
         case "/api/phone/link":
         case "/api/phone/code":
+        case "/api/phone/test":
         case "/api/phone/unlink": {
           if (who !== "local") return send(res, 403, { error: "Link a phone from the computer." });
           if (!this.link) return send(res, 404, { error: "The phone link is off here." });
           if (route === "/api/phone/unlink") return await this.link.unlink(), send(res, 200, { ok: true });
+          if (route === "/api/phone/test") return send(res, 200, { results: await this.link.sample() });
           const url = route === "/api/phone/link" ? await this.link.link() : this.link.pairingUrl();
           return send(res, 200, { url });
         }

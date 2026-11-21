@@ -98,7 +98,8 @@ export type PhoneMessage =
   | { t: "decide"; n: number; id: string; decision: "allow" | "always" | "deny" | "terminal"; answers?: Record<string, string | string[]>; message?: string }
   | { t: "dismiss"; n: number; chatId: string }
   | { t: "subscribe"; n: number; id: string; name: string; sub: { endpoint: string; keys: { p256dh: string; auth: string } } }
-  | { t: "forget"; id: string };
+  | { t: "forget"; id: string }
+  | { t: "test"; n: number };
 
 export type ComputerMessage = { t: "state"; state: unknown } | { t: "reply"; n: number; ok: boolean; error?: string };
 

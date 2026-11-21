@@ -170,20 +170,51 @@ function PhoneRow({ state }: { state: StationState }) {
     }
   };
   const showCode = () => run(async () => setUrl((l.linked && !phones ? (await api.phoneCode()).url : undefined) ?? (await api.linkPhone()).url));
+  // Test: a pretend request goes to the phone at once; the line below says what happened.
+  const [sent, setSent] = useState<{ at: number; text: string; ok: boolean }>();
+  const test = () =>
+    run(async () => {
+      const at = Date.now();
+      try {
+        const { results } = await api.testPhone();
+        const bad = results.find((r) => !r.ok);
+        setSent({ at, ok: !bad && results.length > 0, text: !results.length ? "Alerts aren't on yet. On the phone, open Airband and tap Turn on alerts." : bad ? `${bad.name}: ${bad.why ?? "it didn't go through."}` : `Sent to ${results.map((r) => r.name).join(", ")}. Tap Allow or Deny there.` });
+      } catch (e) {
+        setSent({ at, ok: false, text: e instanceof Error ? e.message : String(e) });
+      }
+    });
+  const answered = sent && state.test && state.test.at >= sent.at ? state.test : undefined;
+  const result = !sent
+    ? undefined
+    : answered
+      ? answered.answer === "none"
+        ? { ok: false, text: "Nobody answered in 90 seconds." }
+        : { ok: true, text: `${answered.from === "phone" ? `Your ${l.phones[0]?.name ?? "phone"}` : "You, on this computer,"} answered: ${answered.answer === "deny" ? "Deny" : answered.answer === "always" ? "Always" : "Allow"}. It works.` }
+      : sent;
   const note = phones ? `Linked: ${l.phones.map((p) => p.name).join(", ")}.` : l.linked ? "Waiting for your phone to scan." : "Requests on your phone, from anywhere.";
   return (
     <>
       <SettingRow title="Your phone" note={note}>
         {phones ? (
-          <button className="btn small" disabled={busy} onClick={() => void run(async () => void (await api.unlinkPhone(), setUrl(undefined)))}>
-            Unlink
-          </button>
+          <span className="rowbtns">
+            <button className="btn small" disabled={busy} onClick={() => void test()} title="Send a pretend request to your phone">
+              Test
+            </button>
+            <button className="btn small" disabled={busy} onClick={() => void run(async () => void (await api.unlinkPhone(), setUrl(undefined), setSent(undefined)))}>
+              Unlink
+            </button>
+          </span>
         ) : (
           <button className="btn small primary" disabled={busy} onClick={() => (url ? setUrl(undefined) : void showCode())}>
             {url ? "Hide" : "Link"}
           </button>
         )}
       </SettingRow>
+      {result && (
+        <p className={`testline${result.ok ? " ok" : " bad"}`} role="status">
+          {result.text}
+        </p>
+      )}
       <div className={`phonelink${url ? " open" : ""}`}>
         <div className="phoneinner">
           {qr ? <img src={qr} alt="Code to link your phone" width={132} height={132} /> : url && <code className="linkurl">{url}</code>}

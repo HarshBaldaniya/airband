@@ -36,6 +36,24 @@ export interface LinkStatus {
   phones: { name: string; at: number }[];
 }
 
+/** What one phone's push service said to a notification, in words for the person. */
+export interface PushReport {
+  name: string;
+  ok: boolean;
+  status: number;
+  why?: string;
+}
+
+function why(status: number): string | undefined {
+  if (status >= 200 && status < 300) return undefined;
+  if (status === 404 || status === 410) return "This phone turned its alerts off. Open Airband on it and tap Turn on alerts.";
+  if (status === 401 || status === 403) return "The push service refused this computer's signature. Link the phone again.";
+  if (status === 413) return "The alert was too long.";
+  if (status === 429) return "Too many alerts at once. Try again in a minute.";
+  if (status === 0) return "Couldn't reach the phone's push service. Is this computer online?";
+  return `The push service said ${status}.`;
+}
+
 export interface PhoneLinkOptions {
   relay?: string;
   /** The person is away from the computer (screen locked, idle): only then does the phone buzz. */
@@ -251,7 +269,7 @@ export class PhoneLink {
       case "decide": {
         if (!DECISIONS.has(m.decision) || typeof m.id !== "string") return;
         const answer: Answer = { decision: m.decision, ...(m.answers && typeof m.answers === "object" ? { answers: m.answers as Answer["answers"] } : {}), ...(typeof m.message === "string" ? { message: m.message.slice(0, 500) } : {}) };
-        const ok = this.station.decide(m.id, answer);
+        const ok = this.station.decide(m.id, answer, "phone");
         return this.tell({ t: "reply", n: m.n, ok, ...(ok ? {} : { error: "That request has already ended." }) });
       }
       case "dismiss":
@@ -266,6 +284,12 @@ export class PhoneLink {
         this.station.changed();
         await this.tell({ t: "reply", n: m.n, ok: true });
         return void this.push([this.file.phones.at(-1)!], { title: "Alerts are on", body: "Your phone buzzes when a chat needs you and you're away from your computer.", tag: "hello" });
+      }
+      case "test": {
+        const results = await this.push(this.file?.phones ?? [], { title: "Test from your computer", body: "Alerts work. Tap to open Airband.", tag: "test", kind: "done" });
+        const failed = results.find((r) => !r.ok);
+        if (!results.length) return this.tell({ t: "reply", n: m.n, ok: false, error: "Alerts aren't on for this phone yet. Tap Turn on alerts." });
+        return this.tell({ t: "reply", n: m.n, ok: !failed, ...(failed ? { error: failed.why ?? "It didn't go through." } : {}) });
       }
       case "forget":
         if (!this.file || typeof m.id !== "string") return;
@@ -282,8 +306,14 @@ export class PhoneLink {
     return this.o.away?.() ?? true;
   }
 
+  /** Test in the settings: a pretend request, sent to every phone at once, wherever you are. */
+  async sample(): Promise<PushReport[]> {
+    const p = this.station.sample();
+    return this.push(this.file?.phones ?? [], { title: "Airband test", body: "A test from your computer. Tap Allow or Deny. Nothing runs.", tag: p.id, id: p.id, kind: "request" });
+  }
+
   private onRequest = (p: PendingView) => {
-    if (!this.file?.phones.length) return;
+    if (!this.file?.phones.length || p.sample) return;
     const tell = () => {
       this.nudges.delete(p.id);
       if (!this.station.snapshot().pending.some((x) => x.id === p.id)) return;
@@ -301,24 +331,29 @@ export class PhoneLink {
     void this.push(this.file.phones, { title: `${f.title} finished`, body: f.did ?? "Have a look when you're back.", tag: `done-${f.chatId}`, kind: "done" });
   };
 
-  private async push(phones: LinkedPhone[], note: { title: string; body: string; tag: string; id?: string; kind?: string }): Promise<void> {
-    if (!this.file) return;
+  private async push(phones: LinkedPhone[], note: { title: string; body: string; tag: string; id?: string; kind?: string }): Promise<PushReport[]> {
+    if (!this.file) return [];
     const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
     const payload = { ...note, title: clip(note.title, 80), body: clip(note.body, 240) };
     const gone: string[] = [];
-    await Promise.all(
-      phones.map(async (p) => {
+    const reports = await Promise.all(
+      phones.map(async (p): Promise<PushReport> => {
         try {
           const r = await sendPush(p.push, payload, this.file!.vapid, { topic: note.tag, ...(this.o.fetch ? { fetch: this.o.fetch } : {}) });
           if (r.gone) gone.push(p.id);
+          const w = why(r.status);
+          return { name: p.name, ok: !w, status: r.status, ...(w ? { why: w } : {}) };
         } catch {
           // Offline: the request is still on the computer, and on the phone when it opens.
+          return { name: p.name, ok: false, status: 0, why: why(0) };
         }
       }),
     );
     if (gone.length && this.file) {
       this.file.phones = this.file.phones.filter((p) => !gone.includes(p.id));
       this.save();
+      this.station.changed();
     }
+    return reports;
   }
 }

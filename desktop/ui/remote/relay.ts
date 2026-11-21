@@ -158,6 +158,11 @@ export class RelayLink implements Transport {
     return this.ask({ t: "subscribe", n: this.n++, id, name, sub: { endpoint: sub.endpoint ?? "", keys: { p256dh: keys.p256dh ?? "", auth: keys.auth ?? "" } } });
   }
 
+  /** Asks the computer to send this phone a test alert. */
+  testAlert(): Promise<unknown> {
+    return this.ask({ t: "test", n: this.n++ });
+  }
+
   async forget(id: string): Promise<void> {
     await this.send({ t: "forget", id }).catch(() => undefined);
   }
