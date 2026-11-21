@@ -24,16 +24,19 @@ function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) => void }
       onSay(e instanceof Error ? e.message : String(e));
     }
   };
+  const waiting = c.status === "waiting" && c.line;
+  const STATUS = { waiting: "Needs you", working: "Working", done: "Done", idle: "Quiet" } as const;
   return (
-    <li className={`chat ${c.status}`}>
+    <li className={`chat ${c.status}${writing ? " open" : ""}`}>
       <div className="chatline">
-        <span className={`dot ${c.status}`} />
-        <AgentMark agent={c.agent} />
+        <span className="chatavatar" title={STATUS[c.status]}>
+          <AgentMark agent={c.agent} size={16} />
+          <span className={`statusdot ${c.status}`} aria-label={STATUS[c.status]} />
+        </span>
         <span className="chattext">
           <b className="ellipsis">{c.title}</b>
-          <span className="muted ellipsis">{c.status === "waiting" && c.line ? c.line : c.project}</span>
+          <span className={`chatmeta ellipsis${waiting ? " waiting" : ""}`}>{waiting ? c.line : `${c.project} · ${ago(c.since)}`}</span>
         </span>
-        <span className="muted when">{ago(c.since)}</span>
         <span className="rowactions">
           <button className="iconbtn" onClick={() => setWriting(!writing)} aria-label={`Message ${c.title}`} title="Message this chat">
             <MessageSquare size={14} />
