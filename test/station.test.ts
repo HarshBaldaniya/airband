@@ -318,3 +318,16 @@ test("a chat renamed in Claude Code shows its new name, and Airband's record kee
   assert.equal(chat?.title, "Airband Work");
   assert.equal(readHead("c42")?.title, "Airband Work", "kept for the flightlog and the board too");
 });
+
+test("open chats the light way: Airband knows which folders are open in VS Code", async () => {
+  const { registerWindow, openWindows, windowFor, unregisterWindow } = await import("../src/core/folders");
+  const root = tmp("airband-win-");
+  registerWindow([root]);
+  assert.equal(openWindows().length, 1);
+  assert.deepEqual(windowFor(path.join(root, "src")), { root }, "a chat in a subfolder belongs to that window");
+  assert.equal(windowFor(tmp("airband-other-")), undefined, "a folder no window has: the terminal, not VS Code");
+  registerWindow(["/gone"], 999999);
+  assert.equal(openWindows().length, 1, "a note left by a closed window is dropped");
+  unregisterWindow();
+  assert.equal(openWindows().length, 0);
+});

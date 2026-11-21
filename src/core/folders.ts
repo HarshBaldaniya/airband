@@ -115,3 +115,61 @@ export function dropOpenRequest(id: string): boolean {
   writeFileAtomic(openFile(), JSON.stringify(rest));
   return true;
 }
+
+// ---- which folders are open in a VS Code window right now ----
+// Each window's Airband writes a small note with its folders and removes it when the window
+// closes, so the desktop app can tell "this chat's folder is open in VS Code" without asking it.
+
+const windowsDir = () => airbandFile("windows");
+const WINDOW_FRESH_MS = 3 * 60_000;
+
+export interface OpenWindow {
+  pid: number;
+  roots: string[];
+  at: number;
+}
+
+export function registerWindow(roots: string[], pid = process.pid, now = Date.now()): void {
+  try {
+    fs.mkdirSync(windowsDir(), { recursive: true });
+    writeFileAtomic(path.join(windowsDir(), `${pid}.json`), JSON.stringify({ pid, roots, at: now } satisfies OpenWindow));
+  } catch {
+    // Only a note.
+  }
+}
+
+export function unregisterWindow(pid = process.pid): void {
+  fs.rmSync(path.join(windowsDir(), `${pid}.json`), { force: true });
+}
+
+/** The VS Code windows open now, each with its folders (notes left by closed windows are dropped). */
+export function openWindows(now = Date.now()): OpenWindow[] {
+  let names: string[] = [];
+  try {
+    names = fs.readdirSync(windowsDir()).filter((n) => n.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const out: OpenWindow[] = [];
+  for (const n of names) {
+    const w = readJson<OpenWindow | undefined>(path.join(windowsDir(), n), undefined);
+    let alive = !!w && now - w.at < WINDOW_FRESH_MS;
+    if (alive) {
+      try {
+        process.kill(w!.pid, 0);
+      } catch (e) {
+        alive = (e as NodeJS.ErrnoException).code === "EPERM";
+      }
+    }
+    if (alive) out.push(w!);
+    else fs.rmSync(path.join(windowsDir(), n), { force: true });
+  }
+  return out;
+}
+
+/** The open VS Code window whose folder holds `cwd`, if one does. */
+export function windowFor(cwd: string | undefined, now = Date.now()): { root: string } | undefined {
+  if (!cwd) return undefined;
+  for (const w of openWindows(now)) for (const root of w.roots) if (samePath(cwd, root) || path.resolve(cwd).startsWith(path.resolve(root) + path.sep)) return { root };
+  return undefined;
+}

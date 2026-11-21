@@ -178,7 +178,7 @@ export function FinishedCard({ finished, onSay }: { finished: FinishedView; onSa
       <CardHead agent={f.agent} title={f.title} project={f.project} at={f.at} tone="done" />
       {f.did && <span className="did">{f.did}</span>}
       <div className="actions">
-        <button className="btn done" onClick={() => void api.open(f.chatId).then((r) => onSay?.(r.text))}>
+        <button className="btn done" onClick={() => void api.open(f.chatId)}>
           <Eye size={14} /> Review
         </button>
         <button className="btn ghost" onClick={() => void api.dismiss(f.chatId)}>
@@ -191,6 +191,8 @@ export function FinishedCard({ finished, onSay }: { finished: FinishedView; onSa
 
 const LINES_SHOWN = 4;
 const CLOSE_AFTER_MS = 15_000;
+/** A short note on something done ("Opened it in Terminal."): read in a glance, then gone. */
+const ACTION_CLOSE_MS = 3_500;
 
 /** The companion's answer: a few lines (More for the rest), a button for each choice when it asks
  *  which one you mean. It closes by itself after a while, unless the pointer is on it or it asks. */
@@ -231,7 +233,7 @@ export function FinishedToast({ finished, onSay, onClose }: { finished: Finished
       <span className="toasttext ellipsis">
         <b>{f.title}</b> finished
       </span>
-      <button className="btn done small" onClick={() => void api.open(f.chatId).then((r) => onSay?.(r.text))}>
+      <button className="btn done small" onClick={() => (void api.open(f.chatId), onClose())}>
         <Eye size={13} /> Review
       </button>
       <button className="iconbtn" onClick={() => (void api.dismiss(f.chatId), onClose())} aria-label="Dismiss">
@@ -249,7 +251,7 @@ export function AnswerCard({ answer, onClose, onChoose, question }: { answer: Co
   const asks = !!answer.choices?.length;
   useEffect(() => {
     if (asks || hover || all) return;
-    const t = setTimeout(onClose, CLOSE_AFTER_MS);
+    const t = setTimeout(onClose, answer.via === "action" && answer.text.length < 90 ? ACTION_CLOSE_MS : CLOSE_AFTER_MS);
     return () => clearTimeout(t);
   }, [asks, hover, all, onClose, answer]);
   return (

@@ -41,7 +41,7 @@ function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) => void }
           <button className="iconbtn" onClick={() => setWriting(!writing)} aria-label={`Message ${c.title}`} title="Message this chat">
             <MessageSquare size={14} />
           </button>
-          <button className="iconbtn" onClick={() => void api.open(c.id).then((r) => onSay(r.text))} aria-label={`Open ${c.title}`} title="Open this chat">
+          <button className="iconbtn" onClick={() => (sounds.tick(), void api.open(c.id))} aria-label={`Open ${c.title}`} title="Open this chat">
             <ExternalLink size={14} />
           </button>
         </span>

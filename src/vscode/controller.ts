@@ -44,7 +44,7 @@ import {
 import { addUsage } from "../core/transcript";
 import type { ChatDigest, ChatRef, ChatSession, Connection, PlanUsage, Status, Tool } from "../core/types";
 import { NO_USAGE } from "../core/types";
-import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pickElsewhere, takeOpenRequests } from "../core/folders";
+import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pickElsewhere, registerWindow, takeOpenRequests, unregisterWindow } from "../core/folders";
 import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../core/plans";
 import { recentRollouts } from "../adapters/codex";
 import { readTail } from "../core/transcript";
@@ -108,7 +108,11 @@ export class Controller implements vscode.Disposable {
   private firstLoad = true;
 
   constructor(private readonly ctx: vscode.ExtensionContext) {
-    this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => this.rewatch()));
+    this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => (this.rewatch(), this.noteWindow())));
+    // A note of this window's folders, so the desktop app opens a chat here when its folder is open.
+    this.noteWindow();
+    const note = setInterval(() => this.noteWindow(), 60_000);
+    this.disposables.push({ dispose: () => (clearInterval(note), unregisterWindow()) });
     this.disposables.push(vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration("airband") && this.syncConfig()));
     this.moveFromOldNames();
     this.keepHookCurrent();
@@ -950,6 +954,10 @@ export class Controller implements vscode.Disposable {
       }
     }
     this.toast(`Reload the ${folder} window once (Developer: Reload Window), then try again`, "warn", undefined, { title: `The ${folder} window didn't open it`, icon: "info" });
+  }
+
+  private noteWindow(): void {
+    registerWindow((vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath));
   }
 
   private openingRequests = false;
