@@ -7,8 +7,8 @@ import { parsePairing, type Pairing } from "../../../src/remote/box";
 import { setTransport } from "../api";
 import { Companion } from "../companion/Companion";
 import { useCompanionState } from "../companion/useCompanionState";
-import { Panel } from "../components/Panel";
 import { useStation } from "../views/useStation";
+import { PhoneHome } from "./PhoneHome";
 import { RelayLink } from "./relay";
 import { Scanner } from "./Scanner";
 import { get, phoneId, put, savedPairing, savePairing } from "./store";
@@ -115,22 +115,20 @@ function LinkedView({ link, pairing, onUnlinked }: { link: RelayLink; pairing: P
     onUnlinked();
   };
   return (
-    <div className="phonepage">
-      <header className="phonehead">
-        <Companion mood={up ? c.mood : "resting"} name={c.name || "Airband"} design={c.design} size={60} count={state?.pending.length ?? 0} />
-        <div>
-          <b>{c.name || "Airband"}</b>
-          <span className="muted">{up ? (state?.headline ?? "Connecting…") : "Your computer is offline."}</span>
-        </div>
+    <div className="phonepage home">
+      <header className="topbar">
+        <span className="brand">Airband</span>
+        <span className={`macpill${up ? " on" : ""}`}>
+          <span className="dot" />
+          {up ? "Mac online" : "Mac offline"}
+        </span>
       </header>
-      {!up && state && <p className="offline">Requests wait on your computer until it's back. This page shows them again when it is.</p>}
-      <Alerts link={link} pairing={pairing} up={up} onError={setNote} />
+      {state ? <PhoneHome state={state} up={up} mood={c.mood} name={c.name || "Roger"} design={c.design} onError={setNote} afterHero={<Alerts link={link} pairing={pairing} up={up} onError={setNote} />} /> : <p className="muted pempty">Connecting to your computer…</p>}
       {note && (
         <p className="offline" role="alert" onClick={() => setNote(undefined)}>
           {note}
         </p>
       )}
-      {state && <Panel state={state} name={c.name} design={c.design} onSay={setNote} onError={setNote} />}
       <footer className="phonefoot">
         {!(ios() && !installed()) && pushable() && (
           <button className="linkbtn" disabled={!up} onClick={() => void link.testAlert().then(() => setNote("Sent. The alert arrives in a few seconds. If it doesn't, check Settings, then Notifications, then Airband."), (e: Error) => setNote(e.message))}>
@@ -197,9 +195,9 @@ function Alerts({ link, pairing, up, onError }: { link: RelayLink; pairing: Pair
   return (
     <div className="card hint">
       <b>
-        <BellRing size={16} /> Get an alert when a chat needs you
+        <BellRing size={16} /> Get alerts on this phone
       </b>
-      <span className="muted">Only when you're away from your computer.</span>
+      <span className="muted">On your Lock Screen, when a chat needs you or finishes.</span>
       <button className="btn primary wide" disabled={busy || !up} onClick={() => void turnOn()}>
         {busy ? "Turning on…" : up ? "Turn on alerts" : "Waiting for your computer…"}
       </button>

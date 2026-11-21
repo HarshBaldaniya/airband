@@ -320,7 +320,8 @@ export class PhoneLink {
       if (!this.station.snapshot().pending.some((x) => x.id === p.id)) return;
       // A question or a plan is answered in the app; a plain request can be answered on the notice itself.
       const kind = p.questions?.length || p.toolName === "ExitPlanMode" ? "question" : "request";
-      void this.push(this.file?.phones ?? [], { title: `${p.chatTitle} needs you`, body: p.detail ? `${p.title}: ${p.detail}` : p.title, tag: p.id, id: p.id, kind });
+      // The phone shows "Airband" and the icon itself: the title is the chat, the body what it wants.
+      void this.push(this.file?.phones ?? [], { title: p.chatTitle, body: p.detail ? `${p.title}: ${p.detail}` : p.title, tag: p.id, id: p.id, kind });
     };
     if (this.away()) return tell();
     // At the computer: the phone is told only if the request is still waiting a little later.
@@ -329,7 +330,7 @@ export class PhoneLink {
 
   private onFinished = (f: FinishedView) => {
     if (!this.file?.phones.length || !this.away()) return;
-    void this.push(this.file.phones, { title: `${f.title} finished`, body: f.did ?? "Have a look when you're back.", tag: `done-${f.chatId}`, kind: "done" });
+    void this.push(this.file.phones, { title: `${f.title} is done`, body: f.did ?? "It finished. Have a look when you're back.", tag: `done-${f.chatId}`, kind: "done" });
   };
 
   private async push(phones: LinkedPhone[], note: { title: string; body: string; tag: string; id?: string; kind?: string }): Promise<PushReport[]> {
