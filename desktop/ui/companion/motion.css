@@ -19,9 +19,16 @@
 .companion-figure.gesture-wiggle .figure-motion { animation: figure-wiggle 0.9s ease-in-out; }
 .companion-figure.gesture-hop .figure-motion { animation: figure-arrive-hop 0.8s cubic-bezier(0.3, 0.7, 0.4, 1); }
 
+/* Falling asleep: the head nods down and it settles to the ground. Waking: a hop up and a tiny shake. */
+.companion-figure.phase-dozing .figure-motion { animation: figure-doze 2.6s ease-in-out both; }
+.companion-figure.phase-waking .figure-motion { animation: figure-wake 1.2s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+.companion-figure.phase-waking .figure-shadow { animation: figure-shadow-hop 1.2s ease-out; }
+
 /* Still: the float holds where it is, hovering, until something happens. */
 .companion-figure.still .figure-motion, .companion-figure.still .figure-shadow { animation-play-state: paused; }
 
+@keyframes figure-doze { 0% { transform: translateY(0) rotate(0deg); } 30% { transform: translateY(2%) rotate(3deg); } 45% { transform: translateY(0) rotate(-1deg); } 75% { transform: translateY(4%) rotate(4deg); } 100% { transform: translateY(6%) scale(1.03, 0.96); } }
+@keyframes figure-wake { 0% { transform: translateY(6%) scale(1.03, 0.96); } 30% { transform: translateY(-12%) scale(0.95, 1.06); } 50% { transform: translateY(0) rotate(-3deg); } 65% { transform: rotate(3deg); } 80% { transform: rotate(-1.5deg); } 100% { transform: none; } }
 @keyframes figure-float { 0%, 100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-6%) rotate(1.2deg); } }
 @keyframes figure-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.8); opacity: 0.6; } }
 @keyframes figure-hop { 0%, 100%, 70% { transform: translateY(0) scale(1, 1); } 12% { transform: translateY(0) scale(1.05, 0.95); } 35% { transform: translateY(-11%) scale(0.97, 1.03); } 55% { transform: translateY(0) scale(1.03, 0.97); } }

@@ -19,7 +19,7 @@ const LIGHT: Record<Mood, string> = {
 
 const FONT = "-apple-system, system-ui, sans-serif";
 
-function Figure({ mood, look, blinking, gesture, count, size, label }: FigureProps) {
+function Figure({ mood, look, blinking, gesture, phase, count, size, label }: FigureProps) {
   const sitting = mood === "resting";
   const happy = mood === "done" || mood === "hello";
   const eyesOpen = !sitting && !happy && mood !== "dizzy";
@@ -34,7 +34,7 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
   // The headset is one rigid piece on the head: it turns a little, less than the face.
   const headset = { transform: `translateX(${turn * 2.5}px)` };
   return (
-    <svg className={`figure design-headset mood-${mood}${gesture ? ` gesture-${gesture}` : ""}`} width={size} height={size * 1.2} viewBox="0 0 200 240" role="img" aria-label={label}>
+    <svg className={`figure design-headset mood-${mood}${gesture ? ` gesture-${gesture}` : ""}${phase ? ` phase-${phase}` : ""}`} width={size} height={size * 1.2} viewBox="0 0 200 240" role="img" aria-label={label}>
       <defs>
         <radialGradient id="headset-body" cx="36%" cy="30%" r="78%">
           <stop offset="0%" stopColor="#f7ae8a" />
@@ -112,6 +112,7 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
           <ellipse className={`fig-mouth-talk ${show(mood === "talking")}`} cx="100" cy="132" rx="8" ry="6" fill="#6b2a14" />
           <ellipse className={show(mood === "needs" || mood === "dizzy")} cx="100" cy="133" rx="6.5" ry="6" fill="#6b2a14" />
           <circle className={show(sitting)} cx="100" cy="135" r="3.5" fill="#141416" />
+          <ellipse className={`fig-yawn ${show(phase === "dozing")}`} cx="100" cy="133" rx="9" ry="11" fill="#6b2a14" />
           </g>
           <g className="fig-headset" style={headset}>
             <path d="M35 86 C35 52 64 37 100 37 C136 37 165 52 165 86" stroke="#2a2a30" strokeWidth="9" fill="none" strokeLinecap="round" />
@@ -126,6 +127,12 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
         </g>
       </g>
 
+      <g className={`fig-startle ${show(phase === "waking")}`} stroke="#f3c96e" strokeWidth="5" strokeLinecap="round">
+        <path d="M30 52 L18 40" />
+        <path d="M26 72 L10 70" />
+        <path d="M170 52 L182 40" />
+        <path d="M174 72 L190 70" />
+      </g>
       <g className={`fig-badge ${show(mood === "needs")}`}>
         <circle cx="168" cy="36" r="17" fill="#e0a22c" />
         <text x="168" y="44" textAnchor="middle" fontSize={count > 9 ? 17 : 22} fontWeight="700" fill="#141416" fontFamily={FONT}>

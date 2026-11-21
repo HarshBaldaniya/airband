@@ -64,6 +64,10 @@ export const sounds = {
   /** Tucked away, and brought back. */
   tuck: () => play([{ f: 700, to: 260, len: 0.22, gain: 0.035 }]),
   untuck: () => play([{ f: 300, to: 760, len: 0.18, gain: 0.035 }, { f: 1046, at: 0.17, len: 0.12, gain: 0.025, wave: "triangle" }]),
+  /** Falling asleep: a slow, soft sigh down. */
+  yawn: () => play([{ f: 520, to: 300, len: 0.7, gain: 0.025 }]),
+  /** Waking with a start: a quick chirp up. */
+  wake: () => play([{ f: 500, to: 1000, len: 0.12, gain: 0.035 }, { f: 1180, at: 0.12, len: 0.1, gain: 0.025, wave: "triangle" }]),
   /** Poked. */
   boop: () => play([{ f: 420, to: 300, len: 0.1, gain: 0.04, wave: "square" }]),
 };

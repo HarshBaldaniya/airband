@@ -3,7 +3,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { airbandHome } from "../core/paths";
-import { listHeads, readAsks, type RecordHead, type RecordTool } from "../core/record";
+import { listHeads, readAsks, setRecordTitle, type RecordHead, type RecordTool } from "../core/record";
 import { readHookStatus, resolveStatus } from "../core/status";
 import type { Status } from "../core/types";
 
@@ -70,7 +70,7 @@ const lastAsk = new Map<string, { size: number; ask: ReturnType<typeof readAsks>
 
 function cachedHeads(now: number): RecordHead[] {
   const home = airbandHome();
-  if (heads?.home !== home) lastAsk.clear();
+  if (heads?.home !== home) (lastAsk.clear(), names.clear());
   if (!heads || heads.home !== home || now - heads.at > HEADS_FRESH_MS) heads = { at: now, home, list: listHeads() };
   return heads.list;
 }
@@ -88,6 +88,62 @@ function cachedLastAsk(h: RecordHead): ReturnType<typeof readAsks>[number] | und
 export function forgetReads(): void {
   heads = undefined;
   lastAsk.clear();
+  names.clear();
+}
+
+// A chat renamed in its agent (Claude Code's "rename"): the agent writes the new name into the chat's
+// own file, and no hook runs. So the end of the file is read again whenever it grows, and a new
+// name found there is kept in Airband's record too, for the flightlog and the board.
+const TAIL_BYTES = 256 * 1024;
+const names = new Map<string, { size: number; name?: string }>();
+
+/** The latest name the person gave a chat in Claude Code, from the end of its file. */
+export function renamedTitle(file: string, size: number): string | undefined {
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(file, "r");
+    const start = Math.max(0, size - TAIL_BYTES);
+    const buf = Buffer.alloc(size - start);
+    fs.readSync(fd, buf, 0, buf.length, start);
+    const text = buf.toString("utf8");
+    let name: string | undefined;
+    for (const line of text.split("\n")) {
+      if (!line.includes('"custom-title"')) continue;
+      try {
+        const o = JSON.parse(line) as { type?: string; customTitle?: string };
+        if (o.type === "custom-title" && typeof o.customTitle === "string" && o.customTitle.trim()) name = o.customTitle.trim();
+      } catch {
+        // A line cut at the start of the tail.
+      }
+    }
+    return name;
+  } catch {
+    return undefined;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
+function liveName(h: RecordHead): string | undefined {
+  if (h.tool !== "claude" || !h.file) return undefined;
+  let size: number;
+  try {
+    size = fs.statSync(h.file).size;
+  } catch {
+    return undefined;
+  }
+  const hit = names.get(h.id);
+  if (hit && hit.size === size) return hit.name;
+  const name = renamedTitle(h.file, size) ?? hit?.name;
+  names.set(h.id, { size, name });
+  if (name && name !== h.title) {
+    try {
+      setRecordTitle(h.id, name);
+    } catch {
+      // Shown anyway; kept next time.
+    }
+  }
+  return name;
 }
 
 /** Chats that moved in the last `windowMs`, the ones that need you first. */
@@ -99,10 +155,11 @@ export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60):
     if (now - last > windowMs) continue;
     const r = resolveStatus(mtime(h.file) ?? h.updatedAt, hook, now);
     const ask = cachedLastAsk(h);
+    const renamed = liveName(h);
     out.push({
       id: h.id,
       agent: h.tool,
-      title: titleOf(h),
+      title: renamed ? short(renamed, 70)! : titleOf(h),
       project: h.cwd ? path.basename(h.cwd) : "no folder",
       ...(h.cwd ? { cwd: h.cwd } : {}),
       status: r.status,

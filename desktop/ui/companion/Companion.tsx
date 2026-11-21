@@ -3,7 +3,8 @@
 // wiggles or hops.
 import { useEffect, useRef, useState } from "react";
 import { designById } from "./designs";
-import type { Gesture, Mood } from "./types";
+import { sounds } from "../sound";
+import type { Gesture, Mood, Phase } from "./types";
 import "./motion.css";
 
 const CALM: Mood[] = ["idle", "working"];
@@ -75,6 +76,31 @@ function useAwake(mood: Mood, look: { dx: number; dy: number }): boolean {
   return awake;
 }
 
+const DOZE_MS = 2600;
+const WAKE_MS = 1300;
+
+/** Falling asleep and waking up get a moment of their own; while dozing, the face still shows awake. */
+function usePhase(mood: Mood): { shown: Mood; phase: Phase } {
+  const [phase, setPhase] = useState<Phase>("");
+  const was = useRef(mood);
+  useEffect(() => {
+    const before = was.current;
+    was.current = mood;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    if (mood === "resting" && before !== "resting") {
+      setPhase("dozing");
+      sounds.yawn();
+      t = setTimeout(() => setPhase(""), DOZE_MS);
+    } else if (before === "resting" && mood !== "resting") {
+      setPhase("waking");
+      sounds.wake();
+      t = setTimeout(() => setPhase(""), WAKE_MS);
+    }
+    return () => t && clearTimeout(t);
+  }, [mood]);
+  return { shown: phase === "dozing" ? "idle" : mood, phase };
+}
+
 export interface CompanionProps {
   mood: Mood;
   name: string;
@@ -84,17 +110,18 @@ export interface CompanionProps {
   size?: number;
 }
 
-export function Companion({ mood, name, design, look = { dx: 0, dy: 0 }, count = 0, size = 104 }: CompanionProps) {
+export function Companion({ mood: target, name, design, look = { dx: 0, dy: 0 }, count = 0, size = 104 }: CompanionProps) {
   const d = designById(design);
+  const { shown: mood, phase } = usePhase(target);
   const blinking = useBlinking(mood === "resting" || mood === "dizzy");
   const gesture = useGestures(mood);
   const awake = useAwake(mood, look);
   // The figure in a layer of its own that floats; its shadow stays on the ground below.
   return (
-    <div className={`companion-figure mood-${mood}${gesture ? ` gesture-${gesture}` : ""}${awake || gesture || mood === "needs" ? "" : " still"}`} style={{ width: size, height: size * d.aspect }}>
+    <div className={`companion-figure mood-${mood}${gesture ? ` gesture-${gesture}` : ""}${awake || gesture || phase || mood === "needs" ? "" : " still"}${phase ? ` phase-${phase}` : ""}`} style={{ width: size, height: size * d.aspect }}>
       <span className="figure-shadow" aria-hidden="true" />
       <div className="figure-motion">
-        <d.Figure mood={mood} look={look} blinking={blinking} gesture={gesture} count={count} size={size} label={`${name}: ${mood}`} />
+        <d.Figure mood={mood} look={look} blinking={blinking && !phase} gesture={phase ? "" : gesture} phase={phase} count={count} size={size} label={`${name}: ${mood}`} />
       </div>
     </div>
   );

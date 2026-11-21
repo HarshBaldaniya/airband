@@ -16,7 +16,8 @@ import { answersFit, describeRequest, permissionReply, questionsOf } from "../sr
 import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/station/manager";
 import { knowledge } from "../src/station/knowledge";
 import { cleanDesign, cleanName, DEFAULT_COMPANION } from "../src/station/companion";
-import type { LiveChat } from "../src/station/chats";
+import { liveChats, renamedTitle, type LiveChat } from "../src/station/chats";
+import { readHead } from "../src/core/record";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 let station: Station | undefined;
@@ -298,4 +299,22 @@ test("open questions go to one locked room: the chats' records, or the web, neve
   assert.ok(!web.join(" ").includes("airband_flightlog"));
   const rec = lookupArgs("q", "{}", "chats");
   assert.equal(at(rec, "--tools"), "", "the chats room has no web, files or shell");
+});
+
+test("a chat renamed in Claude Code shows its new name, and Airband's record keeps it", () => {
+  const dir = path.join(process.env.AIRBAND_HOME!, "flightlogs");
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(tmp("airband-claude-chat-"), "c42.jsonl");
+  const lines = [
+    { type: "user", message: { role: "user", content: "clone the repo" } },
+    { type: "custom-title", customTitle: "First name", sessionId: "c42" },
+    { type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "done" }] } },
+    { type: "custom-title", customTitle: "Airband Work", sessionId: "c42" },
+  ];
+  fs.writeFileSync(file, lines.map((l) => JSON.stringify(l)).join("\n") + "\n");
+  assert.equal(renamedTitle(file, fs.statSync(file).size), "Airband Work", "the latest name wins");
+  fs.writeFileSync(path.join(dir, "c42.json"), JSON.stringify({ id: "c42", tool: "claude", file, cursor: 0, n: 1, updatedAt: Date.now(), title: "dummyPlane repository clone" }));
+  const chat = liveChats().find((c) => c.id === "c42");
+  assert.equal(chat?.title, "Airband Work");
+  assert.equal(readHead("c42")?.title, "Airband Work", "kept for the flightlog and the board too");
 });

@@ -5,6 +5,9 @@ import type { ReactElement } from "react";
 /** What the companion shows, the most urgent first. */
 export type Mood = "hello" | "idle" | "working" | "needs" | "done" | "resting" | "talking" | "thinking" | "dizzy";
 
+/** A moment between moods: falling asleep, or waking with a start. */
+export type Phase = "" | "dozing" | "waking";
+
 /** A small thing the companion does now and then when nothing needs it. */
 export type Gesture = "" | "look-left" | "look-right" | "wiggle" | "hop" | "turn";
 
@@ -15,6 +18,7 @@ export interface FigureProps {
   /** Eyes shut for a blink. */
   blinking: boolean;
   gesture: Gesture;
+  phase: Phase;
   /** How many requests wait; the design may show it. */
   count: number;
   /** Width in pixels; the height follows the design's own shape. */
