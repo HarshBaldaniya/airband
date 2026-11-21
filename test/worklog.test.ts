@@ -59,14 +59,17 @@ test("a standup: what each project's chats did since the day, with tickets and w
 test("spend: each chat's tokens since the day, by project, and each ticket's estimated share", () => {
   const now = Date.now();
   const since = sinceDays(1, now);
-  const file = claudeFile([since - 30 * HOUR, now - HOUR, now - HOUR / 2], 1000);
+  // Two replies today, whatever the time (an hour ago is yesterday just after midnight).
+  const t1 = since + (now - since) / 3;
+  const t2 = since + (2 * (now - since)) / 3;
+  const file = claudeFile([since - 30 * HOUR, t1, t2], 1000);
   chat(
     "dddd4444",
     "my-api",
     "Seat limits",
     [
-      { at: now - HOUR, ask: "clamp", did: "done", refs: ["ENG-142"] },
-      { at: now - HOUR / 2, ask: "review", did: "done", refs: ["PR #128", "ENG-142", "9fe1d02e1"] },
+      { at: t1, ask: "clamp", did: "done", refs: ["ENG-142"] },
+      { at: t2, ask: "review", did: "done", refs: ["PR #128", "ENG-142", "9fe1d02e1"] },
     ],
     file,
   );

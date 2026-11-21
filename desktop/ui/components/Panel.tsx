@@ -210,6 +210,11 @@ function PhoneRow({ state }: { state: StationState }) {
           </button>
         )}
       </SettingRow>
+      {!!phones && (
+        <SettingRow title="Alert my phone always" note="Also while you're at this computer.">
+          <Toggle on={state.settings.phoneAlways} label="Alert my phone always" onChange={(on) => api.settings({ phoneAlways: on })} />
+        </SettingRow>
+      )}
       {result && (
         <p className={`testline${result.ok ? " ok" : " bad"}`} role="status">
           {result.text}

@@ -65,6 +65,9 @@ export interface StationSettings {
   companion: CompanionSettings;
   /** Open questions may go to Claude Code (with Airband's records only). On unless turned off. */
   lookups: boolean;
+  /** A linked phone hears every request and finished chat at once, even while you're at the computer.
+   *  Off: only when you're away (the screen locked, or idle for a minute). */
+  phoneAlways: boolean;
 }
 
 export interface StationState {
@@ -111,7 +114,7 @@ const JUST_FINISHED_MS = 2 * 60_000;
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
 
-export const defaultSettings = (): StationSettings => ({ approvals: true, phone: false, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: true });
+export const defaultSettings = (): StationSettings => ({ approvals: true, phone: false, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: true, phoneAlways: true });
 
 export function readSettings(): StationSettings {
   const saved = readJson<Partial<StationSettings>>(settingsFile(), {});
@@ -563,6 +566,7 @@ export class Station extends EventEmitter {
           if (typeof body.approvals === "boolean") patch.approvals = body.approvals;
           if (typeof body.phone === "boolean") patch.phone = body.phone;
           if (typeof body.lookups === "boolean") patch.lookups = body.lookups;
+          if (typeof body.phoneAlways === "boolean") patch.phoneAlways = body.phoneAlways;
           if (typeof body.waitMs === "number") patch.waitMs = Math.max(5000, Math.min(body.waitMs, DECISION_MS));
           if (body.companionName !== undefined || body.companionDesign !== undefined)
             patch.companion = { name: body.companionName !== undefined ? cleanName(body.companionName) : this.settings.companion.name, design: body.companionDesign !== undefined ? cleanDesign(body.companionDesign) : this.settings.companion.design };

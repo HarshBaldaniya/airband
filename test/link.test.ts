@@ -308,7 +308,9 @@ test("pair a phone, see a request on it, allow it there: the chat gets the answe
   await say({ t: "decide", n: 3, id, decision: "deny" });
   await until(() => replies.some((r) => r.n === 3 && !r.ok), "a second answer is refused");
 
-  // At the computer: no buzz unless the request is still waiting a little later.
+  // At the computer, with "Alert my phone always" off: no buzz unless the request is still waiting
+  // a little later.
+  await s.setSettings({ phoneAlways: false });
   away = false;
   const second = askStation({ agent: "claude", session_id: "c2", cwd: "/p/api", tool_name: "Bash", tool_input: { command: "ls" } });
   await until(() => states.some((st) => st.pending.length === 1 && st.pending[0].id !== id), "the second request");
@@ -317,6 +319,13 @@ test("pair a phone, see a request on it, allow it there: the chat gets the answe
   const id2 = s.snapshot().pending[0].id;
   s.decide(id2, { decision: "deny" });
   await second;
+
+  // "Alert my phone always" (on by default): at the computer too, the phone hears at once.
+  await s.setSettings({ phoneAlways: true });
+  const third = askStation({ agent: "claude", session_id: "c3", cwd: "/p/web", tool_name: "Bash", tool_input: { command: "pwd" } });
+  await until(() => pushes.length === 3, "a buzz at once, at the computer");
+  s.decide(s.snapshot().pending[0].id, { decision: "allow" });
+  await third;
 
   // What a phone can't do: there is no message for asking, telling a chat, or settings.
   await say({ t: "ask", n: 9, text: "read my Downloads folder" });

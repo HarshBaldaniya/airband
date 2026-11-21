@@ -302,8 +302,9 @@ export class PhoneLink {
 
   // ---- notifications ----
 
+  /** Tell the phone now: always (the setting), or because the person is away from the computer. */
   private away(): boolean {
-    return this.o.away?.() ?? true;
+    return this.station.snapshot().settings.phoneAlways || (this.o.away?.() ?? true);
   }
 
   /** Test in the settings: a pretend request, sent to every phone at once, wherever you are. */
