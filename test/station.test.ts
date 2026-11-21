@@ -429,3 +429,28 @@ test("a brand-new chat's first answer counts as finished, so the companion comes
   s.refresh();
   assert.equal(finished.length, 1, "and only once");
 });
+
+test("the companion sleeps when nothing is for you, even while chats work, and wakes for what needs you", async () => {
+  const { moodOf } = await import("../desktop/ui/companion/mood");
+  const base = { dizzy: false, asking: false, talking: false, hello: false, cheering: false };
+  const state = (chats: Partial<LiveChat>[], pending = 0) => ({ chats: chats.map(chat), pending: Array.from({ length: pending }, (_, i) => ({ id: `p${i}` })), finished: [] }) as unknown as Parameters<typeof moodOf>[0];
+  assert.equal(moodOf(state([{ status: "working" }]), { ...base, asleep: false }), "working");
+  assert.equal(moodOf(state([{ status: "working" }]), { ...base, asleep: true }), "resting", "a working chat does not keep it awake");
+  assert.equal(moodOf(state([{ status: "idle" }]), { ...base, asleep: true }), "resting");
+  assert.equal(moodOf(state([{ status: "working" }], 1), { ...base, asleep: true }), "needs", "a request always wakes it");
+  assert.equal(moodOf(state([{ status: "waiting" }]), { ...base, asleep: true }), "needs");
+  assert.equal(moodOf(state([]), { ...base, asleep: true, cheering: true }), "done", "a finished chat wakes it");
+  assert.equal(moodOf(state([]), { ...base, asleep: true, talking: true }), "talking");
+});
+
+test("a growing chat file is read only where it grew, and a rename there is still found", () => {
+  const dir = tmp("airband-grow-");
+  const file = path.join(dir, "c.jsonl");
+  fs.writeFileSync(file, `${JSON.stringify({ type: "user", message: { content: "x".repeat(400_000) } })}\n`);
+  const before = fs.statSync(file).size;
+  fs.appendFileSync(file, `${JSON.stringify({ type: "custom-title", customTitle: "Seat sync" })}\n`);
+  const after = fs.statSync(file).size;
+  assert.equal(renamedTitle(file, after, before), "Seat sync", "found in the new part");
+  assert.equal(renamedTitle(file, after, after), undefined, "nothing new: nothing read, the caller keeps the name it had");
+  assert.equal(renamedTitle(file, after), "Seat sync", "a first look reads the tail");
+});

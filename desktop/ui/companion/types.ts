@@ -37,4 +37,7 @@ export interface CompanionDesign {
   Figure: (p: FigureProps) => ReactElement;
   /** The same look at a small size, for headers and lists. */
   Mark: (p: { size: number }) => ReactElement;
+  /** Where the shared effects sit on this figure, as parts of its width and height (0 to 1): the
+   *  antenna's radio waves while working, the sleep bubble at the mouth, the "z"s above. */
+  spots?: { antenna?: [number, number]; mouth?: [number, number]; above?: [number, number] };
 }

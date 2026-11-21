@@ -98,11 +98,13 @@ const TAIL_BYTES = 256 * 1024;
 const names = new Map<string, { size: number; name?: string }>();
 
 /** The latest name the person gave a chat in Claude Code, from the end of its file. */
-export function renamedTitle(file: string, size: number): string | undefined {
+export function renamedTitle(file: string, size: number, from = 0): string | undefined {
+  if (from > 0 && from >= size) return undefined;
   let fd: number | undefined;
   try {
     fd = fs.openSync(file, "r");
-    const start = Math.max(0, size - TAIL_BYTES);
+    // Only what is new since the last look (a rename is appended), and never more than the tail.
+    const start = Math.max(0, size - TAIL_BYTES, from > 0 && from < size ? from - 1024 : 0);
     const buf = Buffer.alloc(size - start);
     fs.readSync(fd, buf, 0, buf.length, start);
     const text = buf.toString("utf8");
@@ -134,7 +136,8 @@ function liveName(h: RecordHead): string | undefined {
   }
   const hit = names.get(h.id);
   if (hit && hit.size === size) return hit.name;
-  const name = renamedTitle(h.file, size) ?? hit?.name;
+  // A working chat grows all the time: read only the part added since the last look.
+  const name = renamedTitle(h.file, size, hit && hit.size < size ? hit.size : 0) ?? hit?.name;
   names.set(h.id, { size, name });
   if (name && name !== h.title) {
     try {

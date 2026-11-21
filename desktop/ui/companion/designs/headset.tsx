@@ -198,4 +198,5 @@ function Mark({ size }: { size: number }) {
   );
 }
 
-export const headset: CompanionDesign = { id: "headset", title: "Headset", aspect: 1.2, Figure, Mark };
+// The antenna light is at (100, 15) of 200 by 240, the sleeping mouth near (110, 127), above the head near (128, 50).
+export const headset: CompanionDesign = { id: "headset", title: "Headset", aspect: 1.2, Figure, Mark, spots: { antenna: [0.5, 0.0625], mouth: [0.525, 0.54], above: [0.64, 0.21] } };

@@ -3,24 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, desktop, type CompanionAnswer, type StationState } from "../api";
 import { setSoundsOn, sounds } from "../sound";
-import type { Mood } from "./types";
+import { moodOf, SLEEP_AFTER_MS } from "./mood";
 
-const QUIET_MS = 3 * 60_000;
-
-export function moodOf(s: StationState | undefined, now: number, x: { dizzy: boolean; asking: boolean; talking: boolean; hello: boolean; cheering: boolean }): Mood {
-  if (x.dizzy) return "dizzy";
-  if (x.asking) return "thinking";
-  if (x.talking) return "talking";
-  if (x.hello) return "hello";
-  if (!s) return "idle";
-  if (s.pending.length || s.chats.some((c) => c.status === "waiting")) return "needs";
-  if (x.cheering) return "done";
-  if (s.chats.some((c) => c.status === "working")) return "working";
-  const last = Math.max(0, ...s.chats.map((c) => c.since));
-  return now - last > QUIET_MS ? "resting" : "idle";
-}
-
-export function useCompanionState(state: StationState | undefined) {
+/** `keepAwake`: the person is looking (its panel is open): it stays awake, and the quiet starts after. */
+export function useCompanionState(state: StationState | undefined, keepAwake = false) {
   const [asking, setAsking] = useState(false);
   /** What the person asked last, shown above the answer, and when. */
   const [question, setQuestion] = useState<{ text: string; at: number }>();
@@ -30,6 +16,8 @@ export function useCompanionState(state: StationState | undefined) {
   const [cheerUntil, setCheerUntil] = useState(0);
   const [dizzyUntil, setDizzyUntil] = useState(0);
   const [, tick] = useState(0);
+  /** The last thing that was for the person: a request, a finish, a word, a touch. */
+  const lastEvent = useRef(Date.now());
   const greeted = useRef(false);
   const seen = useRef<{ pending: Set<string>; finished: Set<string> } | undefined>(undefined);
 
@@ -37,11 +25,7 @@ export function useCompanionState(state: StationState | undefined) {
     const t = setTimeout(() => setHello(false), 3000);
     void desktop?.prefs().then((p) => setSoundsOn(p.sound));
     desktop?.onPrefs((p) => setSoundsOn(p.sound));
-    const i = setInterval(() => tick((n) => n + 1), 1000);
-    return () => {
-      clearTimeout(t);
-      clearInterval(i);
-    };
+    return () => clearTimeout(t);
   }, []);
 
   // A new request or a finished chat: one sound each, once.
@@ -57,21 +41,31 @@ export function useCompanionState(state: StationState | undefined) {
     seen.current = { pending, finished };
     if (!before) return;
     if ([...pending].some((id) => !before.pending.has(id))) {
+      lastEvent.current = Date.now();
       sounds.needs();
       navigator.vibrate?.([40, 60, 40]);
     } else if ([...finished].some((id) => !before.finished.has(id))) {
+      lastEvent.current = Date.now();
       sounds.done();
       setCheerUntil(Date.now() + 3500);
     }
   }, [state]);
 
+  /** Something for the person: awake now, and the quiet counts from here. */
+  const wake = useCallback(() => {
+    lastEvent.current = Date.now();
+    tick((n) => n + 1);
+  }, []);
+
   const speak = useCallback((a: CompanionAnswer) => {
+    lastEvent.current = Date.now();
     setAnswer(a);
     setTalkUntil(Date.now() + Math.min(8000, 1200 + a.text.length * 35));
   }, []);
 
   const ask = useCallback(
     async (q: string) => {
+      lastEvent.current = Date.now();
       setQuestion({ text: q, at: Date.now() });
       setAnswer(undefined);
       setAsking(true);
@@ -89,13 +83,28 @@ export function useCompanionState(state: StationState | undefined) {
   const say = useCallback((text: string) => speak({ text, via: "action" }), [speak]);
 
   const poke = useCallback(() => {
+    lastEvent.current = Date.now();
     setDizzyUntil(Date.now() + 2400);
     sounds.boop();
   }, []);
 
+  // The real time, not the Station's: its state arrives only when something changes, so its clock
+  // stood still in a quiet hour, and the companion never fell asleep.
   const now = Date.now();
-  const mood = moodOf(state, state?.now ?? now, { dizzy: dizzyUntil > now, asking, talking: talkUntil > now, hello, cheering: cheerUntil > now });
+  if (keepAwake) lastEvent.current = now;
+  const asleep = !keepAwake && now - lastEvent.current > SLEEP_AFTER_MS;
+  const mood = moodOf(state, { dizzy: dizzyUntil > now, asking, talking: talkUntil > now, hello, cheering: cheerUntil > now, asleep });
+
+  // One timer, for the next moment the mood can change by itself (an end of talking, cheering or
+  // dizziness, or falling asleep), instead of a redraw every second. Asleep, nothing is due at all.
+  const due = [talkUntil, cheerUntil, dizzyUntil, asleep || keepAwake ? 0 : lastEvent.current + SLEEP_AFTER_MS].filter((t) => t > now);
+  const next = due.length ? Math.min(...due) : 0;
+  useEffect(() => {
+    if (!next) return;
+    const t = setTimeout(() => tick((n) => n + 1), Math.max(50, next - Date.now() + 30));
+    return () => clearTimeout(t);
+  }, [next]);
   const name = state?.settings.companion.name ?? "";
   const design = state?.settings.companion.design;
-  return { mood, name, design, ask, asking, question, answer, clearAnswer: () => (setAnswer(undefined), setQuestion(undefined)), say, poke };
+  return { mood, asleep: mood === "resting", wake, name, design, ask, asking, question, answer, clearAnswer: () => (setAnswer(undefined), setQuestion(undefined)), say, poke };
 }

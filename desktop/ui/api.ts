@@ -103,6 +103,8 @@ export interface DesktopBridge {
   /** The app's own menu, at the pointer (a right-click on the figure). */
   showMenu(): void;
   hide(): void;
+  /** Asleep: the app stops following the pointer until it wakes. */
+  setAsleep?(asleep: boolean): void;
 }
 
 export const desktop: DesktopBridge | undefined = (window as unknown as { airbandDesktop?: DesktopBridge }).airbandDesktop;

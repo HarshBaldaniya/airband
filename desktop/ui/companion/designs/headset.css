@@ -38,10 +38,9 @@
 .design-headset.mood-thinking .fig-dot2 { animation-delay: 0.2s; }
 .design-headset.mood-thinking .fig-dot3 { animation-delay: 0.4s; }
 .design-headset.mood-dizzy .fig-spin { animation: headset-spin 0.9s linear infinite; }
-/* Resting: a few slow "z"s, then quiet. */
-.design-headset.mood-resting .fig-z { animation: headset-floatz 3.4s ease-out 4 both; }
-.design-headset.mood-resting .fig-z2 { animation-delay: 1.1s; }
-.design-headset.mood-resting .fig-z3 { animation-delay: 2.2s; }
+/* Resting: the light dims. Its "z"s, breath and bubble are the shared effects (motion.css), drawn in
+   layers of their own so they move without redrawing the figure. */
+.design-headset .fig-z { display: none; }
 .design-headset.mood-resting .fig-light { opacity: 0.6; }
 /* A head turn: the face slides across the round body. */
 .design-headset.gesture-turn .fig-face { animation: headset-face-turn 1.6s ease-in-out; }

@@ -138,7 +138,7 @@ function createWindow(): void {
     enableLargerThanScreen: true,
     show: false,
     ...(process.platform === "darwin" ? { type: "panel" } : {}),
-    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false, autoplayPolicy: "no-user-gesture-required" },
+    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false, autoplayPolicy: "no-user-gesture-required", backgroundThrottling: true, enableWebSQL: false },
   });
   win.setAlwaysOnTop(true, "floating");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -154,6 +154,11 @@ function createWindow(): void {
   win.webContents.on("did-finish-load", () => {
     place();
     if (!prefs.hidden) win?.showInactive();
+    if (openOnLoad) {
+      openOnLoad = false;
+      win?.focus();
+      win?.webContents.send("command", "open");
+    }
   });
   void win.loadURL(`${origin}/app?mode=desktop&t=${station.token}`);
   win.on("closed", () => (win = undefined));
@@ -162,20 +167,29 @@ function createWindow(): void {
 /** A hide in progress: the screen fades out first, then the window goes. */
 let leaving: NodeJS.Timeout | undefined;
 const LEAVE_MS = 260;
+/** Hidden this long, the screen itself is let go (its memory with it), and made again on show. */
+const RELEASE_AFTER_MS = 60_000;
+let release: NodeJS.Timeout | undefined;
+/** Shown with its panel open, before the screen has loaded: opened once it has. */
+let openOnLoad = false;
 
 function show(open = false): void {
   clearTimeout(leaving);
+  clearTimeout(release);
   leaving = undefined;
-  if (!win) createWindow();
-  const wasVisible = win!.isVisible();
+  const fresh = !win;
+  if (fresh) createWindow();
+  const wasVisible = fresh || win!.isVisible();
   prefs.hidden = false;
   if (open) setPref("tucked", false);
   savePrefs();
   // The window comes back showing its last frame, which a hide left faded out: nothing flashes.
   // Then the screen rises in.
-  win!.showInactive();
+  // A screen made just now shows itself once it has loaded, with its own arrival.
+  if (!fresh) win!.showInactive();
   if (!wasVisible) win!.webContents.send("command", "arrive");
-  if (open) {
+  if (open && fresh) openOnLoad = true;
+  else if (open) {
     win!.focus();
     win!.webContents.send("command", "open");
   }
@@ -192,7 +206,12 @@ function hide(): void {
   clearTimeout(leaving);
   leaving = setTimeout(() => {
     leaving = undefined;
-    if (prefs.hidden) win?.hide();
+    if (!prefs.hidden) return;
+    win?.hide();
+    clearTimeout(release);
+    release = setTimeout(() => {
+      if (prefs.hidden && win && !win.isVisible()) win.destroy();
+    }, RELEASE_AFTER_MS);
   }, LEAVE_MS);
 }
 
@@ -286,12 +305,16 @@ function eveningSummary(): void {
   notify("Your day in Airband", `${state.headline} Ask ${name()} "what did I do today?" for more.`);
 }
 
+/** Asleep (nothing for you for a while), the eyes are shut: the pointer is not followed at all. */
+let asleep = false;
+
 /** The companion's eyes follow the pointer: where it is from the figure, from -1 to 1. */
 function followCursor(): void {
   let last = "";
   const eased = { dx: 0, dy: 0 };
-  setInterval(() => {
-    if (!win?.isVisible() || drag) return;
+  const step = () => {
+    setTimeout(step, asleep ? 1000 : 80);
+    if (asleep || !win?.isVisible() || drag) return;
     const c = screen.getCursorScreenPoint();
     const b = win.getBounds();
     const a = prefs.anchor ?? defaultAnchor();
@@ -310,7 +333,8 @@ function followCursor(): void {
       last = key;
       win.webContents.send("cursor", { dx: Math.round(eased.dx * 20) / 20, dy: Math.round(eased.dy * 20) / 20 });
     }
-  }, 80);
+  };
+  step();
 }
 
 /** Where this app's own `node` goes, for computers with no Node (see appNode). */
@@ -352,6 +376,7 @@ function debugHooks(): void {
       if (words === "show") show();
       else if (words === "hide") hide();
       else if (words === "tuck") setPref("tucked", true);
+
       else win?.webContents.send("command", words);
     }
     const js = path.join(dir, "js");
@@ -380,6 +405,9 @@ function debugHooks(): void {
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 // Light on the disk: the screen is a few local files, so the web cache stays tiny.
 app.commandLine.appendSwitch("disk-cache-size", String(4 * 1024 * 1024));
+// Light by default: no spare page process kept warm, none of the browser's media, translate or
+// cast features (the companion's one page needs none of them).
+app.commandLine.appendSwitch("disable-features", "SpareRendererForSitePerProcess,MediaRouter,GlobalMediaControls,HardwareMediaKeyHandling,Translate,AutofillServerCommunication,OptimizationHints");
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
@@ -432,6 +460,13 @@ async function start(): Promise<void> {
   tray.on("click", () => tray?.popUpContextMenu());
 
   ipcMain.on("hit", (_e, hit: boolean) => win?.setIgnoreMouseEvents(!hit, { forward: true }));
+  ipcMain.on("asleep", (_e, on: boolean) => (asleep = !!on));
+  // Nobody can see the screen: every animation holds still, and goes on where it was after.
+  const unseen = (on: boolean) => win?.webContents.send("command", on ? "unseen" : "seen");
+  powerMonitor.on("lock-screen", () => unseen(true));
+  powerMonitor.on("unlock-screen", () => unseen(false));
+  powerMonitor.on("suspend", () => unseen(true));
+  powerMonitor.on("resume", () => unseen(false));
   ipcMain.on("drag-start", (_e, figure: Electron.Rectangle) => {
     if (!win) return;
     const b = win.getBounds();
@@ -463,7 +498,8 @@ async function start(): Promise<void> {
   screen.on("display-removed", place);
   screen.on("display-metrics-changed", place);
 
-  createWindow();
+  // Hidden when the app last stopped: no screen until it is shown (no memory spent on it).
+  if (!prefs.hidden) createWindow();
   debugHooks();
   loginItem();
   followCursor();

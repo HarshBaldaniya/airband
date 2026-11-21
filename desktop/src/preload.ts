@@ -18,5 +18,6 @@ if (location.hostname === "127.0.0.1") {
     setPref: (key: string, on: boolean) => ipcRenderer.send("pref", key, on),
     showMenu: () => ipcRenderer.send("menu"),
     hide: () => ipcRenderer.send("hide"),
+    setAsleep: (asleep: boolean) => ipcRenderer.send("asleep", asleep),
   });
 }

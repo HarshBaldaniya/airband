@@ -21,9 +21,14 @@ const TOAST_MS = 12_000;
 
 export function DesktopView() {
   const bridge = desktop!;
-  const { state, link } = useStation();
-  const c = useCompanionState(state);
+  // Asleep, updates that change nothing it shows are held back (see useStation).
+  const calm = useRef(false);
+  const { state, link, release } = useStation(calm);
   const [panel, setPanel] = useState<PanelState>("closed");
+  /** The Mac is locked or asleep: nobody sees the screen, so every animation holds still. */
+  const [unseen, setUnseen] = useState(false);
+  // Awake while its panel is open; asleep after a quiet spell (see useCompanionState).
+  const c = useCompanionState(state, panel !== "closed");
   const [settings, setSettings] = useState(false);
   const [place, setPlace] = useState<{ side: "left" | "right"; vertical: "top" | "bottom" }>({ side: "right", vertical: "bottom" });
   const [look, setLook] = useState({ dx: 0, dy: 0 });
@@ -111,6 +116,8 @@ export function DesktopView() {
       if (cmd === "today") void c.ask("today");
       if (cmd === "status") void c.ask("what's happening");
       if (cmd === "settings") openPanel(true);
+      if (cmd === "arrive") c.wake();
+      if (cmd === "unseen" || cmd === "seen") setUnseen(cmd === "unseen");
       if (cmd === "leave" || cmd === "arrive") {
         clearTimeout(motionTimer.current);
         setMotion(cmd === "leave" ? "leaving" : "arriving");
@@ -150,7 +157,17 @@ export function DesktopView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c.answer]);
 
+  // Asleep, the app stops following the pointer and the screen holds back updates that change
+  // nothing it shows: no work while nothing is for you. Awake, the newest one shows at once.
+  useEffect(() => {
+    calm.current = c.asleep;
+    bridge.setAsleep?.(c.asleep);
+    if (!c.asleep) release();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.asleep]);
+
   const onDown = (e: React.PointerEvent) => {
+    c.wake();
     if (e.button !== 0) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag.current = { x: e.screenX, y: e.screenY, moving: false };
@@ -204,7 +221,7 @@ export function DesktopView() {
   const showPanel = panel !== "closed" && s;
   const talk = <Conversation name={c.name} asking={c.asking} question={c.question} answer={c.answer} error={error} onClose={c.clearAnswer} onCloseError={() => setError(undefined)} onAsk={(q) => void c.ask(q)} />;
   return (
-    <div className={`dock ${place.side} ${place.vertical}${motion ? ` ${motion}` : ""}`}>
+    <div className={`dock ${place.side} ${place.vertical}${motion ? ` ${motion}` : ""}${unseen ? " unseen" : ""}`}>
       {!tucked && (
         <div className="stack">
           {!showPanel && talk}
@@ -234,6 +251,7 @@ export function DesktopView() {
         className={`companion${tucked ? " tucked" : ""}${entering ? " entering" : ""}`}
         data-hit
         onPointerDown={onDown}
+        onPointerEnter={c.wake}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onContextMenu={(e) => {

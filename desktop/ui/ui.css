@@ -341,3 +341,6 @@ body.phone .figure-motion, body.phone .figure-shadow { will-change: auto; }
 .phonepage .cardhead > .muted.ellipsis { order: 9; flex-basis: 100%; padding-left: 30px; font-size: 13px; }
 
 .linkscreen .lead { margin: 0 auto; max-width: 360px; font-size: 15px; line-height: 1.5; }
+
+/* Nobody can see the screen (the Mac is locked or asleep): every animation holds where it is. */
+.dock.unseen, .dock.unseen * { animation-play-state: paused !important; }

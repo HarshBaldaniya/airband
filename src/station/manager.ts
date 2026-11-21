@@ -11,7 +11,6 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import { airbandFile } from "../core/paths";
 import { findClaude, findNode } from "../core/hooks";
-import { sinceDays, workSince } from "../core/worklog";
 import { matchChats, plain, type LiveChat } from "./chats";
 import { DEFAULT_COMPANION } from "./companion";
 import { knowledge } from "./knowledge";
@@ -57,7 +56,10 @@ export function whatsHappening(chats: LiveChat[], pending: PendingBrief[], now =
 }
 
 /** Today in a few short lines: how much happened, then the busiest projects, one line each. */
-export function today(now = Date.now()): string {
+export async function today(now = Date.now()): Promise<string> {
+  // Loaded only when someone asks: the worklog reads chats through Claude's SDK, which the app
+  // otherwise never needs, so it never takes memory for it.
+  const { sinceDays, workSince } = await import("../core/worklog");
   const work = workSince(sinceDays(1, now));
   if (!work.length) return "Nothing yet today.";
   const asks = work.reduce((n, w) => n + w.asks.length, 0);
@@ -168,7 +170,7 @@ export async function ask(question: string, ctx: AskContext): Promise<CompanionA
 
   const known = knowledge(q, { name, version: ctx.version ?? "", headline: headline(ctx.chats, ctx.pending, now) });
   if (known) return known;
-  if (TODAY.test(q)) return { text: today(now), via: "records" };
+  if (TODAY.test(q)) return { text: await today(now), via: "records" };
   if (!ctx.lookups) return { text: `I can answer that with Claude Code. Turn on "Look things up" in my settings if that's OK.`, action: "settings", via: "records" };
   const claude = ctx.claude === undefined ? findClaude() : ctx.claude;
   if (!claude) return { text: "For questions like that I need Claude Code on this computer.", via: "records" };

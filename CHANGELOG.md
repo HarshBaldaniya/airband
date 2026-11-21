@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.0.6
+- **Roger falls asleep when nothing is for you.** After two quiet minutes he sleeps, even while chats
+  work. A request, a finished chat, or your pointer on him wakes him. Before, his clock stood still
+  in a quiet hour, so he almost never slept.
+- **Asleep, he breathes.** Now and then he takes a slow breath, three "z"s float up over his head,
+  and a sleep bubble swells at his mouth.
+- **Working, he is on air.** When a chat works, his antenna glows and radio waves ripple out from it.
+- **Light on your Mac.** Asleep, Roger uses about 3.5% of one core and about 120 MB in all,
+  against 17% if his sleep moves never stopped. His moves play as short scenes, so nothing runs all
+  day. Asleep, he stops following the pointer and skips updates that change nothing he shows.
+  Hidden for a minute, his screen is released, about 135 MB, and made again when he comes back.
+  While your Mac is locked or asleep, every animation pauses.
+- **Less work in the background.** The Mac app no longer loads Claude's SDK at start (it is loaded
+  only for "what did I do today?"). A working chat's file is read only where it grew.
+
 ## 0.0.5
 - **A desktop companion (Mac, Windows build on GitHub).** Roger floats in a corner of your screen. He
   shows each permission request and question from Claude Code and Codex, and you answer with a click.
