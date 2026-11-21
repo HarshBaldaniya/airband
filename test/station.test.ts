@@ -80,7 +80,7 @@ test("each request reads as a sentence", () => {
   assert.deepEqual(describeRequest("Bash", { command: "npm install stripe" }), { title: "Wants to run a command", detail: "npm install stripe" });
   assert.equal(describeRequest("Edit", { file_path: "/x/seats.ts" }).detail, "/x/seats.ts");
   assert.equal(describeRequest("mcp__claude_ai_Slack__slack_send_message", {}).title, "Wants to use slack_send_message (claude_ai_Slack)");
-  assert.equal(describeRequest("AskUserQuestion", ASK_INPUT).title, "Has a question for you");
+  assert.deepEqual(describeRequest("AskUserQuestion", ASK_INPUT), { title: "Has a question for you", detail: "Keep plan history editable?" });
 });
 
 // ---- the Station ----
@@ -126,7 +126,7 @@ test("the hook's permission step: the chat shows as needing you, then gets the p
   const out = permission({ hook_event_name: "PermissionRequest", session_id: "c7", cwd: "/p/my-app", tool_name: "AskUserQuestion", tool_input: ASK_INPUT }, "claude");
   const p = await held(s);
   assert.equal(readHookStatus("c7")?.status, "waiting");
-  assert.equal(readHookStatus("c7")?.message, "Has a question for you");
+  assert.equal(readHookStatus("c7")?.message, "Has a question for you: Keep plan history editable?");
   assert.equal(p.questions?.[0].question, "Keep plan history editable?");
   s.decide(p.id, { decision: "allow", answers: { "Keep plan history editable?": "No, lock it" } });
   const reply = JSON.parse((await out)!);

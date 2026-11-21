@@ -1,19 +1,14 @@
 // The companion's panel, kept short: one line on how things stand, the ask box, the cards that
 // need you, and the chats in three short lists. The settings sit behind the gear. The phone page
 // is this panel, full screen, without the settings (those change on the computer only).
-import { useEffect, useRef, useState } from "react";
-import { ExternalLink, MessageSquare, Send, Settings as Gear, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, ExternalLink, MessageSquare, Send, Settings as Gear, X } from "lucide-react";
 import { api, desktop, MODE, type DesktopPrefs, type LiveChat, type StationState } from "../api";
 import { CompanionMark } from "../companion/Companion";
 import { DESIGNS } from "../companion/designs";
+import { sounds } from "../sound";
 import { AgentMark, ago, FinishedCard, RequestCard } from "./Cards";
 
-const GROUPS: { status: LiveChat["status"]; title: string }[] = [
-  { status: "waiting", title: "Needs you" },
-  { status: "working", title: "Working" },
-  { status: "done", title: "Finished today" },
-];
-const PER_GROUP = 5;
 
 function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) => void }) {
   const c = chat;
@@ -95,36 +90,64 @@ export function AskBox({ name, onAsk, busy }: { name: string; onAsk: (q: string)
   );
 }
 
-function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange: (on: boolean) => void }) {
+type Saving = "idle" | "busy" | "done";
+
+/** A switch that shows its own progress: a short pulse while it saves, then a check. No message. */
+function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange: (on: boolean) => Promise<unknown> | void }) {
+  const [saving, setSaving] = useState<Saving>("idle");
+  const [shown, setShown] = useState(on);
+  useEffect(() => setShown(on), [on]);
+  const flip = async () => {
+    const next = !shown;
+    setShown(next);
+    (next ? sounds.on : sounds.off)();
+    setSaving("busy");
+    try {
+      await onChange(next);
+      setSaving("done");
+      setTimeout(() => setSaving("idle"), 900);
+    } catch {
+      setShown(!next);
+      setSaving("idle");
+    }
+  };
   return (
-    <button role="switch" aria-checked={on} aria-label={label} className={`toggle${on ? " on" : ""}`} onClick={() => onChange(!on)}>
-      <span />
-    </button>
+    <span className="togglewrap">
+      <span className={`saved${saving === "done" ? " show" : ""}`} aria-hidden="true">
+        <Check size={13} />
+      </span>
+      <button role="switch" aria-checked={shown} aria-label={label} aria-busy={saving === "busy"} className={`toggle${shown ? " on" : ""}${saving === "busy" ? " busy" : ""}`} onClick={() => void flip()}>
+        <span />
+      </button>
+    </span>
   );
 }
 
-function SettingsView({ state, onSay }: { state: StationState; onSay: (t: string) => void }) {
+function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: DesktopPrefs; onPref: (k: keyof DesktopPrefs, on: boolean) => void }) {
   const s = state.settings;
-  const [prefs, setPrefs] = useState<DesktopPrefs>();
   const [qr, setQr] = useState<string>();
   const [name, setName] = useState(s.companion.name);
-  useEffect(() => void desktop?.prefs().then(setPrefs), []);
+  const [nameSaved, setNameSaved] = useState(false);
   useEffect(() => {
     if (state.phoneUrl) void desktop?.qr(state.phoneUrl).then(setQr);
-    else setQr(undefined);
   }, [state.phoneUrl]);
-  const saveName = () => {
-    if (name.trim() && name.trim() !== s.companion.name) void api.settings({ companionName: name.trim() });
-  };
-  const pref = (k: keyof DesktopPrefs, on: boolean) => {
-    desktop?.setPref(k, on);
-    setPrefs((p) => (p ? { ...p, [k]: on } : p));
+  const saveName = async () => {
+    if (!name.trim() || name.trim() === s.companion.name) return;
+    await api.settings({ companionName: name.trim() });
+    sounds.tick();
+    setNameSaved(true);
+    setTimeout(() => setNameSaved(false), 1200);
   };
   return (
     <section className="settings">
       <label className="setrow" htmlFor="companion-name">
         <span>Name</span>
-        <input id="companion-name" className="nameinput" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} onBlur={saveName} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} />
+        <span className="togglewrap">
+          <span className={`saved${nameSaved ? " show" : ""}`} aria-hidden="true">
+            <Check size={13} />
+          </span>
+          <input id="companion-name" className="nameinput" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} onBlur={() => void saveName()} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} />
+        </span>
       </label>
       {DESIGNS.length > 1 && (
         <label className="setrow" htmlFor="companion-design">
@@ -140,56 +163,103 @@ function SettingsView({ state, onSay }: { state: StationState; onSay: (t: string
       )}
       <div className="setrow">
         <span>Answer requests here</span>
-        <Toggle on={s.approvals} label="Answer requests here" onChange={(on) => void api.settings({ approvals: on })} />
+        <Toggle on={s.approvals} label="Answer requests here" onChange={(on) => api.settings({ approvals: on })} />
       </div>
       <div className="setrow">
         <span className="setlabel">
           Look things up
-          <small className="muted">Lets {s.companion.name} ask Claude Code about your chats. Airband's records only.</small>
+          <small className="muted">Asks Claude Code, with Airband's records only.</small>
         </span>
-        <Toggle on={s.lookups} label="Look things up" onChange={(on) => void api.settings({ lookups: on })} />
+        <Toggle on={s.lookups} label="Look things up" onChange={(on) => api.settings({ lookups: on })} />
       </div>
       {prefs && (
         <div className="setrow">
           <span>Sounds</span>
-          <Toggle on={prefs.sound} label="Sounds" onChange={(on) => pref("sound", on)} />
+          <Toggle on={prefs.sound} label="Sounds" onChange={(on) => onPref("sound", on)} />
         </div>
       )}
       <div className="setrow">
-        <span>Phone link</span>
-        <Toggle on={s.phone} label="Phone link" onChange={(on) => void api.settings({ phone: on }).then((r) => onSay(r.phone ? "Scan the code with your phone's camera. Same Wi-Fi only." : "Phone link off."))} />
+        <span className="setlabel">
+          Phone link
+          <small className="muted">Same Wi-Fi only.</small>
+        </span>
+        <Toggle on={s.phone} label="Phone link" onChange={(on) => api.settings({ phone: on })} />
       </div>
-      {s.phone && qr && (
-        <div className="phone">
-          <img src={qr} alt="QR code for the phone page" width={132} height={132} />
-          <span className="muted">Scan with your phone's camera, then Share › Add to Home Screen.</span>
+      <div className={`phone${s.phone && qr ? " open" : ""}`}>
+        <div className="phoneinner">
+          {qr && <img src={qr} alt="QR code for the phone page" width={120} height={120} />}
+          <span className="muted">Scan with your phone's camera.</span>
         </div>
-      )}
-      <p className="privacy muted">{s.companion.name} sees your chats' records in Airband and nothing else: no files, folders or screen.</p>
+      </div>
+      <p className="privacy muted">Sees your chats' records only. Never your files, folders or screen.</p>
       <p className="foot muted">Airband {state.version}</p>
     </section>
   );
 }
 
-export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onError, showSettings }: { state: StationState; name: string; design?: string; onClose?: () => void; onAsk: (q: string) => void; asking: boolean; onSay: (t: string) => void; onError: (m: string) => void; showSettings?: boolean }) {
+type Tab = "waiting" | "working" | "done";
+const TABS: { id: Tab; title: string }[] = [
+  { id: "waiting", title: "Needs you" },
+  { id: "working", title: "Working" },
+  { id: "done", title: "Done" },
+];
+
+export interface PanelProps {
+  state: StationState;
+  name: string;
+  design?: string;
+  onClose?: () => void;
+  onAsk: (q: string) => void;
+  asking: boolean;
+  onSay: (t: string) => void;
+  onError: (m: string) => void;
+  showSettings?: boolean;
+  prefs?: DesktopPrefs;
+  onPref?: (k: keyof DesktopPrefs, on: boolean) => void;
+  /** The companion's latest answer, shown at the top of the panel. */
+  answer?: ReactNode;
+}
+
+/**
+ * The panel: a fixed top (who, how things stand, the ask box, the tabs) and one short list that
+ * scrolls. However many chats run, it stays the same size, one tab at a time.
+ */
+export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onError, showSettings, prefs, onPref, answer }: PanelProps) {
   const [settings, setSettings] = useState(!!showSettings);
   useEffect(() => setSettings(!!showSettings), [showSettings]);
   const start = new Date(state.now);
   start.setHours(0, 0, 0, 0);
-  // A chat whose request is on a card above is not listed again.
+  // A chat whose request is on a card is not listed again.
   const carded = new Set(state.pending.map((p) => p.chatId).filter(Boolean));
-  const shown = state.chats.filter((c) => c.status !== "idle" && !carded.has(c.id) && (c.status !== "done" || c.since >= start.getTime()));
+  const lists: Record<Tab, LiveChat[]> = {
+    waiting: state.chats.filter((c) => c.status === "waiting" && !carded.has(c.id)),
+    working: state.chats.filter((c) => c.status === "working"),
+    done: state.chats.filter((c) => c.status === "done" && c.since >= start.getTime()),
+  };
+  const first = (TABS.find((t) => lists[t.id].length)?.id ?? "working") as Tab;
+  const [tab, setTab] = useState<Tab>(first);
+  // Follow the most urgent tab until the person picks one.
+  const picked = useRef(false);
+  useEffect(() => {
+    if (!picked.current) setTab(first);
+  }, [first]);
+  const compact = state.pending.length > 1;
   const canSet = MODE === "desktop";
+  const list = lists[tab];
+  const anyChats = TABS.some((t) => lists[t.id].length);
   return (
     <div className="panel" data-hit>
       <div className="panelhead">
         <CompanionMark design={design} size={26} />
         <div className="panelhead-text">
-          <b>{settings ? "Settings" : name}</b>
-          {!settings && <span className="muted">{state.headline}</span>}
+          <b>
+            {settings ? "Settings" : name}
+            {!settings && <span className="brand">Airband</span>}
+          </b>
+          {!settings && <span className="muted ellipsis">{state.headline}</span>}
         </div>
         {canSet && (
-          <button className={`iconbtn${settings ? " on" : ""}`} onClick={() => setSettings(!settings)} aria-label="Settings" aria-pressed={settings}>
+          <button className={`iconbtn${settings ? " on" : ""}`} onClick={() => (sounds.tick(), setSettings(!settings))} aria-label="Settings" aria-pressed={settings}>
             <Gear size={15} />
           </button>
         )}
@@ -200,31 +270,46 @@ export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onEr
         )}
       </div>
       {settings && canSet ? (
-        <SettingsView state={state} onSay={onSay} />
+        <div className="panelscroll panelbody" key="settings">
+          <SettingsView state={state} prefs={prefs} onPref={onPref ?? (() => undefined)} />
+        </div>
       ) : (
         <>
           <AskBox name={name} onAsk={onAsk} busy={asking} />
-          {state.pending.map((p) => (
-            <RequestCard key={p.id} request={p} onError={onError} />
-          ))}
-          {MODE === "phone" && state.finished.slice(0, 3).map((f) => <FinishedCard key={`${f.chatId}:${f.at}`} finished={f} onSay={onSay} />)}
-          {GROUPS.map((g) => {
-            const list = shown.filter((c) => c.status === g.status);
-            if (!list.length) return null;
-            return (
-              <section key={g.title} className="group">
-                <h3>
-                  {g.title} <span className="muted">{list.length}</span>
-                </h3>
-                <ul className="chats">
-                  {list.slice(0, PER_GROUP).map((c) => (
-                    <ChatRow key={c.id} chat={c} onSay={onSay} />
-                  ))}
-                </ul>
-              </section>
-            );
-          })}
-          {!shown.length && !state.pending.length && <p className="muted empty">Nothing going on. Start a chat in Claude Code, Codex or Gemini CLI and {name} sees it.</p>}
+          {answer}
+          {!!state.pending.length && (
+            <div className={`requests${compact ? " compact" : ""}`}>
+              {state.pending.map((p) => (
+                <RequestCard key={p.id} request={p} onError={onError} compact={compact} />
+              ))}
+            </div>
+          )}
+          {MODE === "phone" && state.finished.slice(0, 2).map((f) => <FinishedCard key={`${f.chatId}:${f.at}`} finished={f} onSay={onSay} />)}
+          {anyChats ? (
+            <>
+              <div className="tabs" role="tablist">
+                {TABS.map((t) => (
+                  <button key={t.id} role="tab" aria-selected={tab === t.id} className={`tab${tab === t.id ? " on" : ""}`} onClick={() => ((picked.current = true), setTab(t.id))}>
+                    {t.title}
+                    <span className="count">{lists[t.id].length}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="panelscroll panelbody" key={tab}>
+                {list.length ? (
+                  <ul className="chats">
+                    {list.map((c) => (
+                      <ChatRow key={c.id} chat={c} onSay={onSay} />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted empty">{tab === "waiting" ? "Nothing needs you." : tab === "working" ? "No chat is working." : "Nothing finished yet today."}</p>
+                )}
+              </div>
+            </>
+          ) : (
+            !state.pending.length && <p className="muted empty">Nothing going on. Start a chat in Claude Code, Codex or Gemini CLI and {name} sees it.</p>
+          )}
         </>
       )}
     </div>

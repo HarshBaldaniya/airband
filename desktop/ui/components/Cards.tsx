@@ -2,7 +2,7 @@
 // approve, a chat that finished, and the companion's own answer. Each says who asks, what, and the
 // buttons; nothing more. The same cards fill the phone page.
 import { useEffect, useState } from "react";
-import { Check, CheckCheck, Eye, SquareTerminal, X } from "lucide-react";
+import { Check, CheckCheck, CircleCheck, Eye, SquareTerminal, X } from "lucide-react";
 import claudeLogo from "@lobehub/icons-static-svg/icons/claude-color.svg";
 import codexLogo from "@lobehub/icons-static-svg/icons/codex-color.svg";
 import geminiLogo from "@lobehub/icons-static-svg/icons/gemini-color.svg";
@@ -53,9 +53,11 @@ function TimeLeft({ at, until }: { at: number; until: number }) {
   );
 }
 
-export function RequestCard({ request, onError }: { request: PendingView; onError: (m: string) => void }) {
+export function RequestCard({ request, onError, compact = false }: { request: PendingView; onError: (m: string) => void; compact?: boolean }) {
   const p = request;
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(!compact);
+  useEffect(() => setOpen(!compact), [compact]);
   const [picks, setPicks] = useState<Record<string, string[]>>({});
   const decide = async (decision: "allow" | "always" | "deny" | "terminal", extra: Record<string, unknown> = {}) => {
     setBusy(true);
@@ -71,6 +73,37 @@ export function RequestCard({ request, onError }: { request: PendingView; onErro
       <SquareTerminal size={16} />
     </button>
   );
+
+  // With several requests waiting, each is one line until it is opened.
+  if (!open) {
+    const quick = !p.questions?.length && p.toolName !== "ExitPlanMode";
+    return (
+      <div className="card needs row" data-hit>
+        <button className="rowopen" onClick={() => setOpen(true)} aria-label={`Show ${p.chatTitle}'s request`}>
+          <span className="dot needs" />
+          <AgentMark agent={p.agent} />
+          <span className="rowtext">
+            <b className="ellipsis">{p.chatTitle}</b>
+            <span className="muted ellipsis">{p.detail ? `${p.title}: ${p.detail}` : p.title}</span>
+          </span>
+        </button>
+        {quick ? (
+          <>
+            <button className="btn primary small" disabled={busy} onClick={() => decide("allow")} aria-label={`Allow ${p.chatTitle}'s request`}>
+              <Check size={13} />
+            </button>
+            <button className="btn small" disabled={busy} onClick={() => decide("deny")} aria-label={`Deny ${p.chatTitle}'s request`}>
+              <X size={13} />
+            </button>
+          </>
+        ) : (
+          <button className="btn small" onClick={() => setOpen(true)}>
+            Answer
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (p.questions?.length) {
     const qs = p.questions;
@@ -156,19 +189,64 @@ export function FinishedCard({ finished, onSay }: { finished: FinishedView; onSa
   );
 }
 
-/** The companion's answer, with a button for each choice when it asks which one you mean. */
-export function AnswerCard({ answer, onClose, onChoose }: { answer: CompanionAnswer; onClose: () => void; onChoose: (ask: string) => void }) {
+const LINES_SHOWN = 4;
+const CLOSE_AFTER_MS = 15_000;
+
+/** The companion's answer: a few lines (More for the rest), a button for each choice when it asks
+ *  which one you mean. It closes by itself after a while, unless the pointer is on it or it asks. */
+/** A chat that finished, as one line by the companion: it fades away by itself (the panel keeps it). */
+export function FinishedToast({ finished, onSay, onClose }: { finished: FinishedView; onSay?: (text: string) => void; onClose: () => void }) {
+  const f = finished;
   return (
-    <div className="card say" data-hit>
+    <div className="toast" data-hit>
+      <CircleCheck size={16} className="toasticon" />
+      <AgentMark agent={f.agent} />
+      <span className="toasttext ellipsis">
+        <b>{f.title}</b> finished
+      </span>
+      <button className="btn done small" onClick={() => void api.open(f.chatId).then((r) => onSay?.(r.text))}>
+        <Eye size={13} /> Review
+      </button>
+      <button className="iconbtn" onClick={() => (void api.dismiss(f.chatId), onClose())} aria-label="Dismiss">
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
+export function AnswerCard({ answer, onClose, onChoose }: { answer: CompanionAnswer; onClose: () => void; onChoose: (ask: string) => void }) {
+  const [all, setAll] = useState(false);
+  const [hover, setHover] = useState(false);
+  const lines = answer.text.split("\n").filter((l) => l.trim());
+  const long = lines.length > LINES_SHOWN || answer.text.length > 320;
+  const asks = !!answer.choices?.length;
+  useEffect(() => {
+    if (asks || hover || all) return;
+    const t = setTimeout(onClose, CLOSE_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [asks, hover, all, onClose, answer]);
+  return (
+    <div className="card say" data-hit onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
       <div className="sayrow">
-        <span className="saytext">{answer.text}</span>
+        <div className={`saytext${long && !all ? " clamp" : ""}`}>
+          {lines.map((l, i) => {
+            // "project: what happened" reads best with the project in bold.
+            const m = /^([^:]{1,32}):\s(.+)$/.exec(l);
+            return <p key={i}>{m && i > 0 ? (<><b>{m[1]}</b> {m[2]}</>) : l}</p>;
+          })}
+        </div>
         <button className="iconbtn close" onClick={onClose} aria-label="Close">
           <X size={14} />
         </button>
       </div>
-      {!!answer.choices?.length && (
+      {long && (
+        <button className="linkbtn" onClick={() => setAll(!all)}>
+          {all ? "Less" : "More"}
+        </button>
+      )}
+      {asks && (
         <div className="saychoices">
-          {answer.choices.map((c) => (
+          {(answer.choices ?? []).map((c) => (
             <button key={c.ask} className="choice light" onClick={() => onChoose(c.ask)}>
               {c.label}
             </button>

@@ -102,7 +102,10 @@ export function describeRequest(toolName: string | undefined, input: unknown): {
   }
   if (toolName === "WebFetch") return { title: "Wants to open a web page", ...(str(i.url) ? { detail: str(i.url) } : {}) };
   if (toolName === "WebSearch") return { title: "Wants to search the web", ...(str(i.query) ? { detail: str(i.query) } : {}) };
-  if (toolName === "AskUserQuestion") return { title: "Has a question for you" };
+  if (toolName === "AskUserQuestion") {
+    const first = questionsOf(toolName, input)?.[0]?.question;
+    return { title: "Has a question for you", ...(first ? { detail: first } : {}) };
+  }
   if (toolName === "ExitPlanMode") return { title: "Has a plan ready for you to approve", ...(str(i.plan) ? { detail: str(i.plan)!.slice(0, 400) } : {}) };
   if (toolName?.startsWith("mcp__")) {
     const [, server, tool] = toolName.split("__");

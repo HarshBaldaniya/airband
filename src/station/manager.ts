@@ -10,8 +10,8 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import { airbandFile } from "../core/paths";
 import { findClaude, findNode } from "../core/hooks";
-import { renderWork, sinceDays, workSince } from "../core/worklog";
-import { matchChats, type LiveChat } from "./chats";
+import { sinceDays, workSince } from "../core/worklog";
+import { matchChats, plain, type LiveChat } from "./chats";
 import { DEFAULT_COMPANION } from "./companion";
 import type { Decision } from "./reply";
 
@@ -54,13 +54,21 @@ export function whatsHappening(chats: LiveChat[], pending: PendingBrief[], now =
   return lines.join("\n");
 }
 
-/** What the person's chats did today, as Airband's standup writes it. */
+/** Today in a few short lines: how much happened, then the busiest projects, one line each. */
 export function today(now = Date.now()): string {
-  const since = sinceDays(1, now);
-  const work = workSince(since);
-  if (!work.length) return "No chat has done anything today yet.";
-  const text = renderWork(work, since, 3);
-  return text.length > 1800 ? `${text.slice(0, 1790)}…` : text;
+  const work = workSince(sinceDays(1, now));
+  if (!work.length) return "Nothing yet today.";
+  const asks = work.reduce((n, w) => n + w.asks.length, 0);
+  const byProject = new Map<string, typeof work>();
+  for (const w of work) byProject.set(w.project, [...(byProject.get(w.project) ?? []), w]);
+  const lines = [`Today: ${plural(asks, "ask")} in ${plural(work.length, "chat")}, ${plural(byProject.size, "project")}.`];
+  const top = [...byProject.entries()].sort((a, b) => b[1].reduce((n, w) => n + w.asks.length, 0) - a[1].reduce((n, w) => n + w.asks.length, 0)).slice(0, 3);
+  for (const [project, chats] of top) {
+    const busiest = [...chats].sort((a, b) => b.asks.length - a.asks.length)[0];
+    const did = plain(busiest.asks[busiest.asks.length - 1]?.did ?? "");
+    lines.push(`${project}: ${did ? (did.length > 90 ? `${did.slice(0, 89)}…` : did) : busiest.title}`);
+  }
+  return lines.join("\n");
 }
 
 export interface AskContext {

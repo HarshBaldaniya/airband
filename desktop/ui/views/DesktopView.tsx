@@ -6,13 +6,17 @@ import { useEffect, useRef, useState } from "react";
 import { Minus } from "lucide-react";
 import { desktop, type DesktopPrefs } from "../api";
 import { Companion } from "../companion/Companion";
+import { moodLine, pokedLine } from "../companion/lines";
 import { useCompanionState } from "../companion/useCompanionState";
-import { AnswerCard, FinishedCard, RequestCard } from "../components/Cards";
+import { AnswerCard, FinishedToast, RequestCard } from "../components/Cards";
 import { Panel } from "../components/Panel";
+import { sounds } from "../sound";
 import { useStation } from "./useStation";
 
 type PanelState = "closed" | "open" | "closing";
 const CLOSE_MS = 160;
+/** How long a finished chat's toast stays by the companion (the panel keeps the chat). */
+const TOAST_MS = 12_000;
 
 export function DesktopView() {
   const bridge = desktop!;
@@ -23,30 +27,64 @@ export function DesktopView() {
   const [place, setPlace] = useState<{ side: "left" | "right"; vertical: "top" | "bottom" }>({ side: "right", vertical: "bottom" });
   const [look, setLook] = useState({ dx: 0, dy: 0 });
   const [tucked, setTucked] = useState(false);
+  const [prefs, setPrefs] = useState<DesktopPrefs>();
+  /** Bumped on each tuck and return, to play the "poof" once. */
+  const [poof, setPoof] = useState(0);
+  const [entering, setEntering] = useState(true);
+  /** The short line on the name tag: picked when the pointer arrives, or a reaction to a poke. */
+  const [line, setLine] = useState("");
+  const [poked, setPoked] = useState(false);
   const [error, setError] = useState<string>();
   const figure = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; moving: boolean } | undefined>(undefined);
   const clicks = useRef<number[]>([]);
   const hit = useRef(false);
+  const pointer = useRef<{ x: number; y: number } | undefined>(undefined);
+  const toastSeen = useRef(new Map<string, number>());
+  const [toastGone, setToastGone] = useState<Set<string>>(new Set());
+
+  /** Takes clicks only where something is drawn under the pointer. Run on every move and after
+   *  every change, so a card that goes away never leaves a spot that still catches clicks. */
+  const checkHit = () => {
+    const p = pointer.current;
+    const over = !!p && !!(document.elementFromPoint(p.x, p.y) as HTMLElement | null)?.closest("[data-hit]");
+    if (over !== hit.current) {
+      hit.current = over;
+      bridge.setHit(over);
+    }
+  };
 
   const openPanel = (withSettings = false) => {
     setSettings(withSettings);
-    setPanel("open");
+    setPanel((p) => {
+      if (p !== "open") sounds.open();
+      return "open";
+    });
   };
   const closePanel = () => {
-    setPanel((p) => (p === "open" ? "closing" : p));
+    setPanel((p) => {
+      if (p === "open") sounds.close();
+      return p === "open" ? "closing" : p;
+    });
     setTimeout(() => setPanel((p) => (p === "closing" ? "closed" : p)), CLOSE_MS);
   };
   const togglePanel = () => (panel === "open" ? closePanel() : openPanel());
   const tuck = (on: boolean) => {
     bridge.setPref("tucked", on);
     setTucked(on);
+    setPoof((n) => n + 1);
+    (on ? sounds.tuck : sounds.untuck)();
     if (on) closePanel();
+  };
+  const setPref = (k: keyof DesktopPrefs, on: boolean) => {
+    bridge.setPref(k, on);
+    setPrefs((p) => (p ? { ...p, [k]: on } : p));
   };
 
   useEffect(() => {
-    void bridge.prefs().then((p: DesktopPrefs) => setTucked(p.tucked));
-    bridge.onPrefs((p) => setTucked(p.tucked));
+    void bridge.prefs().then((p: DesktopPrefs) => (setPrefs(p), setTucked(p.tucked)));
+    bridge.onPrefs((p) => (setPrefs(p), setTucked(p.tucked)));
+    const enter = setTimeout(() => setEntering(false), 1400);
     bridge.onPlace(setPlace);
     bridge.onCursor(setLook);
     bridge.onCommand((cmd) => {
@@ -58,17 +96,12 @@ export function DesktopView() {
     });
     // Clicks reach the window only over what it draws; elsewhere they go to the windows behind.
     const onMove = (e: MouseEvent) => {
-      if (drag.current) return;
-      const over = !!(document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest("[data-hit]");
-      if (over !== hit.current) {
-        hit.current = over;
-        bridge.setHit(over);
-      }
+      pointer.current = { x: e.clientX, y: e.clientY };
+      if (!drag.current) checkHit();
     };
     const onLeave = () => {
-      if (drag.current) return;
-      hit.current = false;
-      bridge.setHit(false);
+      pointer.current = undefined;
+      if (!drag.current) checkHit();
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && closePanel();
     window.addEventListener("mousemove", onMove);
@@ -78,6 +111,7 @@ export function DesktopView() {
       window.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseleave", onLeave);
       window.removeEventListener("keydown", onKey);
+      clearTimeout(enter);
     };
     // Set up once; the toggle reads the latest panel state through a ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -118,14 +152,31 @@ export function DesktopView() {
     if (clicks.current.length >= 3) {
       clicks.current = [];
       closePanel();
+      setLine(pokedLine());
+      setPoked(true);
+      setTimeout(() => setPoked(false), 2200);
       return c.poke();
     }
     togglePanel();
   };
 
+  // After anything changes on screen, the spot under a still pointer is checked again.
+  useEffect(() => {
+    const t = requestAnimationFrame(checkHit);
+    return () => cancelAnimationFrame(t);
+  });
+
   const s = state;
   const pending = s?.pending ?? [];
-  const finished = s?.finished ?? [];
+  const now = Date.now();
+  const finished = (s?.finished ?? []).filter((f) => {
+    const key = `${f.chatId}:${f.at}`;
+    if (!toastSeen.current.has(key)) {
+      toastSeen.current.set(key, now);
+      setTimeout(() => setToastGone((g) => new Set(g).add(key)), TOAST_MS);
+    }
+    return !toastGone.has(key);
+  });
   const showPanel = panel !== "closed" && s;
   return (
     <div className={`dock ${place.side} ${place.vertical}`}>
@@ -133,23 +184,23 @@ export function DesktopView() {
         <div className="stack">
           {error && <AnswerCard answer={{ text: error, via: "action" }} onClose={() => setError(undefined)} onChoose={() => undefined} />}
           {!link && <AnswerCard answer={{ text: "I can't reach the Station. Trying again…", via: "action" }} onClose={() => undefined} onChoose={() => undefined} />}
-          {c.answer && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />}
+          {c.answer && !showPanel && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />}
           {showPanel ? (
             <div className={panel === "closing" ? "panelwrap closing" : "panelwrap"}>
-              <Panel state={s} name={c.name} design={c.design} onClose={closePanel} onAsk={(q) => void c.ask(q)} asking={c.asking} onSay={c.say} onError={setError} showSettings={settings} />
+              <Panel state={s} name={c.name} design={c.design} onClose={closePanel} onAsk={(q) => (sounds.tick(), void c.ask(q))} asking={c.asking} onSay={c.say} onError={setError} showSettings={settings} prefs={prefs} onPref={setPref} answer={c.answer && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />} />
             </div>
           ) : (
             <>
-              {pending.slice(0, 2).map((p) => (
-                <RequestCard key={p.id} request={p} onError={setError} />
+              {pending.slice(0, 3).map((p) => (
+                <RequestCard key={p.id} request={p} onError={setError} compact={pending.length > 1} />
               ))}
-              {pending.length > 2 && (
+              {pending.length > 3 && (
                 <button className="more" data-hit onClick={() => openPanel()}>
-                  {pending.length - 2} more need you
+                  {pending.length - 3} more need you
                 </button>
               )}
-              {finished.slice(0, pending.length ? 0 : 1).map((f) => (
-                <FinishedCard key={`${f.chatId}:${f.at}`} finished={f} onSay={c.say} />
+              {finished.slice(0, pending.length ? 0 : 2).map((f) => (
+                <FinishedToast key={`${f.chatId}:${f.at}`} finished={f} onSay={c.say} onClose={() => setToastGone((g) => new Set(g).add(`${f.chatId}:${f.at}`))} />
               ))}
             </>
           )}
@@ -157,11 +208,12 @@ export function DesktopView() {
       )}
       <div
         ref={figure}
-        className={`companion${tucked ? " tucked" : ""}`}
+        className={`companion${tucked ? " tucked" : ""}${entering ? " entering" : ""}`}
         data-hit
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
+        onPointerEnter={() => !poked && setLine(moodLine(c.mood))}
         onContextMenu={(e) => {
           e.preventDefault();
           bridge.showMenu();
@@ -175,7 +227,15 @@ export function DesktopView() {
             </button>
           </div>
         )}
-        <Companion mood={c.mood} name={c.name} design={c.design} look={look} count={pending.length} size={tucked ? 56 : 104} />
+        {poof > 0 && <span key={poof} className="poof" aria-hidden="true" />}
+        {!tucked && panel === "closed" && (
+          <span className={`nametag${poked ? " show" : ""}`} aria-hidden="true">
+            <b>{c.name}</b>
+            <span className="brand">Airband</span>
+            {line && <span className="nameline">{line}</span>}
+          </span>
+        )}
+        <Companion mood={c.mood} name={c.name} design={c.design} look={look} count={pending.length} size={104} />
       </div>
     </div>
   );

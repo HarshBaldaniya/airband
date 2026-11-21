@@ -255,8 +255,8 @@ function eveningSummary(): void {
   if (now.getHours() < 18 || prefs.lastSummary === day || !state?.chats.length) return;
   prefs.lastSummary = day;
   savePrefs();
-  if (win?.isVisible() && !prefs.tucked) win.webContents.send("command", "today");
-  else notify("Your day in Airband", state.headline);
+  // A gentle note, never a card that opens by itself: the person asks for the day when they want it.
+  notify("Your day in Airband", `${state.headline} Ask ${name()} "what did I do today?" for more.`);
 }
 
 /** The companion's eyes follow the pointer: where it is from the figure, from -1 to 1. */

@@ -27,9 +27,37 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
   const px = Math.max(-1, Math.min(1, glance || look.dx)) * 4.5;
   const py = Math.max(-1, Math.min(1, glance ? 0 : look.dy)) * 3 + (mood === "thinking" ? -4 : mood === "working" ? 1.5 : 0);
   const show = (on: boolean) => (on ? "fig-on" : "fig-off");
+  // Depth: the face sits on the front of a round body, so as the figure looks aside the face slides
+  // that way and the headset follows a little less (a head turning in 3D).
+  const turn = Math.max(-1, Math.min(1, glance || look.dx));
+  const face = { transform: `translate(${turn * 7}px, ${Math.max(-1, Math.min(1, look.dy)) * 2}px)` };
+  // The headset is one rigid piece on the head: it turns a little, less than the face.
+  const headset = { transform: `translateX(${turn * 2.5}px)` };
   return (
     <svg className={`figure design-headset mood-${mood}${gesture ? ` gesture-${gesture}` : ""}`} width={size} height={size * 1.2} viewBox="0 0 200 240" role="img" aria-label={label}>
       <defs>
+        <radialGradient id="headset-body" cx="36%" cy="30%" r="78%">
+          <stop offset="0%" stopColor="#f7ae8a" />
+          <stop offset="45%" stopColor="#e07a4f" />
+          <stop offset="100%" stopColor="#b85733" />
+        </radialGradient>
+        <radialGradient id="headset-belly" cx="45%" cy="35%" r="70%">
+          <stop offset="0%" stopColor="#f7b393" />
+          <stop offset="100%" stopColor="#e2885f" />
+        </radialGradient>
+        <linearGradient id="headset-rim" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#ffd2b8" stopOpacity="0" />
+          <stop offset="85%" stopColor="#ffd2b8" stopOpacity="0" />
+          <stop offset="100%" stopColor="#ffd2b8" stopOpacity="0.45" />
+        </linearGradient>
+        <linearGradient id="headset-cup" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#4a4a54" />
+          <stop offset="100%" stopColor="#1c1c22" />
+        </linearGradient>
+        <radialGradient id="headset-arm" cx="40%" cy="30%" r="80%">
+          <stop offset="0%" stopColor="#e8875c" />
+          <stop offset="100%" stopColor="#a9502f" />
+        </radialGradient>
         <radialGradient id="headset-glow" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#ffb38a" stopOpacity="0.85" />
           <stop offset="60%" stopColor="#e07a4f" stopOpacity="0.25" />
@@ -44,18 +72,15 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
             <line x1="100" y1="44" x2="100" y2="20" stroke="#2a2a30" strokeWidth="5" strokeLinecap="round" />
             <circle className="fig-light" cx="100" cy="15" r="8" fill={LIGHT[mood]} />
           </g>
-          <ellipse cx="78" cy="186" rx="15" ry="8" fill="#b85a34" />
-          <ellipse cx="122" cy="186" rx="15" ry="8" fill="#b85a34" />
-          <ellipse className="fig-arm-left" cx="34" cy="140" rx="10" ry="15" fill="#c9653d" />
-          <ellipse className="fig-arm-right" cx="166" cy="140" rx="10" ry="15" fill="#c9653d" />
-          <rect x="32" y="40" width="136" height="146" rx="62" fill="#E07A4F" />
-          <ellipse cx="100" cy="156" rx="42" ry="25" fill="#ee9a74" />
-          <ellipse cx="72" cy="66" rx="18" ry="9" fill="#f29a72" opacity="0.6" />
-          <path d="M44 96 C44 50 70 36 100 36 C130 36 156 50 156 96" stroke="#2a2a30" strokeWidth="9" fill="none" strokeLinecap="round" />
-          <rect x="24" y="82" width="22" height="36" rx="10" fill="#2a2a30" />
-          <rect x="154" y="82" width="22" height="36" rx="10" fill="#2a2a30" />
-          <path d="M35 116 C40 140 58 150 74 150" stroke="#2a2a30" strokeWidth="5" fill="none" strokeLinecap="round" />
-          <circle cx="78" cy="150" r="6" fill="#2a2a30" />
+          <ellipse cx="78" cy="186" rx="15" ry="8" fill="#a24c2b" />
+          <ellipse cx="122" cy="186" rx="15" ry="8" fill="#a24c2b" />
+          <ellipse className="fig-arm-left" cx="34" cy="140" rx="10" ry="15" fill="url(#headset-arm)" />
+          <ellipse className="fig-arm-right" cx="166" cy="140" rx="10" ry="15" fill="url(#headset-arm)" />
+          <rect x="32" y="40" width="136" height="146" rx="62" fill="url(#headset-body)" />
+          <rect x="32" y="40" width="136" height="146" rx="62" fill="url(#headset-rim)" />
+          <ellipse cx="70" cy="64" rx="20" ry="10" fill="#fff" opacity="0.18" transform="rotate(-18 70 64)" />
+          <g className="fig-face" style={face}>
+          <ellipse cx="100" cy="156" rx="42" ry="25" fill="url(#headset-belly)" />
 
           <g className={`fig-eyes ${show(eyesOpen)}${blinking ? " fig-blink" : ""}`}>
             <ellipse cx="80" cy="104" rx="14" ry={mood === "needs" ? 17 : 16} fill="#fff" />
@@ -88,6 +113,17 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
           <ellipse className={`fig-mouth-talk ${show(mood === "talking")}`} cx="100" cy="132" rx="8" ry="6" fill="#6b2a14" />
           <ellipse className={show(mood === "needs" || mood === "dizzy")} cx="100" cy="133" rx="6.5" ry="6" fill="#6b2a14" />
           <circle className={show(sitting)} cx="100" cy="135" r="3.5" fill="#141416" />
+          </g>
+          <g className="fig-headset" style={headset}>
+            <path d="M35 86 C35 52 64 37 100 37 C136 37 165 52 165 86" stroke="#2a2a30" strokeWidth="9" fill="none" strokeLinecap="round" />
+            <path d="M44 66 C54 50 74 43 96 42" stroke="#5a5a64" strokeWidth="2.5" fill="none" strokeLinecap="round" opacity="0.7" />
+            <rect x="24" y="82" width="22" height="38" rx="10" fill="url(#headset-cup)" />
+            <rect x="154" y="82" width="22" height="38" rx="10" fill="url(#headset-cup)" />
+            <rect x="27" y="88" width="5" height="24" rx="2.5" fill="#5a5a64" opacity="0.6" />
+            <rect x="157" y="88" width="5" height="24" rx="2.5" fill="#5a5a64" opacity="0.6" />
+            <path d="M35 118 C38 140 56 151 74 151" stroke="#2a2a30" strokeWidth="5" fill="none" strokeLinecap="round" />
+            <circle cx="78" cy="151" r="6" fill="#2a2a30" />
+          </g>
         </g>
       </g>
 

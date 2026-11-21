@@ -29,9 +29,22 @@ export interface LiveChat {
 }
 
 const ORDER: Record<Status, number> = { waiting: 0, working: 1, done: 2, idle: 3 };
+/** Words fit for a small screen: no Markdown marks, no escaped line breaks, one line. */
+export function plain(t: string): string {
+  return t
+    .replace(/\\[nrt]/g, " ")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\*\*|__|`|^#+\s*/gm, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/\s*\(?https?:\/\/\S+\)?/g, "")
+    .replace(/[:,]\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const short = (t: string | undefined, max: number) => {
   if (!t) return undefined;
-  const s = t.replace(/\s+/g, " ").trim();
+  const s = plain(t);
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 };
 

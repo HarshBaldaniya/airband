@@ -21,8 +21,7 @@ export function PhoneView() {
       </header>
       {!link && <p className="offline">Can't reach your computer. Is it awake and on the same Wi-Fi?</p>}
       {error && <AnswerCard answer={{ text: error, via: "action" }} onClose={() => setError(undefined)} onChoose={() => undefined} />}
-      {c.answer && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />}
-      {state && <Panel state={state} name={c.name} design={c.design} onAsk={(q) => void c.ask(q)} asking={c.asking} onSay={c.say} onError={setError} />}
+      {state && <Panel state={state} name={c.name} design={c.design} onAsk={(q) => void c.ask(q)} asking={c.asking} onSay={c.say} onError={setError} answer={c.answer && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />} />}
     </div>
   );
 }

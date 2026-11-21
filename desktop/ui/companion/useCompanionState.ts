@@ -2,7 +2,7 @@
 // (and a buzz on a phone) for each new request or finished chat, and its answers to the person.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, desktop, type CompanionAnswer, type StationState } from "../api";
-import { sounds } from "../sound";
+import { setSoundsOn, sounds } from "../sound";
 import type { Mood } from "./types";
 
 const QUIET_MS = 3 * 60_000;
@@ -28,13 +28,13 @@ export function useCompanionState(state: StationState | undefined) {
   const [cheerUntil, setCheerUntil] = useState(0);
   const [dizzyUntil, setDizzyUntil] = useState(0);
   const [, tick] = useState(0);
-  const sound = useRef(true);
+  const greeted = useRef(false);
   const seen = useRef<{ pending: Set<string>; finished: Set<string> } | undefined>(undefined);
 
   useEffect(() => {
     const t = setTimeout(() => setHello(false), 3000);
-    void desktop?.prefs().then((p) => (sound.current = p.sound));
-    desktop?.onPrefs((p) => (sound.current = p.sound));
+    void desktop?.prefs().then((p) => setSoundsOn(p.sound));
+    desktop?.onPrefs((p) => setSoundsOn(p.sound));
     const i = setInterval(() => tick((n) => n + 1), 1000);
     return () => {
       clearTimeout(t);
@@ -45,16 +45,20 @@ export function useCompanionState(state: StationState | undefined) {
   // A new request or a finished chat: one sound each, once.
   useEffect(() => {
     if (!state) return;
+    if (!greeted.current) {
+      greeted.current = true;
+      setTimeout(sounds.hello, 350);
+    }
     const pending = new Set(state.pending.map((p) => p.id));
     const finished = new Set(state.finished.map((f) => `${f.chatId}:${f.at}`));
     const before = seen.current;
     seen.current = { pending, finished };
     if (!before) return;
     if ([...pending].some((id) => !before.pending.has(id))) {
-      if (sound.current) sounds.needs();
+      sounds.needs();
       navigator.vibrate?.([40, 60, 40]);
     } else if ([...finished].some((id) => !before.finished.has(id))) {
-      if (sound.current) sounds.done();
+      sounds.done();
       setCheerUntil(Date.now() + 3500);
     }
   }, [state]);
@@ -82,7 +86,7 @@ export function useCompanionState(state: StationState | undefined) {
 
   const poke = useCallback(() => {
     setDizzyUntil(Date.now() + 2400);
-    if (sound.current) sounds.boop();
+    sounds.boop();
   }, []);
 
   const now = Date.now();
