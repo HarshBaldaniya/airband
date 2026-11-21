@@ -145,22 +145,29 @@ function SettingRow({ title, note, children }: { title: string; note: string; ch
   );
 }
 
-/** Link a phone through Airband's relay: a code to scan, then which phones are linked. */
+/** Link your iPhone through Airband's relay: a code that works once, then which iPhone holds the link. */
 function PhoneRow({ state }: { state: StationState }) {
   const l = state.link;
   const [url, setUrl] = useState<string>();
   const [qr, setQr] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const waiting = !!l?.codeUntil;
+  // A code is showing: fetch it (the panel may have opened after Link), and count down.
+  useEffect(() => {
+    if (!waiting) return setUrl(undefined);
+    if (!url) void api.phoneCode().then((r) => setUrl(r.url));
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [waiting, url]);
   useEffect(() => {
     if (url && desktop) void desktop.qr(url).then(setQr);
     else setQr(undefined);
   }, [url]);
-  // A phone just linked: the code has done its job.
-  const phones = l?.phones.length ?? 0;
-  useEffect(() => {
-    if (phones) setUrl(undefined);
-  }, [phones]);
+  // Test: a pretend request goes to the iPhone at once; the line below says what happened.
+  const [sent, setSent] = useState<{ at: number; text: string; ok: boolean }>();
   if (!l) return null;
+  const phone = l.phones[0];
   const run = async (f: () => Promise<void>) => {
     setBusy(true);
     try {
@@ -169,16 +176,15 @@ function PhoneRow({ state }: { state: StationState }) {
       setBusy(false);
     }
   };
-  const showCode = () => run(async () => setUrl((l.linked && !phones ? (await api.phoneCode()).url : undefined) ?? (await api.linkPhone()).url));
-  // Test: a pretend request goes to the phone at once; the line below says what happened.
-  const [sent, setSent] = useState<{ at: number; text: string; ok: boolean }>();
+  const link = () => run(async () => setUrl((await api.linkPhone()).url));
+  const unlink = () => run(async () => void (await api.unlinkPhone(), setUrl(undefined), setSent(undefined)));
   const test = () =>
     run(async () => {
       const at = Date.now();
       try {
         const { results } = await api.testPhone();
         const bad = results.find((r) => !r.ok);
-        setSent({ at, ok: !bad && results.length > 0, text: !results.length ? "Alerts aren't on yet. On the phone, open Airband and tap Turn on alerts." : bad ? `${bad.name}: ${bad.why ?? "it didn't go through."}` : `Sent to ${results.map((r) => r.name).join(", ")}. Tap Allow or Deny there.` });
+        setSent({ at, ok: !bad && results.length > 0, text: !results.length ? "Alerts aren't on yet. On the iPhone, open Airband and tap Turn on alerts." : bad ? bad.why ?? "It didn't go through." : `Sent to your ${phone?.name ?? "iPhone"}. Tap Allow or Deny there.` });
       } catch (e) {
         setSent({ at, ok: false, text: e instanceof Error ? e.message : String(e) });
       }
@@ -189,29 +195,44 @@ function PhoneRow({ state }: { state: StationState }) {
     : answered
       ? answered.answer === "none"
         ? { ok: false, text: "Nobody answered in 90 seconds." }
-        : { ok: true, text: `${answered.from === "phone" ? `Your ${l.phones[0]?.name ?? "phone"}` : "You, on this computer,"} answered: ${answered.answer === "deny" ? "Deny" : answered.answer === "always" ? "Always" : "Allow"}. It works.` }
+        : { ok: true, text: `${answered.from === "phone" ? `Your ${phone?.name ?? "iPhone"}` : "You, on this Mac,"} answered: ${answered.answer === "deny" ? "Deny" : answered.answer === "always" ? "Always" : "Allow"}. It works.` }
       : sent;
-  const note = phones ? `Linked: ${l.phones.map((p) => p.name).join(", ")}.` : l.linked ? "Waiting for your phone to scan." : "Requests on your phone, from anywhere.";
+  const left = waiting ? Math.max(0, Math.round((l.codeUntil! - now) / 1000)) : 0;
+  const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  const note = phone
+    ? `${phone.name} linked${phone.alerts ? ", alerts on" : ". Turn on alerts on the iPhone"}.`
+    : waiting
+      ? `Scan with your iPhone's camera. Works once, ${clock} left.`
+      : l.expired
+        ? "The code ran out. Click Link for a new one."
+        : "Requests on your iPhone, from anywhere.";
   return (
     <>
       <SettingRow title="Your phone" note={note}>
-        {phones ? (
+        {phone ? (
           <span className="rowbtns">
-            <button className="btn small" disabled={busy} onClick={() => void test()} title="Send a pretend request to your phone">
-              Test
-            </button>
-            <button className="btn small" disabled={busy} onClick={() => void run(async () => void (await api.unlinkPhone(), setUrl(undefined), setSent(undefined)))}>
+            {phone.alerts && (
+              <button className="btn small" disabled={busy} onClick={() => void test()} title="Send a pretend request to your iPhone">
+                Test
+              </button>
+            )}
+            <button className="btn small" disabled={busy} onClick={() => void unlink()}>
               Unlink
             </button>
           </span>
+        ) : waiting ? (
+          <button className="btn small" disabled={busy} onClick={() => void unlink()}>
+            Cancel
+          </button>
         ) : (
-          <button className="btn small primary" disabled={busy} onClick={() => (url ? setUrl(undefined) : void showCode())}>
-            {url ? "Hide" : "Link"}
+          <button className="btn small primary" disabled={busy} onClick={() => void link()}>
+            Link
           </button>
         )}
       </SettingRow>
-      {!!phones && (
-        <SettingRow title="Alert my phone always" note="Also while you're at this computer.">
+      {(phone || waiting) && !l.online && <p className="testline bad">Can't reach Airband's relay. Trying again…</p>}
+      {phone && (
+        <SettingRow title="Alert my phone always" note="Also while you're at this Mac.">
           <Toggle on={state.settings.phoneAlways} label="Alert my phone always" onChange={(on) => api.settings({ phoneAlways: on })} />
         </SettingRow>
       )}
@@ -220,13 +241,13 @@ function PhoneRow({ state }: { state: StationState }) {
           {result.text}
         </p>
       )}
-      <div className={`phonelink${url ? " open" : ""}`}>
+      <div className={`phonelink${waiting && url ? " open" : ""}`}>
         <div className="phoneinner">
-          {qr ? <img src={qr} alt="Code to link your phone" width={132} height={132} /> : url && <code className="linkurl">{url}</code>}
+          {qr ? <img src={qr} alt="Code to link your iPhone" width={132} height={132} /> : url && <code className="linkurl">{url}</code>}
           <ol className="linksteps muted">
-            <li>Scan with your phone's camera.</li>
-            <li>iPhone: Share, then Add to Home Screen.</li>
-            <li>Open Airband there and turn on alerts.</li>
+            <li>Scan with your iPhone's camera.</li>
+            <li>Share, then Add to Home Screen.</li>
+            <li>Open Airband there. It links by itself.</li>
           </ol>
         </div>
       </div>

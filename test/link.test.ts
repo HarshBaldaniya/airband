@@ -96,7 +96,8 @@ test("a notification is locked for one phone and signed by this computer", async
 
 test("notifications go only to real push services, and a phone that left is dropped", async () => {
   assert.ok(isPushEndpoint("https://web.push.apple.com/abc"));
-  assert.ok(isPushEndpoint("https://fcm.googleapis.com/fcm/send/abc"));
+  assert.ok(!isPushEndpoint("https://fcm.googleapis.com/fcm/send/abc"), "iPhone only: Apple's push service, not Google's");
+  assert.ok(!isPushEndpoint("https://updates.push.services.mozilla.com/wpush/v2/abc"));
   assert.ok(!isPushEndpoint("http://web.push.apple.com/abc"), "never plain http");
   assert.ok(!isPushEndpoint("https://evil.example/web.push.apple.com"));
   assert.ok(!isPushEndpoint("https://push.apple.com.evil.example/x"));
@@ -181,40 +182,53 @@ test("the relay closes a connection that floods it or sends too much at once", a
   assert.equal(mac2.closed, 4008);
 });
 
-// ---- a whole pairing, Station to phone and back ----
+// ---- a whole pairing, Station to iPhone and back ----
+
+/** Airband's relay in memory: one room per id, as Durable Objects keep them. */
+function memoryRelay() {
+  const rooms = new Map<string, ReturnType<typeof memoryRoom>>();
+  const room = (id: string) => {
+    if (!rooms.has(id)) rooms.set(id, memoryRoom());
+    return rooms.get(id)!;
+  };
+  return { rooms, room };
+}
+type Relay = ReturnType<typeof memoryRelay>;
 
 class FakeSocket extends EventTarget {
   readyState = 0;
   peer?: RoomSocket & { got: string[] };
+  private readonly room: ReturnType<typeof memoryRoom>;
   constructor(
     readonly url: string,
-    private readonly relay: ReturnType<typeof memoryRoom>,
+    relay: Relay,
   ) {
     super();
+    this.room = relay.room(/\/r\/([^/]+)\/ws/.exec(new URL(url).pathname)![1]);
     void this.opened();
   }
   private async opened() {
     const u = new URL(this.url);
     const role = u.searchParams.get("role") as Role;
-    const verdict = await this.relay.logic.admit(role, u.searchParams.get("token"));
-    if (verdict !== "ok") return this.close();
+    const verdict = await this.room.logic.admit(role, u.searchParams.get("token"));
+    if (verdict !== "ok") return this.close(4003);
     const me = this;
-    const s = { role, got: [] as string[], closed: undefined as number | undefined, send: (t: string) => queueMicrotask(() => me.dispatchEvent(Object.assign(new Event("message"), { data: t }))), close: () => me.close() };
+    const s = { role, got: [] as string[], closed: undefined as number | undefined, send: (t: string) => queueMicrotask(() => me.dispatchEvent(Object.assign(new Event("message"), { data: t }))), close: (code: number) => me.close(code) };
     this.peer = s;
-    this.relay.sockets.push(s);
+    this.room.sockets.push(s);
     this.readyState = 1;
     this.dispatchEvent(new Event("open"));
-    await this.relay.logic.joined(s);
+    await this.room.logic.joined(s);
   }
   send(text: string) {
-    if (text !== "ping" && this.peer) void this.relay.logic.message(this.peer, text);
+    if (text !== "ping" && this.peer) void this.room.logic.message(this.peer, text);
   }
-  close() {
+  close(code = 1000) {
     if (this.readyState === 3) return;
     this.readyState = 3;
-    if (this.peer) (this.peer as { closed?: number }).closed = 1000;
-    if (this.peer) this.relay.logic.left(this.peer);
-    this.dispatchEvent(new Event("close"));
+    if (this.peer) (this.peer as { closed?: number }).closed = code;
+    if (this.peer) this.room.logic.left(this.peer);
+    this.dispatchEvent(Object.assign(new Event("close"), { code }));
   }
 }
 
@@ -235,170 +249,214 @@ const until = async (f: () => boolean | Promise<boolean>, what: string) => {
   throw new Error(`never: ${what}`);
 };
 
-test("pair a phone, see a request on it, allow it there: the chat gets the answer", async () => {
-  const relay = memoryRoom();
-  const pushes: { url: string; body: Buffer; headers: Record<string, string> }[] = [];
-  const forgets: string[] = [];
+interface Heard {
+  t: string;
+  n?: number;
+  ok?: boolean;
+  error?: string;
+  room?: string;
+  secret?: string;
+  state?: { pending: { id: string; cwd?: string }[]; chats: { cwd?: string }[] };
+}
+
+/** An iPhone's connection to one room, with everything it hears unlocked. */
+async function phoneOn(relay: Relay, room: string, secret: string, clock: () => number = Date.now) {
+  const box = await openBox(secret);
+  const ws = new FakeSocket(`wss://relay.test/r/${room}/ws?role=phone&token=${box.token}`, relay);
+  const heard: Heard[] = [];
+  ws.addEventListener("message", (e) => {
+    const f = JSON.parse((e as MessageEvent).data as string) as { d?: string };
+    if (f.d) void unseal<Heard>(box, f.d, clock()).then((m) => m && heard.push(m));
+  });
+  const say = async (m: unknown) => ws.send(JSON.stringify({ k: "msg", d: await seal(box, m, clock()) }));
+  return { box, ws, heard, say };
+}
+
+function newStation(relay: Relay, pushes: { body: Buffer }[], opts: { away?: () => boolean; now?: () => number } = {}) {
   const fakeFetch = (async (url: string | URL, init?: RequestInit) => {
     const u = String(url);
-    if (u.endsWith("/forget")) {
-      forgets.push(u);
-      return new Response(null, { status: await relay.logic.forget((init?.headers as Record<string, string>)["x-room-token"]) });
-    }
-    else pushes.push({ url: u, body: Buffer.from(init?.body as Uint8Array), headers: init?.headers as Record<string, string> });
+    const forget = /\/r\/([^/]+)\/forget$/.exec(u);
+    if (forget) return new Response(null, { status: await relay.room(forget[1]).logic.forget((init?.headers as Record<string, string>)["x-room-token"]) });
+    pushes.push({ body: Buffer.from(init?.body as Uint8Array) });
     return new Response(null, { status: 201 });
   }) as typeof fetch;
-  let away = true;
-  station = new Station({ port: 0, claude: null, pollMs: 60_000, link: { relay: "https://relay.test", WebSocket: class extends FakeSocket { constructor(url: string) { super(url, relay); } } as unknown as typeof WebSocket, fetch: fakeFetch, away: () => away, nudgeMs: 30 } });
+  return new Station({ port: 0, claude: null, pollMs: 60_000, link: { relay: "https://relay.test", WebSocket: class extends FakeSocket { constructor(url: string) { super(url, relay); } } as unknown as typeof WebSocket, fetch: fakeFetch, away: opts.away ?? (() => true), nudgeMs: 30, handoverMs: 20, ...(opts.now ? { now: opts.now } : {}) } });
+}
+
+/** Link, scan, claim: the iPhone's own room, joined and hearing the state. */
+async function pairIPhone(s: Station, relay: Relay) {
+  const code = parsePairing(new URL(await s.link!.link()).hash)!;
+  await until(() => s.snapshot().link!.online, "the Mac reaches the relay");
+  const scanned = await phoneOn(relay, code.room, code.secret);
+  await until(() => scanned.ws.readyState === 1, "the iPhone opens the code");
+  await scanned.say({ t: "claim", n: 1, id: "a1b2c3d4e5f6", name: "iPhone" });
+  await until(() => scanned.heard.some((m) => m.t === "paired"), "the Mac hands over the iPhone's own secret");
+  const paired = scanned.heard.find((m) => m.t === "paired")!;
+  const own = await phoneOn(relay, paired.room!, paired.secret!);
+  await until(() => s.snapshot().link!.online && own.ws.readyState === 1, "the iPhone on its own room");
+  await own.say({ t: "hello" });
+  await until(() => own.heard.some((m) => m.t === "state"), "the iPhone hears the state");
+  return { code, scanned, own, paired };
+}
+
+test("a code works once, for one iPhone: it gets a secret of its own and the code is worth nothing after", async () => {
+  const relay = memoryRelay();
+  const pushes: { body: Buffer }[] = [];
+  station = newStation(relay, pushes);
   await station.start();
   const s = station;
-  assert.deepEqual(s.snapshot().link, { linked: false, online: false, phones: [] });
-
-  // Link: the code the computer shows.
   const url = await s.link!.link();
-  assert.match(url, /^https:\/\/relay\.test\/#/);
-  const pairing = parsePairing(new URL(url).hash)!;
-  assert.ok(pairing, "the code holds a pairing");
-  const saved = JSON.parse(fs.readFileSync(path.join(process.env.AIRBAND_HOME!, "phone-link.json"), "utf8")) as { secret: string };
-  assert.equal(saved.secret, pairing.secret);
-  await until(() => s.snapshot().link!.online, "the computer reaches the relay");
+  const code = parsePairing(new URL(url).hash)!;
+  assert.ok(s.snapshot().link!.codeUntil! - Date.now() > 9 * 60_000, "about 10 minutes to scan it");
+  assert.equal(s.snapshot().link!.linked, false);
+  await until(() => s.snapshot().link!.online, "online");
 
-  // The phone joins with the code's secret.
-  const box = await openBox(pairing.secret);
-  const phone = new FakeSocket(`wss://relay.test/r/${pairing.room}/ws?role=phone&token=${box.token}`, relay);
-  const states: { pending: { id: string; title: string }[] }[] = [];
-  const replies: { n: number; ok: boolean; error?: string }[] = [];
-  phone.addEventListener("message", (e) => {
-    const f = JSON.parse((e as MessageEvent).data as string) as { k: string; d?: string };
-    if (!f.d) return;
-    void unseal<{ t: string; state?: never; n?: number; ok?: boolean }>(box, f.d).then((m) => {
-      if (m?.t === "state") states.push(m.state as never);
-      if (m?.t === "reply") replies.push(m as never);
-    });
-  });
-  await until(() => phone.readyState === 1, "the phone connects");
-  const say = async (m: unknown) => phone.send(JSON.stringify({ k: "msg", d: await seal(box, m) }));
-  await say({ t: "hello" });
-  await until(() => states.length > 0, "the phone gets the state");
+  // Holding only the code, nothing about your chats is heard: the only answer is to a claim.
+  const scanned = await phoneOn(relay, code.room, code.secret);
+  await until(() => scanned.ws.readyState === 1, "open");
+  await scanned.say({ t: "hello" });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.ok(!scanned.heard.some((m) => m.t === "state"), "no state on a code");
+  await scanned.say({ t: "claim", n: 1, id: "a1b2c3d4e5f6", name: "iPhone" });
+  await until(() => scanned.heard.some((m) => m.t === "paired"), "claimed");
+  const paired = scanned.heard.find((m) => m.t === "paired")!;
+  assert.notEqual(paired.room, code.room);
+  assert.notEqual(paired.secret, code.secret);
+  assert.deepEqual(s.snapshot().link!.phones, [{ name: "iPhone", at: s.snapshot().link!.phones[0].at, alerts: false }]);
+  assert.equal(s.snapshot().link!.linked, true);
+  assert.equal(s.link!.pairingUrl(), undefined, "no code to show any more");
 
-  // Alerts on: the phone hands over its push address.
+  // Someone who photographed the code: the room is gone, so they get nowhere.
+  await until(async () => (await relay.room(code.room).logic.check(scanned.box.token)) === 410, "the code's room is deleted");
+  const late = await phoneOn(relay, code.room, code.secret);
+  await until(() => late.ws.readyState === 3, "a second iPhone is turned away");
+  const saved = fs.readFileSync(path.join(process.env.AIRBAND_HOME!, "phone-link.json"), "utf8");
+  assert.ok(!saved.includes(code.secret), "the Mac forgot the code's secret");
+  assert.ok(saved.includes(paired.secret!));
+});
+
+test("a code nobody scans in 10 minutes runs out", async () => {
+  const relay = memoryRelay();
+  let offset = 0;
+  const clock = () => Date.now() + offset;
+  station = newStation(relay, [], { now: clock });
+  await station.start();
+  const s = station;
+  const code = parsePairing(new URL(await s.link!.link()).hash)!;
+  await until(() => s.snapshot().link!.online, "online");
+  const scanned = await phoneOn(relay, code.room, code.secret, clock);
+  await until(() => scanned.ws.readyState === 1, "open");
+  offset = 11 * 60_000;
+  await scanned.say({ t: "claim", n: 1, id: "a1b2c3d4e5f6", name: "iPhone" });
+  await until(() => scanned.heard.some((m) => m.t === "reply"), "the Mac answers");
+  assert.match(scanned.heard[0].error!, /expired/);
+  assert.equal(s.snapshot().link!.linked, false);
+});
+
+test("pair an iPhone, see a request on it, allow it there: the chat gets the answer", async () => {
+  const relay = memoryRelay();
+  const pushes: { body: Buffer }[] = [];
+  let away = true;
+  station = newStation(relay, pushes, { away: () => away });
+  await station.start();
+  const s = station;
+  const { own, paired } = await pairIPhone(s, relay);
+
+  // Alerts: only through Apple's push service.
+  await own.say({ t: "subscribe", n: 2, id: "a1b2c3d4e5f6", name: "iPhone", sub: { endpoint: "https://fcm.googleapis.com/fcm/send/abc", keys: newPhone().keys } });
+  await until(() => own.heard.some((m) => m.n === 2), "an Android address is refused");
+  assert.match(own.heard.find((m) => m.n === 2)!.error!, /iPhone/);
+  await own.say({ t: "subscribe", n: 3, id: "ffffffffffff", name: "Other", sub: { endpoint: "https://web.push.apple.com/zzz", keys: newPhone().keys } });
+  await until(() => own.heard.some((m) => m.n === 3), "another id is refused");
+  assert.equal(own.heard.find((m) => m.n === 3)!.ok, false);
   const ph = newPhone();
-  await say({ t: "subscribe", n: 1, id: "p1", name: "iPhone", sub: { endpoint: "https://web.push.apple.com/abc", keys: ph.keys } });
-  await until(() => replies.some((r) => r.n === 1 && r.ok), "the computer keeps the phone");
-  await until(() => pushes.length === 1, "a hello notification");
+  await own.say({ t: "subscribe", n: 4, id: "a1b2c3d4e5f6", name: "iPhone", sub: { endpoint: "https://web.push.apple.com/abc", keys: ph.keys } });
+  await until(() => own.heard.some((m) => m.n === 4 && m.ok), "alerts on");
+  await until(() => pushes.length === 1, "Alerts are on");
   assert.equal(JSON.parse(unlockOnPhone(pushes[0].body, ph.ecdh, ph.auth)).title, "Alerts are on");
-  assert.match(pushes[0].headers.authorization, /^vapid t=.+, k=/);
-  assert.deepEqual(s.snapshot().link!.phones.map((p) => p.name), ["iPhone"]);
+  assert.equal(s.snapshot().link!.phones[0].alerts, true);
 
-  // A chat asks; the person is away: the phone buzzes, locked for it alone.
-  const waiting = askStation({ agent: "claude", session_id: "c1", cwd: "/p/billing", tool_name: "Bash", tool_input: { command: "npm test" } });
-  await until(() => states.some((st) => st.pending.length === 1), "the request reaches the phone");
-  await until(() => pushes.length === 2, "the request's notification");
-  const note = JSON.parse(unlockOnPhone(pushes[1].body, ph.ecdh, ph.auth)) as { title: string; body: string; kind: string; id: string };
+  // A chat asks; away: the iPhone buzzes, locked for it alone, and sees no folder paths.
+  const waiting = askStation({ agent: "claude", session_id: "c1", cwd: "/Users/ana/billing", tool_name: "Bash", tool_input: { command: "npm test" } });
+  await until(() => own.heard.some((m) => m.t === "state" && m.state!.pending.length === 1), "the request reaches the iPhone");
+  const st = own.heard.filter((m) => m.t === "state").at(-1)!.state!;
+  assert.ok(!JSON.stringify(st).includes("/Users/ana"), "no folder paths on the iPhone");
+  await until(() => pushes.length === 2, "the request's alert");
+  const note = JSON.parse(unlockOnPhone(pushes[1].body, ph.ecdh, ph.auth)) as { body: string; kind: string; id: string };
   assert.equal(note.kind, "request");
   assert.match(note.body, /npm test/);
-  assert.ok(!pushes[1].body.toString("latin1").includes("npm test"), "the push service sees no words");
-
-  // Allow on the phone: the chat goes on.
-  const id = states.at(-1)!.pending[0].id;
-  assert.equal(note.id, id);
-  await say({ t: "decide", n: 2, id, decision: "allow" });
+  assert.ok(!pushes[1].body.toString("latin1").includes("npm test"), "Apple sees no words");
+  await own.say({ t: "decide", n: 5, id: note.id, decision: "allow" });
   assert.equal((await waiting)?.decision, "allow");
-  await until(() => replies.some((r) => r.n === 2 && r.ok), "the phone hears it worked");
-  await say({ t: "decide", n: 3, id, decision: "deny" });
-  await until(() => replies.some((r) => r.n === 3 && !r.ok), "a second answer is refused");
 
-  // At the computer, with "Alert my phone always" off: no buzz unless the request is still waiting
-  // a little later.
+  // "Alert my phone always" off and at the Mac: no buzz unless it still waits a little later.
   await s.setSettings({ phoneAlways: false });
   away = false;
   const second = askStation({ agent: "claude", session_id: "c2", cwd: "/p/api", tool_name: "Bash", tool_input: { command: "ls" } });
-  await until(() => states.some((st) => st.pending.length === 1 && st.pending[0].id !== id), "the second request");
+  await until(() => s.snapshot().pending.length === 1, "the second request");
   await new Promise((r) => setTimeout(r, 80));
-  assert.equal(pushes.length, 2, "no buzz while you're at the computer");
-  const id2 = s.snapshot().pending[0].id;
-  s.decide(id2, { decision: "deny" });
+  assert.equal(pushes.length, 2, "no buzz while you're at the Mac");
+  s.decide(s.snapshot().pending[0].id, { decision: "deny" });
   await second;
-
-  // "Alert my phone always" (on by default): at the computer too, the phone hears at once.
   await s.setSettings({ phoneAlways: true });
   const third = askStation({ agent: "claude", session_id: "c3", cwd: "/p/web", tool_name: "Bash", tool_input: { command: "pwd" } });
-  await until(() => pushes.length === 3, "a buzz at once, at the computer");
+  await until(() => pushes.length === 3, "with Alert my phone always on, at once");
   s.decide(s.snapshot().pending[0].id, { decision: "allow" });
   await third;
 
-  // What a phone can't do: there is no message for asking, telling a chat, or settings.
-  await say({ t: "ask", n: 9, text: "read my Downloads folder" });
-  await say({ t: "settings", n: 10, approvals: false });
+  // What an iPhone can't do, and what a wrong key gets.
+  await own.say({ t: "ask", n: 9, text: "read my Downloads folder" });
+  await own.say({ t: "settings", n: 10, approvals: false });
+  const stranger = await openBox(randomB64u(32));
+  own.ws.send(JSON.stringify({ k: "msg", d: await seal(stranger, { t: "decide", n: 11, id: note.id, decision: "allow" }) }));
   await new Promise((r) => setTimeout(r, 40));
-  assert.ok(!replies.some((r) => r.n === 9 || r.n === 10), "ignored, not answered");
+  assert.ok(!own.heard.some((m) => m.n === 9 || m.n === 10 || m.n === 11));
   assert.equal(s.snapshot().settings.approvals, true);
 
-  // A message locked with the wrong key does nothing.
-  const stranger = await openBox(randomB64u(32));
-  phone.send(JSON.stringify({ k: "msg", d: await seal(stranger, { t: "decide", n: 11, id, decision: "allow" }) }));
-  await new Promise((r) => setTimeout(r, 40));
-  assert.ok(!replies.some((r) => r.n === 11));
-
-  // Unlink: the room goes on the relay, and the secret here.
-  await s.link!.unlink();
-  assert.equal(forgets.length, 1);
-  assert.equal(s.snapshot().link!.linked, false);
-  assert.equal(await relay.logic.check(box.token), 410);
+  // Unlink this iPhone, on the iPhone: ended on both sides.
+  await own.say({ t: "forget", id: "a1b2c3d4e5f6" });
+  await until(() => !s.snapshot().link!.linked, "unlinked on the Mac");
+  assert.equal(await relay.room(paired.room!).logic.check(own.box.token), 410);
 });
 
-test("Test on the computer: a pretend request reaches the phone at once, and the answer comes back", async () => {
-  const relay = memoryRoom();
-  let status = 201;
-  const pushes: Buffer[] = [];
-  const fakeFetch = (async (url: string | URL, init?: RequestInit) => {
-    if (String(url).endsWith("/forget")) return new Response(null, { status: 200 });
-    pushes.push(Buffer.from(init?.body as Uint8Array));
-    return new Response(null, { status });
-  }) as typeof fetch;
-  station = new Station({ port: 0, claude: null, pollMs: 60_000, link: { relay: "https://relay.test", WebSocket: class extends FakeSocket { constructor(url: string) { super(url, relay); } } as unknown as typeof WebSocket, fetch: fakeFetch, away: () => false } });
+test("the Mac sends its state only while the iPhone app is open", async () => {
+  const relay = memoryRelay();
+  station = newStation(relay, []);
   await station.start();
   const s = station;
-  const pairing = parsePairing(new URL(await s.link!.link()).hash)!;
-  await until(() => s.snapshot().link!.online, "online");
-  assert.deepEqual(await s.link!.sample(), [], "no phone with alerts yet: nothing sent, and the caller says so");
-  const box = await openBox(pairing.secret);
-  const phone = new FakeSocket(`wss://relay.test/r/${pairing.room}/ws?role=phone&token=${box.token}`, relay);
-  const replies: { n: number; ok: boolean; error?: string }[] = [];
-  phone.addEventListener("message", (e) => {
-    const f = JSON.parse((e as MessageEvent).data as string) as { d?: string };
-    if (f.d) void unseal<{ t: string }>(box, f.d).then((m) => m?.t === "reply" && replies.push(m as never));
-  });
-  await until(() => phone.readyState === 1, "phone");
-  const say = async (m: unknown) => phone.send(JSON.stringify({ k: "msg", d: await seal(box, m) }));
-  const ph = newPhone();
-  await say({ t: "subscribe", n: 1, id: "p1", name: "iPhone", sub: { endpoint: "https://web.push.apple.com/abc", keys: ph.keys } });
-  await until(() => replies.some((r) => r.n === 1), "subscribed");
-  await until(() => pushes.length === 1, "the hello alert");
+  const { own, paired } = await pairIPhone(s, relay);
+  const room = relay.room(paired.room!);
+  own.ws.close();
+  await new Promise((r) => setTimeout(r, 50));
+  const before = room.data.get("state");
+  s.sample();
+  await new Promise((r) => setTimeout(r, 1500));
+  assert.equal(room.data.get("state"), before, "nothing is sent while no iPhone looks");
+  const back = await phoneOn(relay, paired.room!, paired.secret!);
+  await until(() => back.ws.readyState === 1, "the app opens again");
+  await until(() => back.heard.some((m) => m.t === "state" && m.state!.pending.length === 1), "it sees the request at once");
+});
 
-  // At the computer, and still the test goes at once.
+test("Test on the Mac: a pretend request reaches the iPhone at once, and the answer comes back", async () => {
+  const relay = memoryRelay();
+  const pushes: { body: Buffer }[] = [];
+  station = newStation(relay, pushes, { away: () => false });
+  await station.start();
+  const s = station;
+  const { own } = await pairIPhone(s, relay);
+  assert.deepEqual(await s.link!.sample(), [], "no alerts yet: nothing sent, and the caller says so");
+  const ph = newPhone();
+  await own.say({ t: "subscribe", n: 2, id: "a1b2c3d4e5f6", name: "iPhone", sub: { endpoint: "https://web.push.apple.com/abc", keys: ph.keys } });
+  await until(() => pushes.length === 1, "the hello alert");
   const reports = await s.link!.sample();
   assert.deepEqual(reports, [{ name: "iPhone", ok: true, status: 201 }]);
-  const note = JSON.parse(unlockOnPhone(pushes[1], ph.ecdh, ph.auth)) as { title: string; kind: string; id: string };
+  const note = JSON.parse(unlockOnPhone(pushes[1].body, ph.ecdh, ph.auth)) as { kind: string; id: string };
   assert.equal(note.kind, "request");
-  const pending = s.snapshot().pending;
-  assert.equal(pending.length, 1);
-  assert.equal(pending[0].sample, true);
-  await say({ t: "decide", n: 2, id: note.id, decision: "always" });
-  await until(() => s.snapshot().test?.answer === "always", "the answer reaches the computer");
+  await own.say({ t: "decide", n: 3, id: note.id, decision: "always" });
+  await until(() => s.snapshot().test?.answer === "always", "the answer reaches the Mac");
   assert.equal(s.snapshot().test?.from, "phone");
-  assert.equal(s.snapshot().pending.length, 0);
   assert.ok(!fs.existsSync(path.join(process.env.AIRBAND_HOME!, "station-rules.json")), "a test's Always remembers nothing");
-
-  // Send me a test alert, from the phone.
-  await say({ t: "test", n: 3 });
-  await until(() => replies.some((r) => r.n === 3 && r.ok), "the phone hears it was sent");
-  assert.equal(JSON.parse(unlockOnPhone(pushes.at(-1)!, ph.ecdh, ph.auth)).title, "Test from your computer");
-
-  // The phone turned alerts off: the report says what to do, and the phone is dropped.
-  status = 410;
-  const off = await s.link!.sample();
-  assert.equal(off[0].ok, false);
-  assert.match(off[0].why!, /turned its alerts off/);
-  assert.deepEqual(s.link!.status().phones, []);
+  await own.say({ t: "test", n: 4 });
+  await until(() => own.heard.some((m) => m.n === 4 && m.ok), "Send me a test alert");
+  assert.equal(JSON.parse(unlockOnPhone(pushes.at(-1)!.body, ph.ecdh, ph.auth)).title, "Test from your Mac");
 });

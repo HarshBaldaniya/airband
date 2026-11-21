@@ -11,16 +11,23 @@
   folders. **Look things up** (a setting, on at first) passes a question to Claude Code: a question
   about your chats gets only Airband's read-only flightlog, and any other question gets only web
   search. Neither gets file or shell tools, and nothing is saved as a chat.
-- **Your phone, from anywhere.** In Roger's settings, choose **Link** next to **Your phone** and scan
-  the code. Your phone shows what needs you, with big Allow, Always and Deny buttons, and what
-  finished. It works on mobile data too. On an iPhone, add it to the Home Screen (iOS 16.4 or later)
-  for alerts on the Lock Screen. On Android, Allow and Deny sit on the alert itself. The phone only
-  buzzes when your computer is locked or idle for a minute.
-- **Locked end to end.** The code holds a secret that only your computer and your phone know.
-  Messages pass through Airband's relay on Cloudflare, locked with it, so the relay can't read them.
-  Alerts go from your computer to your phone's push service, locked for that phone. A phone can
-  answer requests and nothing else: it can't ask, message a chat or change settings. **Unlink** ends
-  it at once.
+- **Your iPhone, from anywhere (Mac and iPhone only).** In Roger's settings, choose **Link** next to
+  **Your phone** and scan the code with your iPhone. Add Airband to the Home Screen (iOS 16.4 or
+  later) and it links by itself. Your iPhone shows what needs you, with big Allow, Always and Deny
+  buttons, what is working, and what finished today with a short summary. Alerts reach the Lock
+  Screen for every request and finished chat (**Alert my phone always**, on at first; off, only when
+  your Mac is locked or idle). **Test** sends a pretend request and says what happened.
+- **One Mac, one iPhone, nobody else.** The code works once, for 10 minutes. The first iPhone to use
+  it gets a secret of its own, and the code is deleted at once, so a photo of it is worth nothing.
+  To change iPhones, unlink and link again. Only a Mac offers the link, alerts go only through
+  Apple's push service, and other phones and computers are turned away.
+- **Locked end to end.** Messages pass through Airband's relay on Cloudflare locked with that
+  secret, so the relay can't read them. Alerts go from your Mac to Apple, locked for your iPhone.
+  Your iPhone gets no folder paths, and it can answer requests and nothing else: it can't ask,
+  message a chat or change settings. **Unlink**, on either side, ends it on both at once.
+- **Free, with limits of its own.** The relay runs on Cloudflare's free plan, which never charges:
+  past its daily limit it stops until the next day. Your Mac sends its state only while the iPhone
+  app is open, at most once a second and 3,000 times a day.
 - **No Node needed.** On a computer without Node, the app runs Airband's hook and tools itself.
 - **Claude Code's permission requests** now pass through Airband's hook, which waits up to 110 s for
   the app and otherwise lets the terminal ask at once.

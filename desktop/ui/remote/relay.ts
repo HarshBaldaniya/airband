@@ -20,6 +20,8 @@ export class RelayLink implements Transport {
   /** The relay is reachable, and so is the computer. */
   macOnline = false;
   private listeners = new Set<() => void>();
+  /** The Mac ended the link (Unlink there): the app goes back to linking at once. */
+  onEnded?: () => void;
 
   private constructor(
     readonly pairing: Pairing,
@@ -72,13 +74,17 @@ export class RelayLink implements Transport {
     this.ws = ws;
     ws.onopen = () => {
       this.retryMs = 1000;
-      void this.send({ t: "hello" });
+      if (this.pairing.claimed) void this.send({ t: "hello" });
       clearInterval(this.ping);
       this.ping = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send("ping"), 30_000);
     };
     ws.onmessage = (e) => void this.received(String(e.data));
-    ws.onclose = () => {
+    ws.onclose = (e) => {
       if (this.ws !== ws) return;
+      if (e.code === 4001) {
+        this.stopped = true;
+        return this.onEnded?.();
+      }
       clearInterval(this.ping);
       this.setMac(false);
       if (!this.stopped) {
@@ -102,9 +108,10 @@ export class RelayLink implements Transport {
     } catch {
       return;
     }
+    if (f.k === "phones") return;
     if (f.k === "mac") {
       this.setMac(f.on);
-      if (f.on) void this.send({ t: "hello" });
+      if (f.on && this.pairing.claimed) void this.send({ t: "hello" });
       return;
     }
     const m = await unseal<ComputerMessage>(this.box, f.d);
@@ -112,6 +119,12 @@ export class RelayLink implements Transport {
     if (m.t === "state") {
       if (!this.macOnline) this.setMac(true);
       this.onState?.(m.state as StationState);
+    } else if (m.t === "paired") {
+      const w = this.waiting.get(m.n);
+      if (!w) return;
+      this.waiting.delete(m.n);
+      clearTimeout(w.timer);
+      w.resolve({ room: m.room, secret: m.secret });
     } else if (m.t === "reply") {
       const w = this.waiting.get(m.n);
       if (!w) return;
@@ -151,6 +164,29 @@ export class RelayLink implements Transport {
     }
     if (route === "/api/dismiss") return (await this.ask({ t: "dismiss", n: this.n++, chatId: String(b.chatId) })) as T;
     throw new Error("That is done on your computer.");
+  }
+
+  /** Takes the link with the scanned code: the Mac answers with this iPhone's own room and secret. */
+  claim(id: string, name: string): Promise<{ room: string; secret: string }> {
+    return this.ask({ t: "claim", n: this.n++, id, name }) as Promise<{ room: string; secret: string }>;
+  }
+
+  /** Opens the connection and waits until it is open (for a claim, before any state). */
+  open(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.stopped = false;
+      this.connect();
+      const ws = this.ws!;
+      const t = setTimeout(() => reject(new Error("Couldn't reach Airband. Check the internet on this iPhone.")), 10_000);
+      ws.addEventListener("open", () => (clearTimeout(t), resolve()), { once: true });
+    });
+  }
+
+  close(): void {
+    this.stopped = true;
+    clearTimeout(this.retry);
+    clearInterval(this.ping);
+    this.ws?.close();
   }
 
   subscribe(id: string, name: string, sub: PushSubscriptionJSON): Promise<unknown> {

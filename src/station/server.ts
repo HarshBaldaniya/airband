@@ -172,7 +172,8 @@ export class Station extends EventEmitter {
     this.settings = readSettings();
     this.phoneKey = readJson<{ key?: string }>(phoneKeyFile(), {}).key ?? key();
     this.uiDir = o.uiDir ?? path.join(__dirname, "companion");
-    if (o.link !== false) this.link = new PhoneLink(this, o.link ?? {});
+    // The phone link is Mac to iPhone only: offered on a Mac (or where a test asks for it).
+    if (o.link !== false && (process.platform === "darwin" || o.link)) this.link = new PhoneLink(this, o.link ?? {});
   }
 
   /** The phone link through Airband's relay. */

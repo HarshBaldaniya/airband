@@ -63,7 +63,7 @@ const ENTRIES: Entry[] = [
   },
   {
     match: /\bphone link\b|\b(connect|use|link|see) .*\bon (my )?(phone|iphone|android|mobile)\b|\b(on|with) my (phone|iphone|android)\b/i,
-    answer: () => ({ text: "Open my settings and choose Link next to Your phone, then scan the code with your phone's camera. On an iPhone, add Airband to your Home Screen for alerts. Everything between us is locked: the relay can't read it.", action: "settings" }),
+    answer: () => ({ text: "Open my settings and choose Link next to Your phone, then scan the code with your iPhone's camera. Add Airband to your Home Screen and open it there: it links by itself. It's for your Mac and one iPhone, and everything between them is locked.", action: "settings" }),
   },
   {
     match: /\b(how are you|how'?s it going|you ok|you good|what'?s up with you)\b/i,

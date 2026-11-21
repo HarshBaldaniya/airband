@@ -77,6 +77,8 @@ export interface Pairing {
   secret: string;
   /** The computer's public key for phone notifications (Web Push, VAPID). */
   vapid: string;
+  /** This phone owns the pairing: the code it scanned was used up and swapped for a secret of its own. */
+  claimed?: boolean;
 }
 
 export const ROOM_RE = /^[A-Za-z0-9_-]{22}$/;
@@ -94,6 +96,8 @@ export function parsePairing(fragment: string): Pairing | undefined {
 
 /** What the computer and the phone say to each other, inside the lock. */
 export type PhoneMessage =
+  /** The first message on a code: this phone takes the link. The code works once, for one phone. */
+  | { t: "claim"; n: number; id: string; name: string }
   | { t: "hello" }
   | { t: "decide"; n: number; id: string; decision: "allow" | "always" | "deny" | "terminal"; answers?: Record<string, string | string[]>; message?: string }
   | { t: "dismiss"; n: number; chatId: string }
@@ -101,7 +105,11 @@ export type PhoneMessage =
   | { t: "forget"; id: string }
   | { t: "test"; n: number };
 
-export type ComputerMessage = { t: "state"; state: unknown } | { t: "reply"; n: number; ok: boolean; error?: string };
+export type ComputerMessage =
+  | { t: "state"; state: unknown }
+  | { t: "reply"; n: number; ok: boolean; error?: string }
+  /** The claim worked: the phone's own room and secret, which nobody else ever sees. */
+  | { t: "paired"; n: number; room: string; secret: string };
 
 /** What travels through the relay, outside the lock: only which kind it is, never what it says. */
-export type RelayFrame = { k: "state" | "msg"; d: string } | { k: "mac"; on: boolean };
+export type RelayFrame = { k: "state" | "msg"; d: string } | { k: "mac"; on: boolean } | { k: "phones"; n: number };

@@ -1,13 +1,25 @@
-// The phone link: the Station's own connection out to Airband's relay, so a linked phone can see what
-// needs you and answer from anywhere. Everything the phone receives is locked with the pair's key
-// (see remote/box.ts); the relay only passes it along. Notifications go from this computer straight
-// to the phone's push service, locked for that phone. A phone can answer a request and set a
-// finished chat aside. It cannot ask, message a chat, open anything or change a setting.
+// The phone link: your Mac and your iPhone, and no one else. The Station keeps its own connection out
+// to Airband's relay, so the linked iPhone sees what needs you and answers from anywhere.
+//
+// Who can link, and how:
+//   - Only a Mac offers it, and only an iPhone takes it: alerts go only through Apple's push service.
+//   - Link shows a code that works once, for 10 minutes. The first iPhone to use it "claims" it and
+//     gets a room and a secret of its own; the code is deleted on the relay at once, so a photo of it
+//     is worth nothing. One iPhone per Mac: another needs Unlink, then a new code.
+//   - Everything between the two is locked with that secret (remote/box.ts). The relay passes it along
+//     and can read none of it. Alerts go from this Mac straight to Apple, locked for that iPhone.
+//   - The iPhone can answer a request and set a finished chat aside. It cannot ask, message a chat,
+//     open anything or change a setting.
+//
+// Free, and kept that way: the Mac sends its state only while the iPhone app is open, at most once a
+// second, and at most DAILY_FRAMES frames a day; a quiet link costs a keep-alive a minute. Cloudflare's
+// free plan never charges: past its daily limit the relay just stops until the next day.
 import { webcrypto } from "node:crypto";
 import { airbandFile, readJson, writeFileAtomic } from "../core/paths";
 import { openBox, pairingFragment, randomB64u, seal, unseal, type Box, type ComputerMessage, type PhoneMessage, type RelayFrame } from "../remote/box";
 import { isPushEndpoint, newVapidKeys, sendPush, type PushTarget, type VapidKeys } from "../remote/webpush";
 import type { Answer } from "./reply";
+import type { LiveChat } from "./chats";
 import type { FinishedView, PendingView, Station, StationState } from "./server";
 
 if (!globalThis.crypto) (globalThis as { crypto?: unknown }).crypto = webcrypto;
@@ -15,10 +27,21 @@ if (!globalThis.crypto) (globalThis as { crypto?: unknown }).crypto = webcrypto;
 /** Airband's relay. `AIRBAND_RELAY_URL` points at another one (a test, or your own). */
 export const RELAY_URL = (process.env.AIRBAND_RELAY_URL ?? "https://app.airband.workers.dev").replace(/\/+$/, "");
 
+/** How long a code waits to be scanned. */
+export const CODE_MS = 10 * 60_000;
+/** The most frames the Mac sends the relay in a day, whatever happens: far inside the free plan. */
+export const DAILY_FRAMES = 3000;
+const PING_MS = 60_000;
+const MAX_RETRY_MS = 5 * 60_000;
+const STATE_EVERY_MS = 1000;
+const MAX_CHATS = 30;
+const DECISIONS = new Set(["allow", "always", "deny", "terminal"]);
+
 export interface LinkedPhone {
   id: string;
   name: string;
-  push: PushTarget;
+  /** Where its alerts go; missing until the iPhone turns alerts on. */
+  push?: PushTarget;
   at: number;
 }
 
@@ -26,17 +49,25 @@ interface LinkFile {
   room: string;
   secret: string;
   vapid: VapidKeys;
-  phones: LinkedPhone[];
+  /** The one iPhone, once it claimed the code. */
+  phone?: LinkedPhone;
+  /** While set, room and secret are a code waiting to be scanned, until this time. */
+  codeUntil?: number;
 }
 
 export interface LinkStatus {
+  /** An iPhone holds the link. */
   linked: boolean;
+  /** A code is showing, waiting for an iPhone to scan it, until this time. */
+  codeUntil?: number;
+  /** The last code ran out before anyone scanned it. */
+  expired?: boolean;
   /** The relay is reachable now. */
   online: boolean;
-  phones: { name: string; at: number }[];
+  phones: { name: string; at: number; alerts: boolean }[];
 }
 
-/** What one phone's push service said to a notification, in words for the person. */
+/** What Apple's push service said to an alert, in words for the person. */
 export interface PushReport {
   name: string;
   ok: boolean;
@@ -46,28 +77,34 @@ export interface PushReport {
 
 function why(status: number): string | undefined {
   if (status >= 200 && status < 300) return undefined;
-  if (status === 404 || status === 410) return "This phone turned its alerts off. Open Airband on it and tap Turn on alerts.";
-  if (status === 401 || status === 403) return "The push service refused this computer's signature. Link the phone again.";
+  if (status === 404 || status === 410) return "This iPhone turned its alerts off. Open Airband on it and tap Turn on alerts.";
+  if (status === 401 || status === 403) return "Apple refused this Mac's signature. Link the iPhone again.";
   if (status === 413) return "The alert was too long.";
   if (status === 429) return "Too many alerts at once. Try again in a minute.";
-  if (status === 0) return "Couldn't reach the phone's push service. Is this computer online?";
-  return `The push service said ${status}.`;
+  if (status === 0) return "Couldn't reach Apple's push service. Is this Mac online?";
+  return `Apple's push service said ${status}.`;
 }
 
 export interface PhoneLinkOptions {
   relay?: string;
-  /** The person is away from the computer (screen locked, idle): only then does the phone buzz. */
+  /** The person is away from the computer (screen locked, idle). */
   away?: () => boolean;
   WebSocket?: typeof WebSocket;
   fetch?: typeof fetch;
   now?: () => number;
-  /** How long a request waits on the computer before the phone is told, if the person is at it. */
+  /** How long a request waits on the computer before the iPhone is told, when alerts are "only when away". */
   nudgeMs?: number;
+  /** How long the claiming iPhone has to read its new secret before the code's room is deleted. */
+  handoverMs?: number;
 }
 
 const linkFile = () => airbandFile("phone-link.json");
-const MAX_CHATS = 30;
-const DECISIONS = new Set(["allow", "always", "deny", "terminal"]);
+
+/** The chats as the iPhone sees them: no folder paths. */
+function forPhone(c: LiveChat): Omit<LiveChat, "cwd" | "open"> {
+  const { cwd: _c, open: _o, ...rest } = c;
+  return rest;
+}
 
 export class PhoneLink {
   private file?: LinkFile;
@@ -75,11 +112,17 @@ export class PhoneLink {
   private ws?: WebSocket;
   private online = false;
   private stopped = false;
+  private expired = false;
   private retryMs = 1000;
   private retry?: NodeJS.Timeout;
   private ping?: NodeJS.Timeout;
+  private codeTimer?: NodeJS.Timeout;
   private lastSent = "";
+  private lastSentAt = 0;
   private sendTimer?: NodeJS.Timeout;
+  /** iPhone app connections open now, as the relay counts them. */
+  private watching = 0;
+  private budget = { day: "", n: 0 };
   private nudges = new Map<string, NodeJS.Timeout>();
   private readonly relay: string;
 
@@ -103,11 +146,14 @@ export class PhoneLink {
     this.station.on("change", this.onChange);
     this.station.on("request", this.onRequest);
     this.station.on("finished", this.onFinished);
-    this.file = readJson<LinkFile | undefined>(linkFile(), undefined);
-    if (this.file?.room && this.file.secret) {
-      this.box = await openBox(this.file.secret);
-      this.connect();
-    }
+    const saved = readJson<LinkFile | null>(linkFile(), null);
+    if (!saved?.room || !saved.secret || !saved.vapid) return;
+    // A code nobody scanned before the Mac stopped: gone.
+    if (saved.codeUntil && saved.codeUntil <= this.now()) return this.clear();
+    this.file = saved;
+    this.box = await openBox(saved.secret);
+    if (saved.codeUntil) this.expireAt(saved.codeUntil);
+    this.connect();
   }
 
   stop(): void {
@@ -116,38 +162,69 @@ export class PhoneLink {
     this.station.off("request", this.onRequest);
     this.station.off("finished", this.onFinished);
     this.disconnect();
+    clearTimeout(this.codeTimer);
     for (const t of this.nudges.values()) clearTimeout(t);
     this.nudges.clear();
   }
 
   status(): LinkStatus {
-    return { linked: !!this.file, online: this.online, phones: (this.file?.phones ?? []).map((p) => ({ name: p.name, at: p.at })) };
+    const f = this.file;
+    return {
+      linked: !!f?.phone,
+      ...(f?.codeUntil ? { codeUntil: f.codeUntil } : {}),
+      ...(this.expired && !f ? { expired: true } : {}),
+      online: this.online,
+      phones: f?.phone ? [{ name: f.phone.name, at: f.phone.at, alerts: !!f.phone.push }] : [],
+    };
   }
 
-  /** A new pairing: a new room and secret (any phone linked before is unlinked). The link to show as a code. */
+  /** A new code for an iPhone to scan: works once, for 10 minutes. Any iPhone linked before is unlinked. */
   async link(): Promise<string> {
     await this.forgetRoom();
-    this.file = { room: randomB64u(16), secret: randomB64u(32), vapid: this.file?.vapid ?? newVapidKeys(), phones: [] };
+    this.disconnect();
+    const now = this.now();
+    this.file = { room: randomB64u(16), secret: randomB64u(32), vapid: this.file?.vapid ?? readJson<LinkFile | null>(linkFile(), null)?.vapid ?? newVapidKeys(), codeUntil: now + CODE_MS };
+    this.expired = false;
     this.save();
     this.box = await openBox(this.file.secret);
-    this.disconnect();
+    this.expireAt(this.file.codeUntil!);
     this.connect();
     this.station.changed();
     return this.pairingUrl()!;
   }
 
+  /** The code to show, while one waits to be scanned. */
   pairingUrl(): string | undefined {
-    if (!this.file) return undefined;
+    if (!this.file?.codeUntil) return undefined;
     return `${this.relay}/#${pairingFragment({ room: this.file.room, secret: this.file.secret, vapid: this.file.vapid.publicKey })}`;
   }
 
-  /** Unlinks every phone: the room is deleted on the relay, and the secret here. */
+  /** Ends the link: the room is deleted on the relay, the secret here, and the iPhone sees it at once. */
   async unlink(): Promise<void> {
     await this.forgetRoom();
     this.disconnect();
+    this.clear();
+    this.station.changed();
+  }
+
+  private clear(): void {
+    clearTimeout(this.codeTimer);
     this.file = undefined;
     this.box = undefined;
-    writeFileAtomic(linkFile(), "null");
+    // The notification key stays: a new link reuses it.
+    const vapid = readJson<LinkFile | null>(linkFile(), null)?.vapid;
+    writeFileAtomic(linkFile(), JSON.stringify(vapid ? { vapid } : null));
+  }
+
+  private expireAt(until: number): void {
+    clearTimeout(this.codeTimer);
+    this.codeTimer = setTimeout(() => void this.codeRanOut(), Math.max(0, until - this.now()));
+  }
+
+  private async codeRanOut(): Promise<void> {
+    if (!this.file?.codeUntil) return;
+    await this.unlink();
+    this.expired = true;
     this.station.changed();
   }
 
@@ -155,10 +232,10 @@ export class PhoneLink {
     writeFileAtomic(linkFile(), JSON.stringify(this.file));
   }
 
-  private async forgetRoom(): Promise<void> {
-    if (!this.file || !this.box) return;
+  private async forgetRoom(room = this.file?.room, box = this.box): Promise<void> {
+    if (!room || !box) return;
     try {
-      await (this.o.fetch ?? fetch)(`${this.relay}/r/${this.file.room}/forget`, { method: "POST", headers: { "x-room-token": this.box.token }, signal: AbortSignal.timeout(5000) });
+      await (this.o.fetch ?? fetch)(`${this.relay}/r/${room}/forget`, { method: "POST", headers: { "x-room-token": box.token }, signal: AbortSignal.timeout(5000) });
     } catch {
       // Offline: the relay deletes an unused room by itself after 30 days.
     }
@@ -177,20 +254,22 @@ export class PhoneLink {
       return this.later();
     }
     this.ws = ws;
+    this.watching = 0;
     ws.addEventListener("open", () => {
       this.online = true;
       this.retryMs = 1000;
       this.lastSent = "";
-      this.sendState();
       clearInterval(this.ping);
-      this.ping = setInterval(() => ws.readyState === 1 && ws.send("ping"), 45_000);
+      this.ping = setInterval(() => ws.readyState === 1 && ws.send("ping"), PING_MS);
       this.station.changed();
     });
     ws.addEventListener("message", (e) => void this.received(String((e as MessageEvent).data)));
     ws.addEventListener("close", () => {
       if (this.ws !== ws) return;
       this.online = false;
+      this.watching = 0;
       clearInterval(this.ping);
+      this.station.changed();
       this.later();
     });
     ws.addEventListener("error", () => undefined);
@@ -200,7 +279,7 @@ export class PhoneLink {
     if (this.stopped || !this.file) return;
     clearTimeout(this.retry);
     this.retry = setTimeout(() => this.connect(), this.retryMs);
-    this.retryMs = Math.min(this.retryMs * 2, 60_000);
+    this.retryMs = Math.min(this.retryMs * 2, MAX_RETRY_MS);
   }
 
   private disconnect(): void {
@@ -210,6 +289,7 @@ export class PhoneLink {
     const ws = this.ws;
     this.ws = undefined;
     this.online = false;
+    this.watching = 0;
     try {
       ws?.close();
     } catch {
@@ -217,55 +297,83 @@ export class PhoneLink {
     }
   }
 
-  private frame(f: RelayFrame): void {
-    if (this.ws?.readyState === 1) this.ws.send(JSON.stringify(f));
+  /** One frame to the relay, inside the day's budget. Answers to the iPhone always go. */
+  private frame(f: RelayFrame, essential = false): boolean {
+    if (this.ws?.readyState !== 1) return false;
+    const day = new Date(this.now()).toISOString().slice(0, 10);
+    if (this.budget.day !== day) this.budget = { day, n: 0 };
+    if (!essential && this.budget.n >= DAILY_FRAMES) return false;
+    this.budget.n++;
+    this.ws.send(JSON.stringify(f));
+    return true;
   }
 
-  private async tell(m: ComputerMessage, kind: "state" | "msg" = "msg"): Promise<void> {
-    if (!this.box) return;
-    this.frame({ k: kind, d: await seal(this.box, m, this.now()) });
+  private async tell(m: ComputerMessage, kind: "state" | "msg" = "msg", box = this.box): Promise<void> {
+    if (!box) return;
+    this.frame({ k: kind, d: await seal(box, m, this.now()) }, kind === "msg");
   }
 
-  // ---- what the phone sees ----
+  // ---- what the iPhone sees ----
 
-  /** The state, cut to what a phone shows: no settings beyond the companion, no phone address. */
+  /** The state, cut to what an iPhone shows: no folder paths, no settings beyond the companion's. */
   private phoneState(s: StationState = this.station.snapshot()): unknown {
-    const { phoneUrl: _u, link: _l, ...rest } = s;
-    return { ...rest, chats: s.chats.slice(0, MAX_CHATS), settings: { companion: s.settings.companion } };
+    const { phoneUrl: _u, link: _l, test: _t, ...rest } = s;
+    return {
+      ...rest,
+      chats: s.chats.slice(0, MAX_CHATS).map(forPhone),
+      pending: s.pending.map(({ cwd: _c, ...p }) => p),
+      settings: { companion: s.settings.companion },
+    };
   }
 
-  private sendState(): void {
+  /** Sends the state when the iPhone app is open and something changed: at most once a second. */
+  private sendState(force = false): void {
+    if (!this.file?.phone || this.file.codeUntil || (!force && this.watching <= 0)) return;
     clearTimeout(this.sendTimer);
+    const wait = Math.max(300, STATE_EVERY_MS - (this.now() - this.lastSentAt));
     this.sendTimer = setTimeout(() => {
       const state = this.phoneState();
       const key = JSON.stringify({ ...(state as object), now: 0 });
       if (key === this.lastSent) return;
       this.lastSent = key;
+      this.lastSentAt = this.now();
       void this.tell({ t: "state", state }, "state");
-    }, 300);
+    }, wait);
   }
 
   private onChange = () => {
     if (this.online) this.sendState();
   };
 
-  // ---- what the phone says ----
+  // ---- what the iPhone says ----
 
   private async received(raw: string): Promise<void> {
-    if (raw === "pong" || !this.box) return;
+    if (raw === "pong" || !this.box || !this.file) return;
     let f: RelayFrame;
     try {
       f = JSON.parse(raw) as RelayFrame;
     } catch {
       return;
     }
+    if (f.k === "phones") {
+      this.watching = Math.max(0, Number(f.n) || 0);
+      if (this.watching) this.sendState();
+      return;
+    }
     if (f.k !== "msg") return;
     const m = await unseal<PhoneMessage>(this.box, f.d, this.now());
     if (!m || typeof m !== "object") return;
+    // While a code waits, the only thing heard is a claim: nothing about your chats is sent on a code.
+    if (this.file.codeUntil) {
+      if (m.t === "claim") await this.claim(m);
+      return;
+    }
     switch (m.t) {
+      case "claim":
+        return this.tell({ t: "reply", n: m.n, ok: false, error: "This code was already used. Make a new one on your Mac." });
       case "hello":
         this.lastSent = "";
-        return this.sendState();
+        return this.sendState(true);
       case "decide": {
         if (!DECISIONS.has(m.decision) || typeof m.id !== "string") return;
         const answer: Answer = { decision: m.decision, ...(m.answers && typeof m.answers === "object" ? { answers: m.answers as Answer["answers"] } : {}), ...(typeof m.message === "string" ? { message: m.message.slice(0, 500) } : {}) };
@@ -277,85 +385,119 @@ export class PhoneLink {
         return this.tell({ t: "reply", n: m.n, ok: true });
       case "subscribe": {
         const sub = m.sub;
-        if (!this.file || typeof m.id !== "string" || !sub || !isPushEndpoint(sub.endpoint) || typeof sub.keys?.p256dh !== "string" || typeof sub.keys?.auth !== "string") return this.tell({ t: "reply", n: m.n, ok: false, error: "That phone can't take alerts." });
-        const name = String(m.name ?? "Phone").slice(0, 40);
-        this.file.phones = [...this.file.phones.filter((p) => p.id !== m.id), { id: m.id.slice(0, 40), name, push: { endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } }, at: this.now() }].slice(-4);
+        const phone = this.file.phone;
+        if (!phone || m.id !== phone.id) return this.tell({ t: "reply", n: m.n, ok: false, error: "This isn't the linked iPhone." });
+        if (!sub || !isPushEndpoint(sub.endpoint) || typeof sub.keys?.p256dh !== "string" || typeof sub.keys?.auth !== "string") return this.tell({ t: "reply", n: m.n, ok: false, error: "Airband's alerts work on an iPhone, through Apple's push service." });
+        phone.push = { endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } };
         this.save();
         this.station.changed();
         await this.tell({ t: "reply", n: m.n, ok: true });
-        return void this.push([this.file.phones.at(-1)!], { title: "Alerts are on", body: "Your phone buzzes when a chat needs you and you're away from your computer.", tag: "hello" });
+        return void this.push({ title: "Alerts are on", body: "Your iPhone hears when a chat needs you or finishes.", tag: "hello" });
       }
       case "test": {
-        const results = await this.push(this.file?.phones ?? [], { title: "Test from your computer", body: "Alerts work. Tap to open Airband.", tag: "test", kind: "done" });
+        const results = await this.push({ title: "Test from your Mac", body: "Alerts work. Tap to open Airband.", tag: "test", kind: "done" });
         const failed = results.find((r) => !r.ok);
-        if (!results.length) return this.tell({ t: "reply", n: m.n, ok: false, error: "Alerts aren't on for this phone yet. Tap Turn on alerts." });
+        if (!results.length) return this.tell({ t: "reply", n: m.n, ok: false, error: "Alerts aren't on for this iPhone yet. Tap Turn on alerts." });
         return this.tell({ t: "reply", n: m.n, ok: !failed, ...(failed ? { error: failed.why ?? "It didn't go through." } : {}) });
       }
       case "forget":
-        if (!this.file || typeof m.id !== "string") return;
-        this.file.phones = this.file.phones.filter((p) => p.id !== m.id);
-        this.save();
-        this.station.changed();
+        // "Unlink this phone" on the iPhone: the link ends on both sides.
+        if (m.id === this.file.phone?.id) await this.unlink();
         return;
     }
   }
 
+  /** The first iPhone to send a claim on the code takes the link: a room and secret of its own. */
+  private async claim(m: Extract<PhoneMessage, { t: "claim" }>): Promise<void> {
+    const f = this.file!;
+    const codeBox = this.box!;
+    const codeRoom = f.room;
+    if (!f.codeUntil || f.codeUntil <= this.now()) return this.tell({ t: "reply", n: m.n, ok: false, error: "This code expired. Make a new one on your Mac." }, "msg", codeBox);
+    if (typeof m.id !== "string" || !/^[a-f0-9]{8,40}$/.test(m.id)) return;
+    const codeWs = this.ws;
+    const room = randomB64u(16);
+    const secret = randomB64u(32);
+    clearTimeout(this.codeTimer);
+    // The code's connection is set aside: its close no longer reconnects, and nothing more is heard on it.
+    this.ws = undefined;
+    clearInterval(this.ping);
+    this.file = { room, secret, vapid: f.vapid, phone: { id: m.id, name: String(m.name ?? "iPhone").slice(0, 40), at: this.now() } };
+    this.save();
+    this.box = await openBox(secret);
+    // The iPhone's own room is opened first, so it is there when the iPhone arrives.
+    await new Promise<void>((resolve) => {
+      this.connect();
+      const ws = this.ws as WebSocket | undefined;
+      if (!ws) return resolve();
+      const done = setTimeout(resolve, 5000);
+      ws.addEventListener("open", () => (clearTimeout(done), resolve()), { once: true });
+    });
+    // Then told on the code's room, locked with the code: only the iPhone holding the code reads it.
+    if (codeWs?.readyState === 1) codeWs.send(JSON.stringify({ k: "msg", d: await seal(codeBox, { t: "paired", n: m.n, room, secret } satisfies ComputerMessage, this.now()) }));
+    this.station.changed();
+    // A moment for the iPhone to read it, then the code's room goes: the code is worth nothing now.
+    setTimeout(() => {
+      void this.forgetRoom(codeRoom, codeBox);
+      try {
+        codeWs?.close();
+      } catch {
+        // Already closed.
+      }
+    }, this.o.handoverMs ?? 1500);
+  }
+
   // ---- notifications ----
 
-  /** Tell the phone now: always (the setting), or because the person is away from the computer. */
+  /** Tell the iPhone now: always (the setting), or because the person is away from the computer. */
   private away(): boolean {
     return this.station.snapshot().settings.phoneAlways || (this.o.away?.() ?? true);
   }
 
-  /** Test in the settings: a pretend request, sent to every phone at once, wherever you are. */
+  /** Test in the settings: a pretend request, sent to the iPhone at once, wherever you are. */
   async sample(): Promise<PushReport[]> {
     const p = this.station.sample();
-    return this.push(this.file?.phones ?? [], { title: "Airband test", body: "A test from your computer. Tap Allow or Deny. Nothing runs.", tag: p.id, id: p.id, kind: "request" });
+    return this.push({ title: "Airband test", body: "A test from your Mac. Tap Allow or Deny. Nothing runs.", tag: p.id, id: p.id, kind: "request" });
   }
 
   private onRequest = (p: PendingView) => {
-    if (!this.file?.phones.length || p.sample) return;
+    if (!this.file?.phone?.push || p.sample) return;
     const tell = () => {
       this.nudges.delete(p.id);
       if (!this.station.snapshot().pending.some((x) => x.id === p.id)) return;
-      // A question or a plan is answered in the app; a plain request can be answered on the notice itself.
+      // A question or a plan is answered in the app; a plain request can be answered on the alert.
       const kind = p.questions?.length || p.toolName === "ExitPlanMode" ? "question" : "request";
-      // The phone shows "Airband" and the icon itself: the title is the chat, the body what it wants.
-      void this.push(this.file?.phones ?? [], { title: p.chatTitle, body: p.detail ? `${p.title}: ${p.detail}` : p.title, tag: p.id, id: p.id, kind });
+      // The iPhone shows "Airband" and the icon itself: the title is the chat, the body what it wants.
+      void this.push({ title: p.chatTitle, body: p.detail ? `${p.title}: ${p.detail}` : p.title, tag: p.id, id: p.id, kind });
     };
     if (this.away()) return tell();
-    // At the computer: the phone is told only if the request is still waiting a little later.
+    // At the computer: the iPhone is told only if the request is still waiting a little later.
     this.nudges.set(p.id, setTimeout(() => (this.away() ? tell() : this.nudges.delete(p.id)), this.o.nudgeMs ?? 45_000));
   };
 
   private onFinished = (f: FinishedView) => {
-    if (!this.file?.phones.length || !this.away()) return;
-    void this.push(this.file.phones, { title: `${f.title} is done`, body: f.did ?? "It finished. Have a look when you're back.", tag: `done-${f.chatId}`, kind: "done" });
+    if (!this.file?.phone?.push || !this.away()) return;
+    void this.push({ title: `${f.title} is done`, body: f.did ?? "It finished. Have a look when you're back.", tag: `done-${f.chatId}`, kind: "done" });
   };
 
-  private async push(phones: LinkedPhone[], note: { title: string; body: string; tag: string; id?: string; kind?: string }): Promise<PushReport[]> {
-    if (!this.file) return [];
+  /** An alert to the linked iPhone, straight to Apple's push service (no relay, nothing to pay). */
+  private async push(note: { title: string; body: string; tag: string; id?: string; kind?: string }): Promise<PushReport[]> {
+    const phone = this.file?.phone;
+    if (!this.file || !phone?.push) return [];
     const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
     const payload = { ...note, title: clip(note.title, 80), body: clip(note.body, 240) };
-    const gone: string[] = [];
-    const reports = await Promise.all(
-      phones.map(async (p): Promise<PushReport> => {
-        try {
-          const r = await sendPush(p.push, payload, this.file!.vapid, { topic: note.tag, ...(this.o.fetch ? { fetch: this.o.fetch } : {}) });
-          if (r.gone) gone.push(p.id);
-          const w = why(r.status);
-          return { name: p.name, ok: !w, status: r.status, ...(w ? { why: w } : {}) };
-        } catch {
-          // Offline: the request is still on the computer, and on the phone when it opens.
-          return { name: p.name, ok: false, status: 0, why: why(0) };
-        }
-      }),
-    );
-    if (gone.length && this.file) {
-      this.file.phones = this.file.phones.filter((p) => !gone.includes(p.id));
-      this.save();
-      this.station.changed();
+    let report: PushReport;
+    try {
+      const r = await sendPush(phone.push, payload, this.file.vapid, { topic: note.tag, ...(this.o.fetch ? { fetch: this.o.fetch } : {}) });
+      const w = why(r.status);
+      report = { name: phone.name, ok: !w, status: r.status, ...(w ? { why: w } : {}) };
+      if (r.gone && this.file?.phone === phone) {
+        delete phone.push;
+        this.save();
+        this.station.changed();
+      }
+    } catch {
+      report = { name: phone.name, ok: false, status: 0, why: why(0) };
     }
-    return reports;
+    return [report];
   }
 }

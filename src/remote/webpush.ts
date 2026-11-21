@@ -22,8 +22,9 @@ export function newVapidKeys(): VapidKeys {
   return { publicKey: toB64u(ecdh.getPublicKey()), privateKey: toB64u(ecdh.getPrivateKey()) };
 }
 
-// Only the real push services: a linked phone hands over its address, and nothing else is posted to.
-const PUSH_HOSTS = /(^|\.)(push\.apple\.com|fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com)$/;
+// Only Apple's push service: Airband's phone link is for an iPhone. The iPhone hands over its
+// address, and nothing else is ever posted to.
+const PUSH_HOSTS = /(^|\.)push\.apple\.com$/;
 
 export function isPushEndpoint(endpoint: string): boolean {
   try {

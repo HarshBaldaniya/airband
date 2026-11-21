@@ -405,7 +405,8 @@ async function start(): Promise<void> {
   if (!process.env.AIRBAND_SKIP_SETUP && needsSetup()) await runSetup();
 
   // The phone buzzes only when you're away: the screen locked, or no keyboard or mouse for a minute.
-  station = new Station({ uiDir: path.join(resources(), "companion"), link: { away: () => powerMonitor.getSystemIdleState(60) !== "active" } });
+  // The phone link is Mac to iPhone only: on Windows the app has none.
+  station = new Station({ uiDir: path.join(resources(), "companion"), link: process.platform === "darwin" ? { away: () => powerMonitor.getSystemIdleState(60) !== "active" } : false });
   try {
     await station.start();
   } catch (e) {
