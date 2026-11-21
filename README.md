@@ -270,8 +270,9 @@ Claude Code, Codex and Gemini CLI, so you don't have to check each one.
   chat that the route changed", "allow it", "hide". If he isn't sure which chat you mean, he asks.
 - **Move him:** drag him anywhere. Tuck him away small with the **–** button, and click to bring him
   back. Right-click him for the menu, or use ⌥⌘R.
-- **On your phone:** turn on **Phone link** in his settings and scan the code. Your phone must be on
-  the same Wi-Fi.
+- **On your phone:** turn on **Phone link** in his settings and scan the code with the phone's camera.
+  The page shows what needs you (Allow, Always, Deny) and what finished. It works in the browser on
+  iPhone and Android, with nothing to install. Your phone must be on the same Wi-Fi.
 
 Roger's name and look are settings, so you can call him something else.
 
@@ -485,12 +486,14 @@ Press `?` on any page for the full list.
 
 - **The desktop companion sees your chats' records in Airband and nothing else.** It never opens
   your files, folders, screen or clipboard. Asked to, it says so and asks which chat to look in.
-- **Open questions wait for your yes.** Only after you turn on **Look things up** does the companion
-  pass a question to Claude Code. Even then, Claude Code gets no file, shell or web tools and none of
-  your other connections: only Airband's read-only flightlog. Nothing of it is saved as a chat.
+- **Look things up is one switch.** With it on (it starts on), the companion passes a question it
+  can't answer itself to Claude Code. A question about your chats gets only Airband's read-only
+  flightlog. Any other question gets only web search. Neither gets file or shell tools or your other
+  connections, and nothing of it is saved as a chat. A question that asks to read your files or
+  folders is refused.
 - **Permission requests stay on your computer.** The app listens on this computer only. The phone
   link, when you turn it on, answers on your local network and needs the phone's own key. A phone
-  can answer requests but can't change settings.
+  can answer requests and see what finished. It can't ask, message a chat or change settings.
 - **Nothing is sent anywhere by Airband.** It reads the session files your agents already write and
   keeps its own data in `~/.airband`, readable only by you. No server, no account, no telemetry.
 - **Online for two things only:** a daily npm version check, and a language parser the first time a

@@ -89,6 +89,8 @@ export interface SetupOptions {
   skills?: boolean;
   /** Claude Code's command; `null` writes its settings file directly (tests never run the real one). */
   claudeCli?: string | null;
+  /** The program that runs the hook and the tools. Default: the person's own `node`. */
+  node?: string;
 }
 
 export interface SetupResult {
@@ -112,7 +114,7 @@ export async function setup(o: SetupOptions): Promise<SetupResult> {
     lines.push("No Claude Code, Codex or Gemini CLI found on this computer. Install one, then run this again.");
     return { lines, agents, codexTrust: false };
   }
-  const node = findNode();
+  const node = o.node ?? findNode();
   // With the Claude Code plugin, Claude already has the tools and skills: adding them again would
   // give it every tool twice.
   const viaPlugin = agents.includes("claude") && claudePluginInstalled();

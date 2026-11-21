@@ -20,9 +20,14 @@ const BINARY: Record<LiveChat["agent"], RegExp> = { claude: /(^|\/)claude$/, cod
 
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
+/** Windows: a .cmd (VS Code's `code`, Cursor's `cursor`) starts only through cmd.exe. */
+const isScript = (cmd: string) => /\.(cmd|bat)$/i.test(cmd);
+
 function run(cmd: string, args: string[]): boolean {
   try {
-    const child = spawn(cmd, args, { detached: true, stdio: "ignore", windowsHide: true });
+    const child = isScript(cmd)
+      ? spawn("cmd.exe", ["/d", "/s", "/c", `"${[cmd, ...args].map((a) => `"${a}"`).join(" ")}"`], { detached: true, stdio: "ignore", windowsHide: true, windowsVerbatimArguments: true })
+      : spawn(cmd, args, { detached: true, stdio: "ignore", windowsHide: true });
     child.on("error", () => undefined);
     child.unref();
     return true;
@@ -75,6 +80,18 @@ export function runningIn(chat: Pick<LiveChat, "id" | "agent" | "cwd">): { app: 
 
 const appName = (app: string) => path.basename(app, ".app");
 
+/**
+ * Windows: what a new console window runs to resume the chat. `/s /k "..."` keeps the whole line
+ * for the new window (a plain `start ... && claude` would run the second half in the hidden one).
+ */
+export function windowsResumeLine(cwd: string | undefined, resume: string): string {
+  const line = cwd ? `cd /d "${cwd.replace(/"/g, "")}" && ${resume}` : resume;
+  return `/d /s /k "${line}"`;
+}
+
+/** The editor's own command: Cursor's is `cursor`, every VS Code's is `code`. */
+export const editorCommand = (app: string | undefined) => (/cursor/i.test(app ?? "") ? "cursor" : "code");
+
 /** Opens the chat where it lives; says where, in a few words. */
 export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title">, now = Date.now()): string {
   const live = runningIn(chat);
@@ -87,11 +104,12 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title">,
     addOpenRequest({ id: chat.id, tool: toolName(chat.agent), cwd: chat.cwd, at: now, title: chat.title, app: editor });
     if (run("open", ["-a", live?.vscode ? live.app : editor, win?.root ?? chat.cwd])) return `Showing it in ${editor}.`;
   }
-  if (chat.cwd && win && !editor) {
-    // An editor that did not say its name (an older Airband): the folder's own window.
-    const code = findCommand("code");
-    addOpenRequest({ id: chat.id, tool: toolName(chat.agent), cwd: chat.cwd, at: now, title: chat.title });
-    if (code && run(code, [win.root])) return "Showing it in your editor.";
+  if (chat.cwd && win && (!editor || process.platform !== "darwin")) {
+    // Windows and Linux, or an editor that did not say its name (an older Airband): the folder's
+    // own window, through that editor's command.
+    const cli = findCommand(editorCommand(win.app));
+    addOpenRequest({ id: chat.id, tool: toolName(chat.agent), cwd: chat.cwd, at: now, title: chat.title, ...(win.app ? { app: win.app } : {}) });
+    if (cli && run(cli, [win.root])) return `Showing it in ${win.app ?? "your editor"}.`;
   }
   // 2. It runs now in a terminal: bring that forward rather than start a second copy.
   if (live && !live.vscode && run("open", ["-a", live.app])) return `Showing it in ${appName(live.app)}.`;
@@ -102,7 +120,15 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title">,
     const script = `tell application "Terminal" to do script ${JSON.stringify(line)}\ntell application "Terminal" to activate`;
     if (run("osascript", ["-e", script])) return "Opened it in Terminal.";
   } else if (process.platform === "win32") {
-    if (run("cmd.exe", ["/c", "start", "cmd.exe", "/k", chat.cwd ? `cd /d "${chat.cwd}" && ${resume}` : resume])) return "Opened it in a terminal.";
+    try {
+      // Its own console window: detached, and not hidden.
+      const child = spawn("cmd.exe", [windowsResumeLine(chat.cwd, resume)], { detached: true, stdio: "ignore", windowsVerbatimArguments: true });
+      child.on("error", () => undefined);
+      child.unref();
+      return "Opened it in a terminal.";
+    } catch {
+      // Falls through to the line to run.
+    }
   } else if (run("x-terminal-emulator", ["-e", "sh", "-c", line])) return "Opened it in a terminal.";
   return `Run this to open it: ${line}`;
 }

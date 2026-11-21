@@ -9,6 +9,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import QRCode from "qrcode";
 import { airbandFile, readJson, writeFileAtomic } from "../../src/core/paths";
+import { appNode, findCommand } from "../../src/core/hooks";
 import { needsSetup, setup, VERSION } from "../../src/core/setup";
 import { DEFAULT_COMPANION, Station, type PendingView, type StationState } from "../../src/station";
 import { colorIconPng, trayIconPng } from "./icon";
@@ -288,9 +289,17 @@ function followCursor(): void {
   }, 80);
 }
 
+/** Where this app's own `node` goes, for computers with no Node (see appNode). */
+const appNodeDir = () => airbandFile("bin");
+
+/** What the hook and the tools run with: the person's own `node`, else this app run as Node. */
+function nodeForAgents(): string | undefined {
+  return findCommand("node") ?? (app.isPackaged ? appNode(process.execPath, appNodeDir()) : undefined);
+}
+
 async function runSetup(asked = false): Promise<void> {
   try {
-    const r = await setup({ fromDir: resources() });
+    const r = await setup({ fromDir: resources(), node: nodeForAgents() });
     const agents = r.agents.map((a) => ({ claude: "Claude Code", codex: "Codex", gemini: "Gemini CLI" })[a]).join(", ");
     if (asked) {
       const note = r.codexTrust ? "\n\nCodex runs new hooks once you trust them: type /hooks in Codex and trust Airband's." : "";
@@ -358,8 +367,12 @@ else {
 
 async function start(): Promise<void> {
   app.setName("Airband");
+  // Windows shows an app's notifications only under its app id (the installer's shortcut carries it).
+  if (process.platform === "win32") app.setAppUserModelId("dev.airband.app");
   if (process.platform === "darwin") app.dock?.hide();
   prefs = { ...prefs, ...readJson<Partial<Prefs>>(prefsFile(), {}) };
+  // The hooks already run with this app as Node: point that at where the app is now.
+  if (app.isPackaged && ["node", "node.cmd"].some((f) => fs.existsSync(path.join(appNodeDir(), f)))) appNode(process.execPath, appNodeDir());
 
   // First start, or an update: Airband's hook, tools and skills go into every agent found.
   // (AIRBAND_SKIP_SETUP: a trial run against a copy of the data, which must not touch the agents.)

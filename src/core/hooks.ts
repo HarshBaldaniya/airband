@@ -87,6 +87,25 @@ export function findNode(): string {
   return findCommand("node") ?? "node";
 }
 
+/**
+ * A `node` made from an app that carries its own (the desktop app is Electron, which runs as plain
+ * Node when ELECTRON_RUN_AS_NODE=1): a small script in ~/.airband/bin that starts that app as Node.
+ * For a computer with no Node of its own, which many have: Claude Code and Codex install without
+ * it. Written again at every start of the app, so it follows the app when it moves or updates.
+ */
+export function appNode(appBinary: string, dir: string, platform: NodeJS.Platform = process.platform): string {
+  fs.mkdirSync(dir, { recursive: true });
+  if (platform === "win32") {
+    const file = path.join(dir, "node.cmd");
+    fs.writeFileSync(file, `@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"${appBinary}" %*\r\n`);
+    return file;
+  }
+  const file = path.join(dir, "node");
+  fs.writeFileSync(file, `#!/bin/sh\nELECTRON_RUN_AS_NODE=1 exec '${appBinary.replace(/'/g, `'\\''`)}' "$@"\n`);
+  fs.chmodSync(file, 0o755);
+  return file;
+}
+
 /** The person's own `claude`. */
 export function findClaude(): string | undefined {
   return findCommand("claude");

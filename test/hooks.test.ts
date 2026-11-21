@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
-import { CLAUDE_TIMEOUTS, HOOK_EVENTS, claudeAiCreditShown, connect, disconnect, isConnected, setClaudeAiCredit } from "../src/core/hooks";
+import { CLAUDE_TIMEOUTS, HOOK_EVENTS, appNode, claudeAiCreditShown, connect, disconnect, isConnected, setClaudeAiCredit } from "../src/core/hooks";
 import { handle, record, statusFor } from "../src/hook/airband-hook";
 import { addConnection, addPending, appendInbox, getCursor, readConnections, readDeliveries, readInbox, setCursor } from "../src/core/store";
 
@@ -206,4 +206,22 @@ test("Claude Code's AI-credit lines: hidden with its own setting, and back, keep
   setClaudeAiCredit(false, file);
   setClaudeAiCredit(true, file);
   assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")).attribution, { commit: "Reviewed by Asha" }, "their own text comes back");
+});
+
+test("a computer with no Node: the app's own Node runs the hook, on macOS, Linux and Windows", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "airband-appnode-"));
+  const mac = appNode("/Applications/Air band's.app/Contents/MacOS/Airband", dir, "darwin");
+  assert.equal(path.basename(mac), "node");
+  const sh = fs.readFileSync(mac, "utf8");
+  assert.match(sh, /^#!\/bin\/sh\n/);
+  assert.match(sh, /ELECTRON_RUN_AS_NODE=1 exec '\/Applications\/Air band'\\''s\.app\/Contents\/MacOS\/Airband' "\$@"/, "a path with a space and a quote stays one word");
+  assert.ok(fs.statSync(mac).mode & 0o100, "it can be run");
+  const win = appNode("C:\\Users\\Ana\\AppData\\Local\\Programs\\Airband\\Airband.exe", dir, "win32");
+  assert.equal(path.basename(win), "node.cmd");
+  assert.equal(fs.readFileSync(win, "utf8"), '@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"C:\\Users\\Ana\\AppData\\Local\\Programs\\Airband\\Airband.exe" %*\r\n');
+  if (process.platform !== "win32") {
+    // The script really runs: here with this test's own Node standing in for the app.
+    const real = appNode(process.execPath, path.join(dir, "real"));
+    assert.equal(execFileSync(real, ["-e", "process.stdout.write(String(1 + 1))"], { encoding: "utf8" }), "2");
+  }
 });

@@ -1,15 +1,16 @@
-// The phone page: the companion at the top, then the same panel as on the computer, full screen.
+// The phone page: the companion at the top, then the panel, full screen. It answers requests
+// (Allow, Deny, Always, a question's choices) and shows what finished. Nothing is typed here:
+// asking and telling a chat stay on the computer.
 import { useState } from "react";
 import { Companion } from "../companion/Companion";
 import { useCompanionState } from "../companion/useCompanionState";
-import { Conversation } from "../components/Conversation";
 import { Panel } from "../components/Panel";
 import { useStation } from "./useStation";
 
 export function PhoneView() {
   const { state, link } = useStation();
   const c = useCompanionState(state);
-  const [error, setError] = useState<string>();
+  const [note, setNote] = useState<string>();
   return (
     <div className="phonepage">
       <header className="phonehead">
@@ -20,7 +21,12 @@ export function PhoneView() {
         </div>
       </header>
       {!link && <p className="offline">Can't reach your computer. Is it awake and on the same Wi-Fi?</p>}
-      {state && <Panel state={state} name={c.name} design={c.design} onAsk={(q) => void c.ask(q)} asking={c.asking} onSay={c.say} onError={setError} answer={<Conversation name={c.name} asking={c.asking} question={c.question} answer={c.answer} error={error} onClose={c.clearAnswer} onCloseError={() => setError(undefined)} onAsk={(q) => void c.ask(q)} />} />}
+      {note && (
+        <p className="offline" role="alert" onClick={() => setNote(undefined)}>
+          {note}
+        </p>
+      )}
+      {state && <Panel state={state} name={c.name} design={c.design} onSay={setNote} onError={setNote} />}
     </div>
   );
 }

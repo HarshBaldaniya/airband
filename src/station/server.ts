@@ -106,12 +106,31 @@ export function readSettings(): StationSettings {
   return { ...defaultSettings(), ...saved, companion: { name: cleanName(saved.companion?.name), design: cleanDesign(saved.companion?.design) } };
 }
 
+// Adapters that are not the home network: virtual machines, containers, VPNs and tunnels. A phone on
+// the Wi-Fi cannot reach them, so the phone link never names them (Windows lists several of these
+// first: "vEthernet (WSL)", "VirtualBox Host-Only", ...).
+const NOT_HOME = /vethernet|virtual|vmware|vbox|hyper-v|docker|wsl|veth|^br-|bridge|utun|^tun|^tap|wireguard|^wg|tailscale|zerotier|vpn|^awdl|^llw|loopback|bluetooth/i;
+const PRIVATE_V4 = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+// The usual names of a real Wi-Fi or cable adapter on macOS, Windows and Linux.
+const HOME_NAME = /^(en\d|wi-?fi|wlan|wlp|wl|ethernet|eth|enp|eno|ens)/i;
+
+/** Picks the address a phone on the same Wi-Fi can reach, from `os.networkInterfaces()`. */
+export function pickLanAddress(nets: NodeJS.Dict<os.NetworkInterfaceInfo[]>): string | undefined {
+  const found: { address: string; score: number }[] = [];
+  for (const [name, list] of Object.entries(nets)) {
+    if (NOT_HOME.test(name)) continue;
+    for (const n of list ?? []) {
+      if (n.family !== "IPv4" || n.internal || n.address.startsWith("169.254.")) continue;
+      const score = (PRIVATE_V4.test(n.address) ? 4 : 0) + (HOME_NAME.test(name) ? 2 : 0) + (name === "en0" ? 1 : 0);
+      found.push({ address: n.address, score });
+    }
+  }
+  return found.sort((a, b) => b.score - a.score)[0]?.address;
+}
+
 /** This computer's address on the local network, for the phone link. */
 export function lanAddress(): string | undefined {
-  const nets = os.networkInterfaces();
-  const order = Object.keys(nets).sort((a, b) => (a === "en0" ? -1 : b === "en0" ? 1 : 0));
-  for (const name of order) for (const n of nets[name] ?? []) if (n.family === "IPv4" && !n.internal) return n.address;
-  return undefined;
+  return pickLanAddress(os.networkInterfaces());
 }
 
 const key = () => crypto.randomBytes(18).toString("base64url");
@@ -463,9 +482,13 @@ export class Station extends EventEmitter {
           const ok = this.decide(id, { decision, ...(body.answers ? { answers: body.answers as Answer["answers"] } : {}), ...(typeof body.message === "string" ? { message: body.message } : {}) });
           return send(res, ok ? 200 : 410, ok ? { ok } : { error: "That request has already ended." });
         }
+        // Asking and telling a chat are typed on the computer only: the phone link answers
+        // requests and shows what finished, and nothing written on a phone reaches a chat.
         case "/api/ask":
+          if (who !== "local") return send(res, 403, { error: "Ask on the computer." });
           return send(res, 200, await this.ask(String(body.text ?? "")));
         case "/api/tell":
+          if (who !== "local") return send(res, 403, { error: "Message a chat from the computer." });
           return send(res, 200, { title: this.tell(String(body.chatId ?? ""), String(body.text ?? "")) });
         case "/api/open":
           return send(res, 200, { text: this.open(String(body.chatId ?? "")) });

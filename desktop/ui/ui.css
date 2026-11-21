@@ -198,11 +198,11 @@ button { font: inherit; color: inherit; }
 .toggle.on > span { transform: translateX(14px); }
 .toggle:active > span { width: 20px; }
 .toggle.on:active > span { transform: translateX(10px); }
-.phone { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s ease, opacity 0.3s ease; opacity: 0; }
-.phone.open { grid-template-rows: 1fr; opacity: 1; }
+.phonelink { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s ease, opacity 0.3s ease; opacity: 0; }
+.phonelink.open { grid-template-rows: 1fr; opacity: 1; }
 .phoneinner { overflow: hidden; display: flex; gap: 12px; align-items: center; font-size: 12px; }
-.phone.open .phoneinner { padding: 6px 2px 4px; }
-.phone img { border-radius: 10px; background: #fff; padding: 6px; flex: none; }
+.phonelink.open .phoneinner { padding: 6px 2px 4px; }
+.phonelink img { border-radius: 10px; background: #fff; padding: 6px; flex: none; }
 .togglewrap { display: inline-flex !important; align-items: center; gap: 8px !important; }
 .saved { color: var(--done); opacity: 0; transform: scale(0.6); transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); display: inline-flex; }
 .saved.show { opacity: 1; transform: none; }

@@ -9,6 +9,10 @@ import { sounds } from "../sound";
 import { AgentMark, ago, FinishedCard, RequestCard } from "./Cards";
 
 
+/** Typing (ask, tell a chat) is on the computer only. The phone link answers requests and shows
+ *  what finished: nothing typed on a phone reaches a chat. */
+const TYPING = MODE === "desktop";
+
 function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) => void }) {
   const c = chat;
   const [writing, setWriting] = useState(false);
@@ -38,15 +42,17 @@ function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) => void }
           <span className={`chatmeta ellipsis${waiting ? " waiting" : ""}`}>{waiting ? c.line : `${c.project} · ${ago(c.since)}`}</span>
         </span>
         <span className="rowactions">
-          <button className="iconbtn" onClick={() => setWriting(!writing)} aria-label={`Message ${c.title}`} title="Message this chat">
-            <MessageSquare size={14} />
-          </button>
-          <button className="iconbtn" onClick={() => (sounds.tick(), void api.open(c.id))} aria-label={`Open ${c.title}`} title="Open this chat">
+          {TYPING && (
+            <button className="iconbtn" onClick={() => setWriting(!writing)} aria-label={`Message ${c.title}`} title="Message this chat">
+              <MessageSquare size={14} />
+            </button>
+          )}
+          <button className="iconbtn" onClick={() => (sounds.tick(), void api.open(c.id))} aria-label={`Open ${c.title}`} title={TYPING ? "Open this chat" : "Open it on your computer"}>
             <ExternalLink size={14} />
           </button>
         </span>
       </div>
-      {writing && (
+      {TYPING && writing && (
         <form
           className="tell"
           onSubmit={(e) => {
@@ -160,7 +166,7 @@ function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: D
       <SettingRow title="Phone link" note="Your phone, on the same Wi-Fi.">
         <Toggle on={s.phone} label="Phone link" onChange={(on) => api.settings({ phone: on })} />
       </SettingRow>
-      <div className={`phone${s.phone && qr ? " open" : ""}`}>
+      <div className={`phonelink${s.phone && qr ? " open" : ""}`}>
         <div className="phoneinner">
           {qr && <img src={qr} alt="QR code for the phone page" width={120} height={120} />}
           <span className="muted">Scan with your phone's camera.</span>
@@ -186,8 +192,9 @@ export interface PanelProps {
   name: string;
   design?: string;
   onClose?: () => void;
-  onAsk: (q: string) => void;
-  asking: boolean;
+  /** The ask box: shown only when given (on the computer). */
+  onAsk?: (q: string) => void;
+  asking?: boolean;
   onSay: (t: string) => void;
   onError: (m: string) => void;
   showSettings?: boolean;
@@ -249,7 +256,7 @@ export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onEr
         </div>
       ) : (
         <>
-          <AskBox name={name} onAsk={onAsk} busy={asking} />
+          {TYPING && onAsk && <AskBox name={name} onAsk={onAsk} busy={!!asking} />}
           {answer}
           {!!state.pending.length && (
             <div className={`requests${compact ? " compact" : ""}`}>
