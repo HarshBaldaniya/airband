@@ -1,6 +1,6 @@
 # Airband's relay: the phone app (public/) and the rooms that pass locked messages along.
 # Deploy: npm run relay:deploy (it builds the phone app first). Runs on Cloudflare's free plan.
-name = "airband-relay"
+name = "app"
 main = "src/worker.ts"
 compatibility_date = "2026-11-01"
 workers_dev = true
