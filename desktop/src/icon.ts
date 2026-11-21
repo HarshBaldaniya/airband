@@ -63,19 +63,20 @@ function figureLayers(light: string): Layer[] {
 /** A band along the edge of a shape: its outline, `w` wide. */
 const outline = (d: Dist, w: number): Dist => (x, y) => Math.abs(d(x, y)) - w / 2;
 
-/** The menu-bar glyph: the figure's face as a clean outline, the way menu-bar icons are drawn.
+/** The menu-bar glyph, drawn like the menu bar's own icons: solid shapes with cut-outs, no thin
+ *  lines. A solid head with two eyes cut out, a bold headset over it and a short antenna.
  *  Black on clear: macOS tints it for light and dark menu bars. */
 function trayLayers(): Layer[] {
   const k = hex("#000000");
   return [
-    { d: segment(100, 52, 100, 26, 13), color: k },
-    { d: circle(100, 20, 13), color: k },
-    { d: outline(roundRect(42, 52, 158, 190, 54), 15), color: k },
-    { d: roundRect(14, 100, 44, 152, 13), color: k },
-    { d: roundRect(156, 100, 186, 152, 13), color: k },
-    { d: circle(80, 116, 13), color: k },
-    { d: circle(120, 116, 13), color: k },
-    { d: ring(100, 136, 19, 19, 10, (_x, y) => y >= 142), color: k },
+    { d: segment(100, 44, 100, 20, 16), color: k },
+    { d: circle(100, 16, 15), color: k },
+    { d: ring(100, 122, 78, 76, 16, (_x, y) => y <= 118), color: k },
+    { d: roundRect(10, 104, 42, 160, 14), color: k },
+    { d: roundRect(158, 104, 190, 160, 14), color: k },
+    { d: roundRect(50, 66, 150, 196, 46), color: k },
+    { d: ellipse(81, 124, 12, 16), clear: true },
+    { d: ellipse(119, 124, 12, 16), clear: true },
   ];
 }
 
