@@ -375,8 +375,13 @@ async function start(): Promise<void> {
   station.on("request", onRequest);
   station.on("finished", (f: { title: string; did?: string }) => notify(`${f.title} finished`, f.did ?? "Have a look when you can."));
 
-  const icon = process.platform === "darwin" ? nativeImage.createFromBuffer(trayIconPng(36), { scaleFactor: 2 }) : nativeImage.createFromBuffer(colorIconPng(32));
-  if (process.platform === "darwin") icon.setTemplateImage(true);
+  let icon: Electron.NativeImage;
+  if (process.platform === "darwin") {
+    icon = nativeImage.createEmpty();
+    icon.addRepresentation({ scaleFactor: 1, width: 18, height: 18, buffer: trayIconPng(18) });
+    icon.addRepresentation({ scaleFactor: 2, width: 36, height: 36, buffer: trayIconPng(36) });
+    icon.setTemplateImage(true);
+  } else icon = nativeImage.createFromBuffer(colorIconPng(32));
   tray = new Tray(icon);
   tray.on("click", () => tray?.popUpContextMenu());
 

@@ -60,15 +60,22 @@ function figureLayers(light: string): Layer[] {
   ];
 }
 
-/** The figure as a black shape with its eyes cut out: macOS tints it for the menu bar. */
+/** A band along the edge of a shape: its outline, `w` wide. */
+const outline = (d: Dist, w: number): Dist => (x, y) => Math.abs(d(x, y)) - w / 2;
+
+/** The menu-bar glyph: the figure's face as a clean outline, the way menu-bar icons are drawn.
+ *  Black on clear: macOS tints it for light and dark menu bars. */
 function trayLayers(): Layer[] {
   const k = hex("#000000");
   return [
-    { d: segment(100, 46, 100, 14, 14), color: k },
-    { d: circle(100, 12, 14), color: k },
-    { d: roundRect(28, 44, 172, 196, 66), color: k },
-    { d: ellipse(78, 112, 17, 21), clear: true },
-    { d: ellipse(122, 112, 17, 21), clear: true },
+    { d: segment(100, 52, 100, 26, 13), color: k },
+    { d: circle(100, 20, 13), color: k },
+    { d: outline(roundRect(42, 52, 158, 190, 54), 15), color: k },
+    { d: roundRect(14, 100, 44, 152, 13), color: k },
+    { d: roundRect(156, 100, 186, 152, 13), color: k },
+    { d: circle(80, 116, 13), color: k },
+    { d: circle(120, 116, 13), color: k },
+    { d: ring(100, 136, 19, 19, 10, (_x, y) => y >= 142), color: k },
   ];
 }
 
@@ -138,9 +145,9 @@ export function appIconPng(size = 1024): Buffer {
   return draw(size, figureLayers("#3fb57d"), 0.62, tile);
 }
 
-/** The menu-bar icon, at 2× for sharp screens. */
+/** The menu-bar icon: 18 points tall, drawn at 1× and 2× so it is sharp on every screen. */
 export function trayIconPng(size = 36): Buffer {
-  return draw(size, trayLayers(), 0.92);
+  return draw(size, trayLayers(), 1);
 }
 
 /** A small colour figure for places that show colour (Windows' tray, notifications). */
