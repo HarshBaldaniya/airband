@@ -194,6 +194,33 @@ const CLOSE_AFTER_MS = 15_000;
 
 /** The companion's answer: a few lines (More for the rest), a button for each choice when it asks
  *  which one you mean. It closes by itself after a while, unless the pointer is on it or it asks. */
+/** While the companion works on a question: the question, a moving bar, and what it is doing now. */
+export function ThinkingCard({ name, question, since }: { name: string; question?: string; since: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 400);
+    return () => clearInterval(t);
+  }, []);
+  const s = (now - since) / 1000;
+  const step = s < 2.5 ? "Thinking" : s < 25 ? "Looking it up" : "Still on it, this one takes a minute";
+  return (
+    <div className="card say thinking" data-hit role="status" aria-live="polite">
+      {question && <span className="asked">{question}</span>}
+      <span className="step">
+        {name} · {step}
+        <span className="dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+      </span>
+      <span className="bar" aria-hidden="true">
+        <span />
+      </span>
+    </div>
+  );
+}
+
 /** A chat that finished, as one line by the companion: it fades away by itself (the panel keeps it). */
 export function FinishedToast({ finished, onSay, onClose }: { finished: FinishedView; onSay?: (text: string) => void; onClose: () => void }) {
   const f = finished;
@@ -214,7 +241,7 @@ export function FinishedToast({ finished, onSay, onClose }: { finished: Finished
   );
 }
 
-export function AnswerCard({ answer, onClose, onChoose }: { answer: CompanionAnswer; onClose: () => void; onChoose: (ask: string) => void }) {
+export function AnswerCard({ answer, onClose, onChoose, question }: { answer: CompanionAnswer; onClose: () => void; onChoose: (ask: string) => void; question?: string }) {
   const [all, setAll] = useState(false);
   const [hover, setHover] = useState(false);
   const lines = answer.text.split("\n").filter((l) => l.trim());
@@ -227,6 +254,7 @@ export function AnswerCard({ answer, onClose, onChoose }: { answer: CompanionAns
   }, [asks, hover, all, onClose, answer]);
   return (
     <div className="card say" data-hit onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      {question && <span className="asked">{question}</span>}
       <div className="sayrow">
         <div className={`saytext${long && !all ? " clamp" : ""}`}>
           {lines.map((l, i) => {

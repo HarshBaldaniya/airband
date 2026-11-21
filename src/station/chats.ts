@@ -87,20 +87,27 @@ export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60):
   return out.sort((a, b) => ORDER[a.status] - ORDER[b.status] || b.updatedAt - a.updatedAt).slice(0, limit);
 }
 
-/** The chats a person may mean by a few words (its title, project or agent, or its id), best first. */
-export function matchChats(chats: LiveChat[], words: string): { chat: LiveChat; score: number }[] {
-  const raw = words.trim();
+/** Words that say nothing about which chat is meant. */
+const FILLER = new Set("a an and are at be can chat chats could did do does for from has have how i in is it its me my of on or our please session sessions should so tell that the their them then there this to us was we what when where which who why will with would you your".split(" "));
+
+const words = (t: string) => t.toLowerCase().split(/[^a-z0-9#.-]+/).filter((w) => w.length > 1);
+
+/** The chats a person may mean by a few words (its title, project or agent, or its id), best first.
+ *  Whole words only, and filler words ("what", "is") don't count, so a general question matches none. */
+export function matchChats(chats: LiveChat[], text: string): { chat: LiveChat; score: number }[] {
+  const raw = text.trim();
   const exact = chats.find((c) => c.id === raw || (raw.length >= 8 && c.id.startsWith(raw)));
   if (exact) return [{ chat: exact, score: 100 }];
-  const q = raw.toLowerCase().replace(/\b(the|chat|session|one|in|on|for|my)\b/g, " ").replace(/\s+/g, " ").trim();
-  const terms = q.split(" ").filter((t) => t.length > 1);
+  const terms = words(raw).filter((w) => !FILLER.has(w));
   if (!terms.length) return [];
+  const has = (pool: Set<string>, t: string) => pool.has(t) || (t.length >= 4 && [...pool].some((w) => w.startsWith(t)));
   const out: { chat: LiveChat; score: number }[] = [];
   for (const c of chats) {
-    const title = c.title.toLowerCase();
-    const hay = `${title} ${c.project.toLowerCase()} ${AGENT_NAME[c.agent].toLowerCase()} ${(c.lastAsk ?? "").toLowerCase()}`;
-    let score = terms.filter((t) => title.includes(t) || c.project.toLowerCase().includes(t)).length * 3 + terms.filter((t) => hay.includes(t)).length;
-    if (c.project.toLowerCase() === q || title === q) score += 10;
+    const name = new Set([...words(c.title), ...words(c.project)]);
+    const more = new Set([...words(AGENT_NAME[c.agent]), ...words(c.lastAsk ?? "")]);
+    let score = terms.filter((t) => has(name, t)).length * 3 + terms.filter((t) => has(more, t)).length;
+    const q = terms.join(" ");
+    if (c.project.toLowerCase() === q || c.title.toLowerCase() === q) score += 10;
     if (score > 0) out.push({ chat: c, score });
   }
   return out.sort((a, b) => b.score - a.score || b.chat.updatedAt - a.chat.updatedAt);

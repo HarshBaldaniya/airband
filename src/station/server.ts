@@ -354,6 +354,7 @@ export class Station extends EventEmitter {
       decide: (id, decision) => this.decide(id, { decision }),
       lookups: this.settings.lookups,
       name: this.settings.companion.name,
+      version: VERSION,
       ...(this.o.claude !== undefined ? { claude: this.o.claude } : {}),
       now: this.now(),
     });

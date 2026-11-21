@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Companion } from "../companion/Companion";
 import { useCompanionState } from "../companion/useCompanionState";
-import { AnswerCard } from "../components/Cards";
+import { Conversation } from "../components/Conversation";
 import { Panel } from "../components/Panel";
 import { useStation } from "./useStation";
 
@@ -20,8 +20,7 @@ export function PhoneView() {
         </div>
       </header>
       {!link && <p className="offline">Can't reach your computer. Is it awake and on the same Wi-Fi?</p>}
-      {error && <AnswerCard answer={{ text: error, via: "action" }} onClose={() => setError(undefined)} onChoose={() => undefined} />}
-      {state && <Panel state={state} name={c.name} design={c.design} onAsk={(q) => void c.ask(q)} asking={c.asking} onSay={c.say} onError={setError} answer={c.answer && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />} />}
+      {state && <Panel state={state} name={c.name} design={c.design} onAsk={(q) => void c.ask(q)} asking={c.asking} onSay={c.say} onError={setError} answer={<Conversation name={c.name} asking={c.asking} question={c.question} answer={c.answer} error={error} onClose={c.clearAnswer} onCloseError={() => setError(undefined)} onAsk={(q) => void c.ask(q)} />} />}
     </div>
   );
 }

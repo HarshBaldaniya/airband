@@ -22,6 +22,8 @@ export function moodOf(s: StationState | undefined, now: number, x: { dizzy: boo
 
 export function useCompanionState(state: StationState | undefined) {
   const [asking, setAsking] = useState(false);
+  /** What the person asked last, shown above the answer, and when. */
+  const [question, setQuestion] = useState<{ text: string; at: number }>();
   const [answer, setAnswer] = useState<CompanionAnswer>();
   const [talkUntil, setTalkUntil] = useState(0);
   const [hello, setHello] = useState(true);
@@ -70,6 +72,8 @@ export function useCompanionState(state: StationState | undefined) {
 
   const ask = useCallback(
     async (q: string) => {
+      setQuestion({ text: q, at: Date.now() });
+      setAnswer(undefined);
       setAsking(true);
       try {
         speak(await api.ask(q));
@@ -93,5 +97,5 @@ export function useCompanionState(state: StationState | undefined) {
   const mood = moodOf(state, state?.now ?? now, { dizzy: dizzyUntil > now, asking, talking: talkUntil > now, hello, cheering: cheerUntil > now });
   const name = state?.settings.companion.name ?? "";
   const design = state?.settings.companion.design;
-  return { mood, name, design, ask, asking, answer, clearAnswer: () => setAnswer(undefined), say, poke };
+  return { mood, name, design, ask, asking, question, answer, clearAnswer: () => (setAnswer(undefined), setQuestion(undefined)), say, poke };
 }

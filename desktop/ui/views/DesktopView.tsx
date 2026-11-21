@@ -8,7 +8,8 @@ import { desktop, type DesktopPrefs } from "../api";
 import { Companion } from "../companion/Companion";
 import { pokedLine } from "../companion/lines";
 import { useCompanionState } from "../companion/useCompanionState";
-import { AnswerCard, FinishedToast, RequestCard } from "../components/Cards";
+import { FinishedToast, RequestCard } from "../components/Cards";
+import { Conversation } from "../components/Conversation";
 import { Panel } from "../components/Panel";
 import { sounds } from "../sound";
 import { useStation } from "./useStation";
@@ -195,15 +196,15 @@ export function DesktopView() {
     return !toastGone.has(key);
   });
   const showPanel = panel !== "closed" && s;
+  const talk = <Conversation name={c.name} asking={c.asking} question={c.question} answer={c.answer} error={error} onClose={c.clearAnswer} onCloseError={() => setError(undefined)} onAsk={(q) => void c.ask(q)} />;
   return (
     <div className={`dock ${place.side} ${place.vertical}`}>
       {!tucked && (
         <div className="stack">
-          {error && !showPanel && <AnswerCard answer={{ text: error, via: "action" }} onClose={() => setError(undefined)} onChoose={() => undefined} />}
-          {c.answer && !showPanel && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />}
+          {!showPanel && talk}
           {showPanel ? (
             <div className={panel === "closing" ? "panelwrap closing" : "panelwrap"}>
-              <Panel state={s} name={c.name} design={c.design} onClose={closePanel} onAsk={(q) => (sounds.tick(), void c.ask(q))} asking={c.asking} onSay={c.say} onError={setError} showSettings={settings} prefs={prefs} onPref={setPref} answer={(error || c.answer) && <AnswerCard answer={error ? { text: error, via: "action" } : c.answer!} onClose={error ? () => setError(undefined) : c.clearAnswer} onChoose={(q) => void c.ask(q)} />} />
+              <Panel state={s} name={c.name} design={c.design} onClose={closePanel} onAsk={(q) => (sounds.tick(), void c.ask(q))} asking={c.asking} onSay={c.say} onError={setError} showSettings={settings} prefs={prefs} onPref={setPref} answer={talk} />
             </div>
           ) : (
             <>

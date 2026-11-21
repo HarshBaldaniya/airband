@@ -3,9 +3,10 @@
 // The common asks are answered from Airband's own records, with no AI call and no cost.
 //
 // Privacy: the companion sees only Airband's records of the person's chats. It never reads files,
-// folders, the screen or the clipboard. An open question goes to Claude Code only when the person
-// has said yes to that, and even then Claude Code gets no file, shell or web tools and none of the
-// person's other connections: only Airband's read-only flightlog.
+// folders, the screen or the clipboard. Open questions go to Claude Code only while "Look things up"
+// is on, in one of two locked rooms that never meet: a question about the chats gets Airband's
+// read-only flightlog and nothing else (no web), and a general question gets web search and nothing
+// else (no chats, no files). So nothing from the chats can leave in a search.
 import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import { airbandFile } from "../core/paths";
@@ -13,6 +14,7 @@ import { findClaude, findNode } from "../core/hooks";
 import { sinceDays, workSince } from "../core/worklog";
 import { matchChats, plain, type LiveChat } from "./chats";
 import { DEFAULT_COMPANION } from "./companion";
+import { knowledge } from "./knowledge";
 import type { Decision } from "./reply";
 
 export interface PendingBrief {
@@ -86,6 +88,8 @@ export interface AskContext {
   claude?: string | null;
   /** What the companion is called, for Claude Code's instructions. */
   name?: string;
+  /** Airband's version, for "which version are you?". */
+  version?: string;
   now?: number;
 }
 
@@ -103,7 +107,7 @@ export interface CompanionAnswer {
   choices?: AnswerChoice[];
   /** Something for the screen to do: tuck the companion away, open the settings. */
   action?: "tuck" | "settings";
-  via: "records" | "claude" | "action";
+  via: "records" | "claude" | "web" | "action";
 }
 
 const TELL = /^(?:please\s+)?(?:tell|message|send|remind)\s+(?:the\s+)?(.+?)\s+(?:chat\s+|session\s+)?(?:that|to|:|-)\s+([\s\S]+)$/i;
@@ -112,7 +116,6 @@ const DECIDE = /^(allow|approve|yes|ok|okay|go ahead|deny|reject|no|stop)\b(?:\s
 const STATUS = /\b(what'?s|what is)\s+(happening|up|going on|new)\b|^(status|update|news|anything|who needs me|what needs me|what now)\b|\bneeds? (me|you)\b/i;
 const TODAY = /\b(today|standup|stand-up|what did (i|we) do|summary|summarise|summarize|recap|this morning)\b/i;
 const TUCK = /^(?:please\s+)?(?:hide|tuck|minimi[sz]e|go away|get small|sleep)\b/i;
-const HELP = /^(help|what can you do|how do (i|you) .*use you)\b/i;
 /** Asks about the person's own files and folders: never the companion's to read. */
 const PRIVATE = /\b(check|read|open|look (?:at|in|into|through)|scan|search|go through|list|clean)\b.*\b(downloads?|desktop|documents|my files|files on|photos|pictures|disk|drive|folder|keychain|passwords?|clipboard|screen|emails?|inbox|messages app)\b/i;
 
@@ -133,7 +136,6 @@ export async function ask(question: string, ctx: AskContext): Promise<CompanionA
   const now = ctx.now ?? Date.now();
   const name = ctx.name ?? DEFAULT_COMPANION.name;
   if (!q || STATUS.test(q)) return { text: whatsHappening(ctx.chats, ctx.pending, now), via: "records" };
-  if (HELP.test(q)) return { text: `Ask me what's happening, what you did today, or say "open the billing chat", "tell the API chat that the route changed", "allow it" or "hide".`, via: "records" };
   if (PRIVATE.test(q)) return { text: NO_FILES, via: "records" };
   if (TUCK.test(q)) return { text: "I'll stay small. Click me when you need me.", action: "tuck", via: "action" };
 
@@ -164,17 +166,34 @@ export async function ask(question: string, ctx: AskContext): Promise<CompanionA
     if (chat) return { text: ctx.open(chat.id), chatId: chat.id, via: "action" };
   }
 
+  const known = knowledge(q, { name, version: ctx.version ?? "", headline: headline(ctx.chats, ctx.pending, now) });
+  if (known) return known;
   if (TODAY.test(q)) return { text: today(now), via: "records" };
-  if (!ctx.lookups) return { text: `${whatsHappening(ctx.chats, ctx.pending, now)}\n\nFor other questions I'd ask Claude Code to read your chats' records. Turn on "Look things up" in my settings if that's OK.`, action: "settings", via: "records" };
+  if (!ctx.lookups) return { text: `I can answer that with Claude Code. Turn on "Look things up" in my settings if that's OK.`, action: "settings", via: "records" };
   const claude = ctx.claude === undefined ? findClaude() : ctx.claude;
-  if (!claude) return { text: `${whatsHappening(ctx.chats, ctx.pending, now)}\n\nFor other questions I need Claude Code on this computer.`, via: "records" };
-  const text = await askClaude(claude, q, whatsHappening(ctx.chats, ctx.pending, now), name);
-  return text ? { text, via: "claude" } : { text: `I couldn't get an answer just now. Here's what I know:\n${whatsHappening(ctx.chats, ctx.pending, now)}`, via: "records" };
+  if (!claude) return { text: "For questions like that I need Claude Code on this computer.", via: "records" };
+  const mode = lookupMode(q, ctx.chats);
+  const text = await askClaude(claude, q, whatsHappening(ctx.chats, ctx.pending, now), name, mode);
+  return text ? { text, via: mode === "web" ? "web" : "claude" } : { text: "I couldn't get an answer just now. Try again in a moment.", via: "records" };
 }
 
-/** The arguments that keep Claude Code to Airband's records: no built-in tools (no files, shell or
- *  web), no MCP server but Airband's, no claude.ai connections, nothing saved as a chat. */
-export function lookupArgs(prompt: string, mcpConfig: string): string[] {
+/** Which locked room a question goes to: the person's chats, or the web. */
+export type LookupMode = "chats" | "web";
+
+const ABOUT_CHATS = /\b(chats?|sessions?|PRs?|pull requests?|tickets?|issues?|commits?|branch(es)?|projects?|repos?|repository|code|bug|fix(ed)?|tests?|deploy(ed)?|did|worked|working on|yesterday|today|this week|decid(e|ed)|agents?|claude|codex|gemini|my|we|our)\b/i;
+
+export function lookupMode(question: string, chats: LiveChat[]): LookupMode {
+  if (ABOUT_CHATS.test(question)) return "chats";
+  // A chat's own name (its title or project) in the question: about that chat.
+  return matchChats(chats, question).some((m) => m.score >= 3) ? "chats" : "web";
+}
+
+/** The arguments that lock Claude Code in one room. "chats": no built-in tools (no files, shell or
+ *  web) and no MCP server but Airband's read-only flightlog. "web": web search alone, no MCP server
+ *  at all. Both: no claude.ai connections, nothing saved as a chat. */
+export function lookupArgs(prompt: string, mcpConfig: string, mode: LookupMode = "chats"): string[] {
+  if (mode === "web")
+    return ["-p", prompt, "--output-format", "text", "--model", process.env.AIRBAND_COMPANION_MODEL || "haiku", "--max-turns", "6", "--tools", "WebSearch", "--strict-mcp-config", "--mcp-config", JSON.stringify({ mcpServers: {} }), "--allowedTools", "WebSearch", "--no-session-persistence"];
   return [
     "-p",
     prompt,
@@ -198,9 +217,15 @@ export function lookupArgs(prompt: string, mcpConfig: string): string[] {
   ];
 }
 
-/** An open question, answered by Claude Code from Airband's flightlog alone, in a few lines. */
-export function askClaude(claude: string, question: string, state: string, name: string, timeoutMs = 120_000): Promise<string | undefined> {
-  const prompt = [
+/** An open question, answered by Claude Code in one locked room, in a few lines. */
+export function askClaude(claude: string, question: string, state: string, name: string, mode: LookupMode = "chats", timeoutMs = 120_000): Promise<string | undefined> {
+  const prompt = mode === "web" ? [
+    `You are ${name}, the small helper in the Airband app. The person asks a general question.`,
+    "Answer in 1 to 3 short, plain sentences, the answer first. Search the web when you need to be current or sure. No greeting, no list unless asked, no mention of tools.",
+    "You can't see their chats, files or computer: if the question needs those, say so in one line.",
+    "",
+    `Their question: ${question}`,
+  ].join("\n") : [
     `You are ${name}, the small helper in the Airband app on the person's computer. They run several AI coding chats (Claude Code, Codex, Gemini CLI) and ask you about them.`,
     "Answer in 1 to 4 short, plain sentences. The answer comes first. No greeting, no list unless they ask for one, no mention of tools.",
     "Look things up with the airband_flightlog tool (query to search every chat, chat to read one). You have no other tools: if the question needs the person's files or anything outside these records, say you can't see that and ask which chat to look in.",
@@ -217,7 +242,7 @@ export function askClaude(claude: string, question: string, state: string, name:
   return new Promise((resolve) => {
     execFile(
       claude,
-      lookupArgs(prompt, mcp),
+      lookupArgs(prompt, mcp, mode),
       { cwd, timeout: timeoutMs, maxBuffer: 1024 * 1024, env: { ...process.env, AIRBAND_COMPANION: "1", ENABLE_CLAUDEAI_MCP_SERVERS: "false" }, windowsHide: true },
       (err, stdout) => {
         const text = String(stdout ?? "").trim();

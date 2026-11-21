@@ -13,7 +13,8 @@ import { readHookStatus } from "../src/core/status";
 import { Station } from "../src/station/server";
 import { askStation, readStationInfo } from "../src/station/client";
 import { answersFit, describeRequest, permissionReply, questionsOf } from "../src/station/reply";
-import { ask, headline, lookupArgs, whatsHappening } from "../src/station/manager";
+import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/station/manager";
+import { knowledge } from "../src/station/knowledge";
 import { cleanDesign, cleanName, DEFAULT_COMPANION } from "../src/station/companion";
 import type { LiveChat } from "../src/station/chats";
 
@@ -260,4 +261,41 @@ test("the companion's name and look are settings, cleaned and defaulted", async 
   station = new Station({ port: 0, claude: null, pollMs: 60_000 });
   await station.start();
   assert.equal(station.snapshot().settings.companion.name, "Pip", "kept across restarts");
+});
+
+test("the companion answers questions about itself at once, in its own name", async () => {
+  const c = { name: "Pip", version: "0.0.5", headline: "All quiet. Nothing needs you." };
+  assert.match(knowledge("hi", c)!.text, /^Hi! I'm Pip\. All quiet/);
+  assert.equal(knowledge("hello!", c)!.choices?.length, 2, "a greeting offers what to ask next");
+  assert.match(knowledge("who are you?", c)!.text, /I'm Pip, Airband's helper/);
+  assert.match(knowledge("who built you?", c)!.text, /Harsh Baldaniya/);
+  assert.match(knowledge("who is your owner", c)!.text, /open source/);
+  assert.match(knowledge("what is airband?", c)!.text, /links your AI coding chats/);
+  assert.match(knowledge("can you see my files?", c)!.text, /Never your files/);
+  assert.match(knowledge("which version are you", c)!.text, /0\.0\.5/);
+  assert.ok(knowledge("tell me a joke", c));
+  assert.equal(knowledge("what did the phone chat do yesterday?", c), undefined, "a question about chats is not small talk");
+  assert.equal(knowledge("is the migration safe?", c), undefined);
+  // Through ask: no AI call, even with look-ups on.
+  const r = await ask("hey", { chats: [], pending: [], tell: () => "", claude: "/no/such/claude", lookups: true, name: "Pip", version: "0.0.5" });
+  assert.equal(r.via, "records");
+});
+
+test("open questions go to one locked room: the chats' records, or the web, never both", () => {
+  const chats = [chat({ id: "a1", title: "Billing redesign", project: "my-app" })];
+  assert.equal(lookupMode("what did the billing chat decide?", chats), "chats");
+  assert.equal(lookupMode("why did my tests fail yesterday", chats), "chats");
+  assert.equal(lookupMode("billing redesign", chats), "chats", "a chat's own name");
+  assert.equal(lookupMode("what is FedCM?", chats), "web");
+  const busy = [chat({ id: "x1", title: "This list is long", project: "my-app", lastAsk: "what is this list for" })];
+  assert.equal(lookupMode("what is FedCM in Chrome?", busy), "web", "filler words never tie a question to a chat");
+  assert.equal(lookupMode("who won the cricket match", chats), "web");
+  const web = lookupArgs("q", "{}", "web");
+  const at = (args: string[], flag: string) => args[args.indexOf(flag) + 1];
+  assert.equal(at(web, "--tools"), "WebSearch", "the web room has web search and nothing else");
+  assert.equal(at(web, "--mcp-config"), JSON.stringify({ mcpServers: {} }), "no Airband records in the web room");
+  assert.ok(web.includes("--strict-mcp-config"));
+  assert.ok(!web.join(" ").includes("airband_flightlog"));
+  const rec = lookupArgs("q", "{}", "chats");
+  assert.equal(at(rec, "--tools"), "", "the chats room has no web, files or shell");
 });

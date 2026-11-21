@@ -85,6 +85,17 @@ button { font: inherit; color: inherit; }
 .dock.left .card.say::after { left: 46px; }
 .dock.top .card.say::after { display: none; }
 .saytext.clamp { max-height: 7.6em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+.asked { align-self: flex-end; max-width: 85%; padding: 6px 11px; border-radius: 12px 12px 4px 12px; background: var(--brand); color: #141416; font-size: 12.5px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.card.thinking { gap: 10px; }
+.card.thinking .step { font-size: 13px; color: #c8c8cf; display: inline-flex; align-items: center; gap: 6px; }
+.dots { display: inline-flex; gap: 3px; }
+.dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--brand); animation: thinkdot 1.1s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: 0.15s; }
+.dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes thinkdot { 0%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.bar { position: relative; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.bar span { position: absolute; top: 0; bottom: 0; width: 38%; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--brand), transparent); animation: barslide 1.3s ease-in-out infinite; }
+@keyframes barslide { 0% { left: -40%; } 100% { left: 100%; } }
 .linkbtn { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--brand); font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .sayrow { display: flex; align-items: flex-start; gap: 8px; }
 .saychoices { display: flex; flex-wrap: wrap; gap: 6px; }
