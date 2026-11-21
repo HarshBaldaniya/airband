@@ -29,9 +29,10 @@ export function DesktopView() {
   const [look, setLook] = useState({ dx: 0, dy: 0 });
   const [tucked, setTucked] = useState(false);
   const [prefs, setPrefs] = useState<DesktopPrefs>();
-  /** Bumped on each tuck and return, to play the "poof" once. */
-  const [poof, setPoof] = useState(0);
   const [entering, setEntering] = useState(true);
+  /** Hiding and coming back: the whole corner fades and moves as one, on the graphics chip. */
+  const [motion, setMotion] = useState<"leaving" | "arriving">();
+  const motionTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** A reaction to a poke, said for a moment. */
   const [line, setLine] = useState("");
   const [poked, setPoked] = useState(false);
@@ -90,7 +91,6 @@ export function DesktopView() {
   const tuck = (on: boolean) => {
     bridge.setPref("tucked", on);
     setTucked(on);
-    setPoof((n) => n + 1);
     (on ? sounds.tuck : sounds.untuck)();
     if (on) closePanel();
   };
@@ -111,6 +111,12 @@ export function DesktopView() {
       if (cmd === "today") void c.ask("today");
       if (cmd === "status") void c.ask("what's happening");
       if (cmd === "settings") openPanel(true);
+      if (cmd === "leave" || cmd === "arrive") {
+        clearTimeout(motionTimer.current);
+        setMotion(cmd === "leave" ? "leaving" : "arriving");
+        if (cmd === "leave") sounds.close();
+        else motionTimer.current = setTimeout(() => setMotion(undefined), 560);
+      }
     });
     // Clicks reach the window only over what it draws; elsewhere they go to the windows behind.
     const onMove = (e: MouseEvent) => {
@@ -198,7 +204,7 @@ export function DesktopView() {
   const showPanel = panel !== "closed" && s;
   const talk = <Conversation name={c.name} asking={c.asking} question={c.question} answer={c.answer} error={error} onClose={c.clearAnswer} onCloseError={() => setError(undefined)} onAsk={(q) => void c.ask(q)} />;
   return (
-    <div className={`dock ${place.side} ${place.vertical}`}>
+    <div className={`dock ${place.side} ${place.vertical}${motion ? ` ${motion}` : ""}`}>
       {!tucked && (
         <div className="stack">
           {!showPanel && talk}
@@ -243,7 +249,6 @@ export function DesktopView() {
             </button>
           </div>
         )}
-        {poof > 0 && <span key={poof} className="poof" aria-hidden="true" />}
         {offline && <span className="linkpill">Reconnecting…</span>}
         {!offline && hello && !tucked && panel === "closed" && (
           <span className="hello" role="status">

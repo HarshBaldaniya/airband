@@ -102,6 +102,8 @@ const settingsFile = () => airbandFile("station-settings.json");
 const rulesFile = () => airbandFile("station-rules.json");
 const phoneKeyFile = () => airbandFile("station-phone.json");
 const FINISHED_KEEP_MS = 2 * 3600e3;
+/** A chat first seen already done counts as just finished if it stopped this recently. */
+const JUST_FINISHED_MS = 2 * 60_000;
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
 
@@ -258,7 +260,10 @@ export class Station extends EventEmitter {
     this.chats = liveChats(now);
     for (const c of this.chats) {
       const was = this.seen.get(c.id);
-      if (!first && c.status === "done" && (was === "working" || was === "waiting")) {
+      // A brand-new chat is listed only once its first turn ends: seen for the first time already
+      // done, and only just stopped, it finished now too.
+      const justNew = was === undefined && now - c.since < JUST_FINISHED_MS;
+      if (!first && c.status === "done" && (was === "working" || was === "waiting" || justNew)) {
         this.finished.set(c.id, { chatId: c.id, title: c.title, project: c.project, agent: c.agent, agentName: AGENT_NAME[c.agent], ...(c.lastDid ? { did: c.lastDid } : {}), ...(c.open ? { open: c.open } : {}), at: now });
         this.emit("finished", this.finished.get(c.id));
       }

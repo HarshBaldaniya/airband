@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
-import { permission } from "../src/hook/airband-hook";
+import { handle, permission } from "../src/hook/airband-hook";
 import { readInbox } from "../src/core/store";
 import { readHookStatus } from "../src/core/status";
 import { pickLanAddress, Station } from "../src/station/server";
@@ -16,7 +16,7 @@ import { answersFit, describeRequest, permissionReply, questionsOf } from "../sr
 import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/station/manager";
 import { knowledge } from "../src/station/knowledge";
 import { cleanDesign, cleanName, DEFAULT_COMPANION } from "../src/station/companion";
-import { liveChats, renamedTitle, type LiveChat } from "../src/station/chats";
+import { forgetReads, liveChats, renamedTitle, type LiveChat } from "../src/station/chats";
 import { readHead } from "../src/core/record";
 import { editorCommand, windowsResumeLine } from "../src/station/open";
 
@@ -409,4 +409,23 @@ test("the phone link is parked: no setting turns it on, and the Station listens 
   assert.equal(s.snapshot().phoneUrl, undefined, "no phone address is offered");
   const addr = (s as unknown as { server: http.Server }).server.address() as { address: string };
   assert.equal(addr.address, "127.0.0.1");
+});
+
+test("a brand-new chat's first answer counts as finished, so the companion comes back for it", async () => {
+  const s = await start();
+  const finished: string[] = [];
+  s.on("finished", (f: { title: string }) => finished.push(f.title));
+  // A new chat's first turn, through the real hook: it is listed only once that turn ends.
+  const dir = tmp("airband-newchat-");
+  const transcript = path.join(dir, "n1.jsonl");
+  const line = (o: unknown) => JSON.stringify(o) + "\n";
+  fs.writeFileSync(transcript, line({ type: "user", uuid: "u1", message: { role: "user", content: "tidy the billing page" } }));
+  handle({ session_id: "n1", hook_event_name: "UserPromptSubmit", prompt: "tidy the billing page", transcript_path: transcript, cwd: dir });
+  fs.appendFileSync(transcript, line({ type: "assistant", uuid: "a1", message: { id: "m-a1", role: "assistant", content: [{ type: "text", text: "Tidied the billing page." }], usage: { input_tokens: 10, output_tokens: 5 } } }));
+  handle({ session_id: "n1", hook_event_name: "Stop", transcript_path: transcript, cwd: dir });
+  forgetReads();
+  s.refresh();
+  assert.equal(finished.length, 1, "its first finish is told");
+  s.refresh();
+  assert.equal(finished.length, 1, "and only once");
 });

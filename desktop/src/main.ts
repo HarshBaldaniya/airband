@@ -11,7 +11,7 @@ import QRCode from "qrcode";
 import { airbandFile, readJson, writeFileAtomic } from "../../src/core/paths";
 import { appNode, findCommand } from "../../src/core/hooks";
 import { needsSetup, setup, VERSION } from "../../src/core/setup";
-import { DEFAULT_COMPANION, Station, type PendingView, type StationState } from "../../src/station";
+import { DEFAULT_COMPANION, Station, type StationState } from "../../src/station";
 import { colorIconPng, trayIconPng } from "./icon";
 
 type Side = "left" | "right";
@@ -159,12 +159,22 @@ function createWindow(): void {
   win.on("closed", () => (win = undefined));
 }
 
+/** A hide in progress: the screen fades out first, then the window goes. */
+let leaving: NodeJS.Timeout | undefined;
+const LEAVE_MS = 260;
+
 function show(open = false): void {
+  clearTimeout(leaving);
+  leaving = undefined;
   if (!win) createWindow();
+  const wasVisible = win!.isVisible();
   prefs.hidden = false;
   if (open) setPref("tucked", false);
   savePrefs();
+  // The window comes back showing its last frame, which a hide left faded out: nothing flashes.
+  // Then the screen rises in.
   win!.showInactive();
+  if (!wasVisible) win!.webContents.send("command", "arrive");
   if (open) {
     win!.focus();
     win!.webContents.send("command", "open");
@@ -175,8 +185,15 @@ function show(open = false): void {
 function hide(): void {
   prefs.hidden = true;
   savePrefs();
-  win?.hide();
   menu();
+  if (!win?.isVisible()) return;
+  // The screen fades out, then the window goes: never a cut.
+  win.webContents.send("command", "leave");
+  clearTimeout(leaving);
+  leaving = setTimeout(() => {
+    leaving = undefined;
+    if (prefs.hidden) win?.hide();
+  }, LEAVE_MS);
 }
 
 // ---- menus ----
@@ -200,7 +217,7 @@ function menuItems(short = false): Electron.MenuItemConstructorOptions[] {
     { type: "separator" },
     check("Answer requests here", !!s?.settings.approvals, () => void station.setSettings({ approvals: !s?.settings.approvals })),
     check("Sounds", prefs.sound, () => setPref("sound", !prefs.sound)),
-    check(`Notifications when ${name()} is hidden`, prefs.notify, () => setPref("notify", !prefs.notify)),
+    check(`${name()} comes back when a chat needs you`, prefs.notify, () => setPref("notify", !prefs.notify)),
     check("Start when the computer starts", prefs.startAtLogin, () => setPref("startAtLogin", !prefs.startAtLogin)),
     { type: "separator" },
     { label: "Set up Airband in my agents again", click: () => void runSetup(true) },
@@ -247,8 +264,15 @@ function notify(title: string, body: string): void {
   n.show();
 }
 
-function onRequest(p: PendingView): void {
-  notify(`${p.chatTitle} needs you`, p.detail ? `${p.title}: ${p.detail}` : p.title);
+/**
+ * A chat needs you, or finished: the companion comes back on screen if it was hidden or tucked away,
+ * and shows the card itself. It never takes the keyboard from what you are typing in. The menu's
+ * "comes back when a chat needs you" switch turns this off.
+ */
+function comeBack(): void {
+  if (!prefs.notify) return;
+  if (!win?.isVisible() || prefs.hidden) show();
+  if (prefs.tucked) setPref("tucked", false);
 }
 
 /** Each evening at 6 pm, once: what the chats did today. */
@@ -326,6 +350,8 @@ function debugHooks(): void {
       const words = fs.readFileSync(cmd, "utf8").trim();
       fs.rmSync(cmd, { force: true });
       if (words === "show") show();
+      else if (words === "hide") hide();
+      else if (words === "tuck") setPref("tucked", true);
       else win?.webContents.send("command", words);
     }
     const js = path.join(dir, "js");
@@ -391,8 +417,8 @@ async function start(): Promise<void> {
     state = s;
     menu();
   });
-  station.on("request", onRequest);
-  station.on("finished", (f: { title: string; did?: string }) => notify(`${f.title} finished`, f.did ?? "Have a look when you can."));
+  station.on("request", comeBack);
+  station.on("finished", comeBack);
 
   let icon: Electron.NativeImage;
   if (process.platform === "darwin") {
