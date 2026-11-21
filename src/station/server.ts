@@ -59,7 +59,7 @@ export interface StationSettings {
   waitMs: number;
   /** The companion's name and look. */
   companion: CompanionSettings;
-  /** The person said yes to open questions going to Claude Code (with Airband's records only). */
+  /** Open questions may go to Claude Code (with Airband's records only). On unless turned off. */
   lookups: boolean;
 }
 
@@ -99,7 +99,7 @@ const FINISHED_KEEP_MS = 2 * 3600e3;
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
 
-export const defaultSettings = (): StationSettings => ({ approvals: true, phone: false, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: false });
+export const defaultSettings = (): StationSettings => ({ approvals: true, phone: false, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: true });
 
 export function readSettings(): StationSettings {
   const saved = readJson<Partial<StationSettings>>(settingsFile(), {});

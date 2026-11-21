@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Minus } from "lucide-react";
 import { desktop, type DesktopPrefs } from "../api";
 import { Companion } from "../companion/Companion";
-import { moodLine, pokedLine } from "../companion/lines";
+import { pokedLine } from "../companion/lines";
 import { useCompanionState } from "../companion/useCompanionState";
 import { AnswerCard, FinishedToast, RequestCard } from "../components/Cards";
 import { Panel } from "../components/Panel";
@@ -31,9 +31,26 @@ export function DesktopView() {
   /** Bumped on each tuck and return, to play the "poof" once. */
   const [poof, setPoof] = useState(0);
   const [entering, setEntering] = useState(true);
-  /** The short line on the name tag: picked when the pointer arrives, or a reaction to a poke. */
+  /** A reaction to a poke, said for a moment. */
   const [line, setLine] = useState("");
   const [poked, setPoked] = useState(false);
+  /** The very first start: one hello, then never again. */
+  const [hello, setHello] = useState(false);
+  /** The Station has been out of reach for a while (a short restart says nothing). */
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    if (link) return setOffline(false);
+    const t = setTimeout(() => setOffline(true), 3000);
+    return () => clearTimeout(t);
+  }, [link]);
+  useEffect(() => {
+    if (!prefs || prefs.greeted) return;
+    const show = setTimeout(() => setHello(true), 1300);
+    const done = setTimeout(() => (setHello(false), bridge.setPref("greeted", true)), 8300);
+    return () => (clearTimeout(show), clearTimeout(done));
+    // Once, when the settings arrive.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs?.greeted]);
   const [error, setError] = useState<string>();
   const figure = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; moving: boolean } | undefined>(undefined);
@@ -182,12 +199,11 @@ export function DesktopView() {
     <div className={`dock ${place.side} ${place.vertical}`}>
       {!tucked && (
         <div className="stack">
-          {error && <AnswerCard answer={{ text: error, via: "action" }} onClose={() => setError(undefined)} onChoose={() => undefined} />}
-          {!link && <AnswerCard answer={{ text: "I can't reach the Station. Trying again…", via: "action" }} onClose={() => undefined} onChoose={() => undefined} />}
+          {error && !showPanel && <AnswerCard answer={{ text: error, via: "action" }} onClose={() => setError(undefined)} onChoose={() => undefined} />}
           {c.answer && !showPanel && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />}
           {showPanel ? (
             <div className={panel === "closing" ? "panelwrap closing" : "panelwrap"}>
-              <Panel state={s} name={c.name} design={c.design} onClose={closePanel} onAsk={(q) => (sounds.tick(), void c.ask(q))} asking={c.asking} onSay={c.say} onError={setError} showSettings={settings} prefs={prefs} onPref={setPref} answer={c.answer && <AnswerCard answer={c.answer} onClose={c.clearAnswer} onChoose={(q) => void c.ask(q)} />} />
+              <Panel state={s} name={c.name} design={c.design} onClose={closePanel} onAsk={(q) => (sounds.tick(), void c.ask(q))} asking={c.asking} onSay={c.say} onError={setError} showSettings={settings} prefs={prefs} onPref={setPref} answer={(error || c.answer) && <AnswerCard answer={error ? { text: error, via: "action" } : c.answer!} onClose={error ? () => setError(undefined) : c.clearAnswer} onChoose={(q) => void c.ask(q)} />} />
             </div>
           ) : (
             <>
@@ -213,7 +229,6 @@ export function DesktopView() {
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
-        onPointerEnter={() => !poked && setLine(moodLine(c.mood))}
         onContextMenu={(e) => {
           e.preventDefault();
           bridge.showMenu();
@@ -228,13 +243,13 @@ export function DesktopView() {
           </div>
         )}
         {poof > 0 && <span key={poof} className="poof" aria-hidden="true" />}
-        {!tucked && panel === "closed" && (
-          <span className={`nametag${poked ? " show" : ""}`} aria-hidden="true">
-            <b>{c.name}</b>
-            <span className="brand">Airband</span>
-            {line && <span className="nameline">{line}</span>}
+        {offline && <span className="linkpill">Reconnecting…</span>}
+        {!offline && hello && !tucked && panel === "closed" && (
+          <span className="hello" role="status">
+            Hi, I'm <b>{c.name}</b>! I'll tell you when a chat needs you.
           </span>
         )}
+        {!offline && !hello && poked && <span className="hello short" role="status">{line}</span>}
         <Companion mood={c.mood} name={c.name} design={c.design} look={look} count={pending.length} size={104} />
       </div>
     </div>

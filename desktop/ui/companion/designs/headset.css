@@ -12,13 +12,13 @@
 .design-headset .fig-light { animation: headset-softpulse 2.6s ease-in-out infinite; }
 .design-headset .fig-arm-left { transform-box: fill-box; transform-origin: 70% 10%; animation: headset-arm-l 4.4s ease-in-out infinite; }
 .design-headset .fig-arm-right { transform-box: fill-box; transform-origin: 30% 10%; animation: headset-arm-r 4.4s ease-in-out infinite; }
-.design-headset .fig-eyes { transform-box: fill-box; transform-origin: center; transition: opacity 0.35s ease, transform 0.09s ease; }
-.design-headset .fig-eyes.fig-blink { transform: scaleY(0.1); }
-.design-headset .fig-pupils { transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.design-headset .fig-eyes { transform-box: fill-box; transform-origin: center; transition: opacity 0.35s ease; }
+.design-headset .fig-eyes.fig-blink { animation: headset-blink 0.26s ease-in-out; }
+@keyframes headset-blink { 0% { transform: scaleY(1); } 35% { transform: scaleY(0.08); } 50% { transform: scaleY(0.08); } 100% { transform: scaleY(1); } }
+.design-headset .fig-pupils { transition: transform 0.25s ease-out; }
 /* Depth: the face and earcups move with the look, a little slower than the eyes, as a head turns. */
-.design-headset .fig-face, .design-headset .fig-headset { transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.design-headset { transform-style: preserve-3d; animation: headset-lean 4.4s ease-in-out infinite; }
-@keyframes headset-lean { 0%, 100% { transform: perspective(600px) rotateY(-7deg); } 50% { transform: perspective(600px) rotateY(7deg); } }
+.design-headset .fig-face, .design-headset .fig-headset { transition: transform 0.35s ease-out; }
+.design-headset .fig-float, .design-headset .fig-body { will-change: transform; }
 .design-headset .fig-cheek { opacity: 0.75; transition: opacity 0.4s ease, fill 0.4s ease; }
 .design-headset .fig-cheek.fig-blush { opacity: 1; fill: #f59a85; }
 .design-headset .fig-mouth-talk { transform-box: fill-box; transform-origin: 50% 0%; }
@@ -67,7 +67,7 @@
 .design-headset.gesture-turn .fig-face { animation: headset-face-turn 1.6s ease-in-out; }
 .design-headset.gesture-turn .fig-headset { animation: headset-band-turn 1.6s ease-in-out; }
 
-@keyframes headset-float { 0%, 100% { transform: translateY(0) rotate(-1.6deg); } 50% { transform: translateY(-8px) rotate(1.6deg); } }
+@keyframes headset-float { 0%, 100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-7px) rotate(1.2deg); } }
 @keyframes headset-shadowfloat { 0%, 100% { transform: scale(1); opacity: 0.28; } 50% { transform: scale(0.8); opacity: 0.15; } }
 @keyframes headset-hoverglow { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(0.85, 0.8); } }
 @keyframes headset-antenna { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }

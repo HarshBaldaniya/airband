@@ -254,7 +254,7 @@ test("the companion's name and look are settings, cleaned and defaulted", async 
   assert.equal(cleanDesign("../../etc"), DEFAULT_COMPANION.design);
   const s = await start();
   assert.equal(s.snapshot().settings.companion.name, DEFAULT_COMPANION.name);
-  assert.equal(s.snapshot().settings.lookups, false, "look-ups start off");
+  assert.equal(s.snapshot().settings.lookups, true, "look-ups start on, with Airband's records only")
   await s.setSettings({ companion: { name: cleanName("Pip"), design: "headset" } });
   await s.stop();
   station = new Station({ port: 0, claude: null, pollMs: 60_000 });

@@ -24,6 +24,8 @@ interface Prefs {
   hidden: boolean;
   /** The companion is tucked away: small, no cards, until clicked. */
   tucked: boolean;
+  /** The companion has said hello once, on the very first start. */
+  greeted: boolean;
   /** Where the window sits: the corner of it the companion is in, and that corner's place on screen. */
   anchor?: { x: number; y: number; side: Side; vertical: Vertical };
   lastSummary?: string;
@@ -36,7 +38,7 @@ const WINDOW = { w: 424, h: 700 };
 /** Where the companion sits in its corner of the window (the screen's own padding included). */
 const FIGURE = { w: 104, h: 125, pad: 10 };
 
-let prefs: Prefs = { sound: true, notify: true, startAtLogin: true, hidden: false, tucked: false };
+let prefs: Prefs = { sound: true, notify: true, startAtLogin: true, hidden: false, tucked: false, greeted: false };
 let station: Station;
 let win: BrowserWindow | undefined;
 let tray: Tray | undefined;
@@ -135,7 +137,7 @@ function createWindow(): void {
     enableLargerThanScreen: true,
     show: false,
     ...(process.platform === "darwin" ? { type: "panel" } : {}),
-    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false },
+    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false, autoplayPolicy: "no-user-gesture-required", backgroundThrottling: false },
   });
   win.setAlwaysOnTop(true, "floating");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -217,8 +219,8 @@ function menu(): void {
   tray.setContextMenu(Menu.buildFromTemplate(menuItems()));
 }
 
-type PrefKey = "sound" | "notify" | "startAtLogin" | "tucked";
-const prefsView = () => ({ sound: prefs.sound, notify: prefs.notify, startAtLogin: prefs.startAtLogin, tucked: prefs.tucked });
+type PrefKey = "sound" | "notify" | "startAtLogin" | "tucked" | "greeted";
+const prefsView = () => ({ sound: prefs.sound, notify: prefs.notify, startAtLogin: prefs.startAtLogin, tucked: prefs.tucked, greeted: prefs.greeted });
 
 function setPref(key: PrefKey, on: boolean): void {
   prefs[key] = on;
@@ -262,6 +264,7 @@ function eveningSummary(): void {
 /** The companion's eyes follow the pointer: where it is from the figure, from -1 to 1. */
 function followCursor(): void {
   let last = "";
+  const eased = { dx: 0, dy: 0 };
   setInterval(() => {
     if (!win?.isVisible() || drag) return;
     const c = screen.getCursorScreenPoint();
@@ -269,14 +272,17 @@ function followCursor(): void {
     const a = prefs.anchor ?? defaultAnchor();
     const fx = a.side === "right" ? b.x + b.width - FIGURE.pad - FIGURE.w / 2 : b.x + FIGURE.pad + FIGURE.w / 2;
     const fy = a.vertical === "bottom" ? b.y + b.height - FIGURE.pad - FIGURE.h / 2 : b.y + FIGURE.pad + FIGURE.h / 2;
-    const dx = Math.max(-1, Math.min(1, (c.x - fx) / 320));
-    const dy = Math.max(-1, Math.min(1, (c.y - fy) / 240));
-    const key = `${dx.toFixed(2)},${dy.toFixed(2)}`;
+    const tx = Math.max(-1, Math.min(1, (c.x - fx) / 360));
+    const ty = Math.max(-1, Math.min(1, (c.y - fy) / 280));
+    // Glide a part of the way each step, so the eyes and face drift instead of jumping.
+    eased.dx += (tx - eased.dx) * 0.22;
+    eased.dy += (ty - eased.dy) * 0.22;
+    const key = `${eased.dx.toFixed(2)},${eased.dy.toFixed(2)}`;
     if (key !== last) {
       last = key;
-      win.webContents.send("cursor", { dx, dy });
+      win.webContents.send("cursor", { dx: Number(eased.dx.toFixed(3)), dy: Number(eased.dy.toFixed(3)) });
     }
-  }, 70);
+  }, 50);
 }
 
 async function runSetup(asked = false): Promise<void> {
@@ -331,6 +337,9 @@ function debugHooks(): void {
 }
 
 // ---- start ----
+
+// Sounds play from the start, not only after the first click in the window.
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else {

@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ExternalLink, MessageSquare, Send, Settings as Gear, X } from "lucide-react";
 import { api, desktop, MODE, type DesktopPrefs, type LiveChat, type StationState } from "../api";
 import { CompanionMark } from "../companion/Companion";
-import { DESIGNS } from "../companion/designs";
 import { sounds } from "../sound";
 import { AgentMark, ago, FinishedCard, RequestCard } from "./Cards";
 
@@ -123,68 +122,41 @@ function Toggle({ on, label, onChange }: { on: boolean; label: string; onChange:
   );
 }
 
+/** One setting: a title, one short line under it, and its switch. Every row is the same shape. */
+function SettingRow({ title, note, children }: { title: string; note: string; children: ReactNode }) {
+  return (
+    <div className="setrow">
+      <span className="setlabel">
+        {title}
+        <small className="muted">{note}</small>
+      </span>
+      {children}
+    </div>
+  );
+}
+
 function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: DesktopPrefs; onPref: (k: keyof DesktopPrefs, on: boolean) => void }) {
   const s = state.settings;
   const [qr, setQr] = useState<string>();
-  const [name, setName] = useState(s.companion.name);
-  const [nameSaved, setNameSaved] = useState(false);
   useEffect(() => {
     if (state.phoneUrl) void desktop?.qr(state.phoneUrl).then(setQr);
   }, [state.phoneUrl]);
-  const saveName = async () => {
-    if (!name.trim() || name.trim() === s.companion.name) return;
-    await api.settings({ companionName: name.trim() });
-    sounds.tick();
-    setNameSaved(true);
-    setTimeout(() => setNameSaved(false), 1200);
-  };
   return (
     <section className="settings">
-      <label className="setrow" htmlFor="companion-name">
-        <span>Name</span>
-        <span className="togglewrap">
-          <span className={`saved${nameSaved ? " show" : ""}`} aria-hidden="true">
-            <Check size={13} />
-          </span>
-          <input id="companion-name" className="nameinput" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} onBlur={() => void saveName()} onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()} />
-        </span>
-      </label>
-      {DESIGNS.length > 1 && (
-        <label className="setrow" htmlFor="companion-design">
-          <span>Look</span>
-          <select id="companion-design" value={s.companion.design} onChange={(e) => void api.settings({ companionDesign: e.target.value })}>
-            {DESIGNS.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.title}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <div className="setrow">
-        <span>Answer requests here</span>
+      <SettingRow title="Answer requests here" note="Allow or deny from this corner.">
         <Toggle on={s.approvals} label="Answer requests here" onChange={(on) => api.settings({ approvals: on })} />
-      </div>
-      <div className="setrow">
-        <span className="setlabel">
-          Look things up
-          <small className="muted">Asks Claude Code, with Airband's records only.</small>
-        </span>
+      </SettingRow>
+      <SettingRow title="Look things up" note="Answers from your chats' records.">
         <Toggle on={s.lookups} label="Look things up" onChange={(on) => api.settings({ lookups: on })} />
-      </div>
+      </SettingRow>
       {prefs && (
-        <div className="setrow">
-          <span>Sounds</span>
+        <SettingRow title="Sounds" note="Soft sounds for requests and replies.">
           <Toggle on={prefs.sound} label="Sounds" onChange={(on) => onPref("sound", on)} />
-        </div>
+        </SettingRow>
       )}
-      <div className="setrow">
-        <span className="setlabel">
-          Phone link
-          <small className="muted">Same Wi-Fi only.</small>
-        </span>
+      <SettingRow title="Phone link" note="Your phone, on the same Wi-Fi.">
         <Toggle on={s.phone} label="Phone link" onChange={(on) => api.settings({ phone: on })} />
-      </div>
+      </SettingRow>
       <div className={`phone${s.phone && qr ? " open" : ""}`}>
         <div className="phoneinner">
           {qr && <img src={qr} alt="QR code for the phone page" width={120} height={120} />}
@@ -192,7 +164,9 @@ function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: D
         </div>
       </div>
       <p className="privacy muted">Sees your chats' records only. Never your files, folders or screen.</p>
-      <p className="foot muted">Airband {state.version}</p>
+      <p className="foot muted">
+        {state.settings.companion.name}, from Airband {state.version}
+      </p>
     </section>
   );
 }
@@ -252,10 +226,7 @@ export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onEr
       <div className="panelhead">
         <CompanionMark design={design} size={26} />
         <div className="panelhead-text">
-          <b>
-            {settings ? "Settings" : name}
-            {!settings && <span className="brand">Airband</span>}
-          </b>
+          <b>{settings ? "Settings" : name}</b>
           {!settings && <span className="muted ellipsis">{state.headline}</span>}
         </div>
         {canSet && (

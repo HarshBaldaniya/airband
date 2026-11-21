@@ -157,16 +157,42 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
   );
 }
 
+/** The figure's face in a round tile, for headers and lists. */
 function Mark({ size }: { size: number }) {
   return (
-    <svg width={size} height={size * 1.1} viewBox="0 0 200 220" aria-hidden="true">
-      <rect x="32" y="40" width="136" height="146" rx="60" fill="#E07A4F" />
-      <line x1="100" y1="42" x2="100" y2="18" stroke="#2a2a30" strokeWidth="8" />
-      <circle cx="100" cy="14" r="12" fill="#3fb57d" />
-      <ellipse cx="80" cy="104" rx="16" ry="18" fill="#fff" />
-      <ellipse cx="120" cy="104" rx="16" ry="18" fill="#fff" />
-      <circle cx="82" cy="106" r="9" fill="#141416" />
-      <circle cx="122" cy="106" r="9" fill="#141416" />
+    <svg width={size} height={size} viewBox="0 0 120 120" aria-hidden="true">
+      <defs>
+        <linearGradient id="headset-mark-tile" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3a2a22" />
+          <stop offset="100%" stopColor="#1f1b19" />
+        </linearGradient>
+        <radialGradient id="headset-mark-body" cx="38%" cy="30%" r="80%">
+          <stop offset="0%" stopColor="#f7ae8a" />
+          <stop offset="50%" stopColor="#e07a4f" />
+          <stop offset="100%" stopColor="#b85733" />
+        </radialGradient>
+        <clipPath id="headset-mark-clip">
+          <circle cx="60" cy="60" r="60" />
+        </clipPath>
+      </defs>
+      <circle cx="60" cy="60" r="60" fill="url(#headset-mark-tile)" />
+      <g clipPath="url(#headset-mark-clip)">
+        <line x1="60" y1="30" x2="60" y2="14" stroke="#2a2a30" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="60" cy="12" r="5.5" fill="#3fb57d" />
+        <rect x="20" y="28" width="80" height="104" rx="38" fill="url(#headset-mark-body)" />
+        <path d="M22 62 C22 40 39 30 60 30 C81 30 98 40 98 62" stroke="#2a2a30" strokeWidth="6" fill="none" strokeLinecap="round" />
+        <rect x="14" y="56" width="13" height="24" rx="6" fill="#2a2a30" />
+        <rect x="93" y="56" width="13" height="24" rx="6" fill="#2a2a30" />
+        <ellipse cx="48" cy="70" rx="9" ry="10.5" fill="#fff" />
+        <ellipse cx="72" cy="70" rx="9" ry="10.5" fill="#fff" />
+        <circle cx="49.5" cy="71.5" r="5" fill="#141416" />
+        <circle cx="73.5" cy="71.5" r="5" fill="#141416" />
+        <circle cx="51.5" cy="69" r="1.6" fill="#fff" />
+        <circle cx="75.5" cy="69" r="1.6" fill="#fff" />
+        <ellipse cx="37" cy="84" rx="6" ry="3.5" fill="#f6b496" />
+        <ellipse cx="83" cy="84" rx="6" ry="3.5" fill="#f6b496" />
+        <path d="M54 86 Q60 91 66 86" stroke="#141416" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+      </g>
     </svg>
   );
 }

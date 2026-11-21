@@ -55,6 +55,8 @@ export interface DesktopPrefs {
   startAtLogin: boolean;
   /** The companion is tucked away: small, with no cards until it is clicked. */
   tucked: boolean;
+  /** It has said hello once, on the very first start. */
+  greeted: boolean;
 }
 
 /** What the desktop app adds (window place, drag, menus, the QR code); absent in a browser or on a phone. */

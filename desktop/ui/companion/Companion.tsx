@@ -16,10 +16,10 @@ function useBlinking(paused: boolean): boolean {
     let t: ReturnType<typeof setTimeout>;
     const blink = (then: () => void) => {
       setShut(true);
-      t = setTimeout(() => (setShut(false), then()), 130);
+      t = setTimeout(() => (setShut(false), then()), 270);
     };
     const next = () => {
-      t = setTimeout(() => blink(() => (Math.random() < 0.2 ? (t = setTimeout(() => blink(next), 160)) : next())), 2200 + Math.random() * 4200);
+      t = setTimeout(() => blink(() => (Math.random() < 0.2 ? (t = setTimeout(() => blink(next), 120)) : next())), 2200 + Math.random() * 4200);
     };
     next();
     return () => clearTimeout(t);
