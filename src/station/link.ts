@@ -13,7 +13,7 @@ import type { FinishedView, PendingView, Station, StationState } from "./server"
 if (!globalThis.crypto) (globalThis as { crypto?: unknown }).crypto = webcrypto;
 
 /** Airband's relay. `AIRBAND_RELAY_URL` points at another one (a test, or your own). */
-export const RELAY_URL = (process.env.AIRBAND_RELAY_URL ?? "https://airband-relay.workers.dev").replace(/\/+$/, "");
+export const RELAY_URL = (process.env.AIRBAND_RELAY_URL ?? "https://app.airband.workers.dev").replace(/\/+$/, "");
 
 export interface LinkedPhone {
   id: string;
