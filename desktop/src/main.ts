@@ -4,7 +4,7 @@
 //
 // The companion's window keeps one size and lets clicks through everywhere except on what it draws,
 // so opening a panel or a card never moves or redraws the companion.
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, Notification, screen, shell, Tray } from "electron";
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, Notification, powerMonitor, screen, shell, Tray } from "electron";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import QRCode from "qrcode";
@@ -378,7 +378,8 @@ async function start(): Promise<void> {
   // (AIRBAND_SKIP_SETUP: a trial run against a copy of the data, which must not touch the agents.)
   if (!process.env.AIRBAND_SKIP_SETUP && needsSetup()) await runSetup();
 
-  station = new Station({ uiDir: path.join(resources(), "companion") });
+  // The phone buzzes only when you're away: the screen locked, or no keyboard or mouse for a minute.
+  station = new Station({ uiDir: path.join(resources(), "companion"), link: { away: () => powerMonitor.getSystemIdleState(60) !== "active" } });
   try {
     await station.start();
   } catch (e) {

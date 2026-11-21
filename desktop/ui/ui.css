@@ -247,3 +247,44 @@ button { font: inherit; color: inherit; }
 @keyframes panelin { 0% { opacity: 0; transform: translateY(10px) scale(0.96); } 100% { opacity: 1; transform: none; } }
 @keyframes panelout { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(10px) scale(0.96); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* ---- On a phone: big, clear touch targets (at least 48px), one decision per row ---- */
+.phonepage .card { box-shadow: none; padding: 16px; gap: 12px; border-radius: 18px; }
+.phonepage .cardhead { font-size: 14px; }
+.phonepage .cardhead b { font-size: 15px; }
+.phonepage .card.needs .qtext { font-size: 19px; font-weight: 600; line-height: 1.3; }
+.phonepage .detail { font-size: 14px; padding: 12px 14px; max-height: 38vh; }
+.phonepage .card.needs .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.phonepage .card.needs .actions .btn { height: 50px; justify-content: center; font-size: 16px; border-radius: 14px; }
+.phonepage .card.needs .actions .btn.primary { grid-column: 1 / -1; height: 56px; font-size: 18px; font-weight: 600; }
+/* Two buttons (a plan: Approve, Not yet): each its own row. */
+.phonepage .card.needs .actions:not(:has(> :nth-child(3))) > .btn { grid-column: 1 / -1; }
+.phonepage .choices { display: grid; gap: 10px; }
+.phonepage .choice { height: auto; min-height: 50px; padding: 12px 16px; font-size: 16px; border-radius: 14px; justify-content: flex-start; text-align: left; white-space: normal; }
+.phonepage .card.row { padding: 10px 12px; }
+.phonepage .card.row .btn.small { width: 48px; height: 44px; justify-content: center; border-radius: 12px; }
+.phonepage .rowopen { min-height: 44px; }
+.phonepage .tab { min-height: 44px; font-size: 15px; }
+.phonepage .chat { min-height: 56px; }
+.phonepage .iconbtn { width: 44px; height: 44px; }
+
+.btn.wide { width: 100%; height: 52px; justify-content: center; font-size: 17px; font-weight: 600; border-radius: 14px; }
+.card.hint { border-color: #3a3a44; gap: 10px; }
+.card.hint b { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; }
+.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; font-size: 16px; line-height: 1.4; }
+.steps svg { vertical-align: -2px; }
+.linkscreen { align-items: center; text-align: center; justify-content: center; min-height: 100dvh; gap: 18px; }
+.linkscreen h1 { margin: 0; font-size: 26px; }
+.linkscreen .steps { text-align: left; align-self: stretch; max-width: 360px; margin: 0 auto; }
+.linkscreen .btn.wide { max-width: 360px; }
+.phonefoot { display: flex; justify-content: center; padding: 18px 0 8px; }
+.linkbtn { background: none; border: 0; color: var(--muted); font-size: 14px; padding: 10px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.scanner { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 14px; padding: 0 16px max(28px, env(safe-area-inset-bottom)); z-index: 10; }
+.scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scanframe { position: absolute; top: 50%; left: 50%; width: min(70vw, 280px); aspect-ratio: 1; transform: translate(-50%, -60%); border: 3px solid rgba(255, 255, 255, 0.9); border-radius: 24px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45); }
+.scanner p, .scanner .btn { position: relative; }
+.scanner p { color: #fff; font-size: 16px; text-align: center; margin: 0; }
+.scanner .btn { height: 50px; min-width: 160px; justify-content: center; font-size: 16px; }
+
+.linksteps { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.linkurl { font-size: 10px; word-break: break-all; max-width: 150px; }

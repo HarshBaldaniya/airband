@@ -17,6 +17,7 @@ import { VERSION } from "../core/setup";
 import { AGENT_NAME, liveChats, titleOf, type Agent, type LiveChat } from "./chats";
 import { DECISION_MS, readStationInfo, stationFile, type StationInfo } from "./client";
 import { PHONE_LINK } from "./phone";
+import { PhoneLink, type LinkStatus, type PhoneLinkOptions } from "./link";
 import { cleanDesign, cleanName, DEFAULT_COMPANION, type CompanionSettings } from "./companion";
 import { ask, headline, tellText, type CompanionAnswer } from "./manager";
 import { openChat } from "./open";
@@ -73,6 +74,8 @@ export interface StationState {
   finished: FinishedView[];
   settings: StationSettings;
   phoneUrl?: string;
+  /** The phone link through Airband's relay: whether a phone is linked, and which. */
+  link?: LinkStatus;
 }
 
 export interface StationOptions {
@@ -85,6 +88,8 @@ export interface StationOptions {
   claude?: string | null;
   pollMs?: number;
   now?: () => number;
+  /** The phone link through the relay; false leaves it out (tests). */
+  link?: PhoneLinkOptions | false;
 }
 
 interface Waiting extends PendingView {
@@ -158,7 +163,11 @@ export class Station extends EventEmitter {
     this.settings = readSettings();
     this.phoneKey = readJson<{ key?: string }>(phoneKeyFile(), {}).key ?? key();
     this.uiDir = o.uiDir ?? path.join(__dirname, "companion");
+    if (o.link !== false) this.link = new PhoneLink(this, o.link ?? {});
   }
+
+  /** The phone link through Airband's relay. */
+  readonly link?: PhoneLink;
 
   private now(): number {
     return this.o.now?.() ?? Date.now();
@@ -174,6 +183,7 @@ export class Station extends EventEmitter {
     this.writeInfo();
     this.refresh(true);
     this.timers.push(setInterval(() => this.refresh(), this.o.pollMs ?? 4000));
+    await this.link?.start();
     this.timers.push(setInterval(() => this.sse.forEach((r) => r.write(": ping\n\n")), 20_000));
     try {
       fs.mkdirSync(statusDir(), { recursive: true });
@@ -222,6 +232,7 @@ export class Station extends EventEmitter {
   }
 
   async stop(): Promise<void> {
+    this.link?.stop();
     this.timers.forEach(clearInterval);
     this.timers = [];
     this.watcher?.close();
@@ -269,11 +280,12 @@ export class Station extends EventEmitter {
       finished: [...this.finished.values()].sort((a, b) => b.at - a.at),
       settings: this.settings,
       ...(this.settings.phone ? { phoneUrl: this.phoneUrl() } : {}),
+      ...(this.link ? { link: this.link.status() } : {}),
     };
   }
 
   /** Tells every screen, once, after a burst of changes. */
-  private changed(): void {
+  changed(): void {
     setImmediate(() => {
       const s = this.snapshot();
       const { now: _n, ...rest } = s;
@@ -497,6 +509,16 @@ export class Station extends EventEmitter {
         case "/api/dismiss":
           this.dismiss(String(body.chatId ?? ""));
           return send(res, 200, { ok: true });
+        // Linking a phone happens on the computer only: the code it shows holds the pair's secret.
+        case "/api/phone/link":
+        case "/api/phone/code":
+        case "/api/phone/unlink": {
+          if (who !== "local") return send(res, 403, { error: "Link a phone from the computer." });
+          if (!this.link) return send(res, 404, { error: "The phone link is off here." });
+          if (route === "/api/phone/unlink") return await this.link.unlink(), send(res, 200, { ok: true });
+          const url = route === "/api/phone/link" ? await this.link.link() : this.link.pairingUrl();
+          return send(res, 200, { url });
+        }
         case "/api/settings": {
           if (who !== "local") return send(res, 403, { error: "Settings change on the computer only." });
           const patch: Partial<StationSettings> = {};

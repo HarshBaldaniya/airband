@@ -4,12 +4,28 @@ import type { Answer } from "../../src/station/reply";
 
 export type { AnswerChoice, CompanionAnswer, FinishedView, LiveChat, PendingView, StationSettings, StationState } from "../../src/station";
 
-async function post<T>(route: string, body: unknown): Promise<T> {
+/** How the screen reaches the Station: over HTTP from the page the Station served (the computer),
+ *  or through Airband's relay, locked (the phone app). */
+export interface Transport {
+  post<T>(route: string, body: unknown): Promise<T>;
+  watch(onState: (s: StationState) => void, onLink: (up: boolean) => void): () => void;
+}
+
+async function httpPost<T>(route: string, body: unknown): Promise<T> {
   const res = await fetch(route, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw new Error(data.error ?? `The Station said ${res.status}.`);
   return data;
 }
+
+let transport: Transport = { post: httpPost, watch: watchEvents };
+
+/** The phone app sends everything through its relay connection instead. */
+export function setTransport(t: Transport): void {
+  transport = t;
+}
+
+const post = <T,>(route: string, body: unknown) => transport.post<T>(route, body);
 
 export const api = {
   decide: (id: string, answer: Answer) => post<{ ok?: boolean }>("/api/decide", { id, ...answer }),
@@ -18,10 +34,18 @@ export const api = {
   open: (chatId: string) => post<{ text: string }>("/api/open", { chatId }),
   dismiss: (chatId: string) => post<{ ok: boolean }>("/api/dismiss", { chatId }),
   settings: (patch: Partial<Omit<StationSettings, "companion">> & { companionName?: string; companionDesign?: string }) => post<StationSettings>("/api/settings", patch),
+  linkPhone: () => post<{ url: string }>("/api/phone/link", {}),
+  phoneCode: () => post<{ url?: string }>("/api/phone/code", {}),
+  unlinkPhone: () => post<{ ok: boolean }>("/api/phone/unlink", {}),
 };
 
-/** The Station's state as it changes, over one long-lived connection that reconnects by itself. */
+/** The Station's state as it changes. */
 export function watchState(onState: (s: StationState) => void, onLink: (up: boolean) => void): () => void {
+  return transport.watch(onState, onLink);
+}
+
+/** Over one long-lived connection to the Station that reconnects by itself. */
+function watchEvents(onState: (s: StationState) => void, onLink: (up: boolean) => void): () => void {
   let es: EventSource | undefined;
   let stopped = false;
   let retry: ReturnType<typeof setTimeout> | undefined;

@@ -268,6 +268,9 @@ Claude Code, Codex and Gemini CLI, so you don't have to check each one.
 - **A chat finished:** Roger cheers once and offers **Review**, which opens that chat.
 - **Ask him:** "what's happening?", "what did I do today?", "open the billing chat", "tell the API
   chat that the route changed", "allow it", "hide". If he isn't sure which chat you mean, he asks.
+- **On your phone:** in his settings, choose **Link** next to **Your phone** and scan the code. Your
+  phone shows what needs you, from anywhere, with Allow, Always and Deny. On an iPhone, add it to
+  the Home Screen for alerts (iOS 16.4 or later).
 - **Move him:** drag him anywhere. Tuck him away small with the **–** button, and click to bring him
   back. Right-click him for the menu, or use ⌥⌘R.
 
@@ -487,8 +490,12 @@ Press `?` on any page for the full list.
   flightlog. Any other question gets only web search. Neither gets file or shell tools or your other
   connections, and nothing of it is saved as a chat. A question that asks to read your files or
   folders is refused.
-- **Permission requests stay on your computer.** The app listens on this computer only, never on
-  your network. A phone link will come with Airband's own iPhone app.
+- **The app listens on this computer only,** never on your network.
+- **Your phone link is locked end to end.** The pairing code holds a secret only your computer and
+  phone know. Messages pass through Airband's relay (a Cloudflare Worker, `relay/` in this
+  repository) locked with that secret, so the relay can't read them. It keeps only the latest locked
+  state and deletes a room unused for 30 days. Alerts go from your computer to your phone's push
+  service, locked for that phone. A phone can answer requests, and nothing else.
 - **Nothing is sent anywhere by Airband.** It reads the session files your agents already write and
   keeps its own data in `~/.airband`, readable only by you. No server, no account, no telemetry.
 - **Online for two things only:** a daily npm version check, and a language parser the first time a

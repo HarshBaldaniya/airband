@@ -152,6 +152,12 @@ export function trayIconPng(size = 36): Buffer {
 }
 
 /** A small colour figure for places that show colour (Windows' tray, notifications). */
+/** The phone's Home Screen icon: full-bleed (the phone rounds the corners itself). */
+export function phoneIconPng(size = 512): Buffer {
+  const tile: Layer[] = [{ d: roundRect(0, 0, size, size, 0), color: hex("#1d1d21") }];
+  return draw(size, figureLayers("#3fb57d"), 0.66, tile);
+}
+
 export function colorIconPng(size = 64, light = "#3fb57d"): Buffer {
   return draw(size, figureLayers(light), 0.95);
 }

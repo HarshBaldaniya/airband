@@ -145,6 +145,59 @@ function SettingRow({ title, note, children }: { title: string; note: string; ch
   );
 }
 
+/** Link a phone through Airband's relay: a code to scan, then which phones are linked. */
+function PhoneRow({ state }: { state: StationState }) {
+  const l = state.link;
+  const [url, setUrl] = useState<string>();
+  const [qr, setQr] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (url && desktop) void desktop.qr(url).then(setQr);
+    else setQr(undefined);
+  }, [url]);
+  // A phone just linked: the code has done its job.
+  const phones = l?.phones.length ?? 0;
+  useEffect(() => {
+    if (phones) setUrl(undefined);
+  }, [phones]);
+  if (!l) return null;
+  const run = async (f: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await f();
+    } finally {
+      setBusy(false);
+    }
+  };
+  const showCode = () => run(async () => setUrl((l.linked && !phones ? (await api.phoneCode()).url : undefined) ?? (await api.linkPhone()).url));
+  const note = phones ? `Linked: ${l.phones.map((p) => p.name).join(", ")}.` : l.linked ? "Waiting for your phone to scan." : "Requests on your phone, from anywhere.";
+  return (
+    <>
+      <SettingRow title="Your phone" note={note}>
+        {phones ? (
+          <button className="btn small" disabled={busy} onClick={() => void run(async () => void (await api.unlinkPhone(), setUrl(undefined)))}>
+            Unlink
+          </button>
+        ) : (
+          <button className="btn small primary" disabled={busy} onClick={() => (url ? setUrl(undefined) : void showCode())}>
+            {url ? "Hide" : "Link"}
+          </button>
+        )}
+      </SettingRow>
+      <div className={`phonelink${url ? " open" : ""}`}>
+        <div className="phoneinner">
+          {qr ? <img src={qr} alt="Code to link your phone" width={132} height={132} /> : url && <code className="linkurl">{url}</code>}
+          <ol className="linksteps muted">
+            <li>Scan with your phone's camera.</li>
+            <li>iPhone: Share, then Add to Home Screen.</li>
+            <li>Open Airband there and turn on alerts.</li>
+          </ol>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: DesktopPrefs; onPref: (k: keyof DesktopPrefs, on: boolean) => void }) {
   const s = state.settings;
   const [qr, setQr] = useState<string>();
@@ -164,6 +217,7 @@ function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: D
           <Toggle on={prefs.sound} label="Sounds" onChange={(on) => onPref("sound", on)} />
         </SettingRow>
       )}
+      <PhoneRow state={state} />
       {PHONE_LINK && (
         <>
           <SettingRow title="Phone link" note="Your phone, on the same Wi-Fi.">

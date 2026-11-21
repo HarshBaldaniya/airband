@@ -6,7 +6,7 @@ import { Check, CheckCheck, CircleCheck, Eye, SquareTerminal, X } from "lucide-r
 import claudeLogo from "@lobehub/icons-static-svg/icons/claude-color.svg";
 import codexLogo from "@lobehub/icons-static-svg/icons/codex-color.svg";
 import geminiLogo from "@lobehub/icons-static-svg/icons/gemini-color.svg";
-import { api, type CompanionAnswer, type FinishedView, type PendingView } from "../api";
+import { api, MODE, type CompanionAnswer, type FinishedView, type PendingView } from "../api";
 
 const LOGO: Record<string, string> = { claude: claudeLogo, codex: codexLogo, gemini: geminiLogo };
 
@@ -31,7 +31,7 @@ function CardHead({ agent, title, project, at, tone }: { agent: string; title: s
       <span className={`dot ${tone}`} />
       <AgentMark agent={agent} />
       <b className="ellipsis">{title}</b>
-      <span className="muted ellipsis">{project}</span>
+      {project && project !== title && <span className="muted ellipsis">{project}</span>}
       <span className="grow" />
       <span className="muted">{ago(at)}</span>
     </div>
@@ -68,7 +68,8 @@ export function RequestCard({ request, onError, compact = false }: { request: Pe
       setBusy(false);
     }
   };
-  const terminal = (
+  // On a phone, away from the computer, "answer in the terminal" helps no one.
+  const terminal = MODE === "phone" ? null : (
     <button className="iconbtn term" disabled={busy} onClick={() => decide("terminal")} title="Answer in the chat's own terminal instead" aria-label="Answer in the terminal instead">
       <SquareTerminal size={16} />
     </button>

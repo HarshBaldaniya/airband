@@ -11,8 +11,16 @@
   folders. **Look things up** (a setting, on at first) passes a question to Claude Code: a question
   about your chats gets only Airband's read-only flightlog, and any other question gets only web
   search. Neither gets file or shell tools, and nothing is saved as a chat.
-- **A phone link waits for Airband's own iPhone app.** A web page on the Wi-Fi would be plain http,
-  marked "Not Secure", so until the app everything stays on your computer.
+- **Your phone, from anywhere.** In Roger's settings, choose **Link** next to **Your phone** and scan
+  the code. Your phone shows what needs you, with big Allow, Always and Deny buttons, and what
+  finished. It works on mobile data too. On an iPhone, add it to the Home Screen (iOS 16.4 or later)
+  for alerts on the Lock Screen. On Android, Allow and Deny sit on the alert itself. The phone only
+  buzzes when your computer is locked or idle for a minute.
+- **Locked end to end.** The code holds a secret that only your computer and your phone know.
+  Messages pass through Airband's relay on Cloudflare, locked with it, so the relay can't read them.
+  Alerts go from your computer to your phone's push service, locked for that phone. A phone can
+  answer requests and nothing else: it can't ask, message a chat or change settings. **Unlink** ends
+  it at once.
 - **No Node needed.** On a computer without Node, the app runs Airband's hook and tools itself.
 - **Claude Code's permission requests** now pass through Airband's hook, which waits up to 110 s for
   the app and otherwise lets the terminal ask at once.

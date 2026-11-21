@@ -1,0 +1,23 @@
+# Airband's relay: the phone app (public/) and the rooms that pass locked messages along.
+# Deploy: npm run relay:deploy (it builds the phone app first). Runs on Cloudflare's free plan.
+name = "airband-relay"
+main = "src/worker.ts"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+# SQLite-backed Durable Objects are the kind the free plan offers.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[observability]
+enabled = false
