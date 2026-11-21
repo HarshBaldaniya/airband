@@ -10,9 +10,13 @@
 //      them before it stops (each tool continues the turn with Airband's note);
 //   5. when a chat is asked for a doc or a message, adds the writing rules once,
 //      after it writes a doc file says what in it breaks them, and before it
-//      sends a message, a PR or a commit, holds it once if it breaks them.
+//      sends a message, a PR or a commit, holds it once if it breaks them;
+//   6. when a chat asks permission (Claude Code, Codex), hands the request to
+//      the Airband app if it runs, and passes the person's click back.
 // It never blocks a chat: errors are swallowed, it always exits 0, and it
-// prints nothing except the context it delivers.
+// prints nothing except the context it delivers. A permission request is the one
+// event that waits, and only while the app runs: at most 110 s, then the agent
+// asks in its own terminal.
 import * as path from "node:path";
 import type { ChatMessage, HookStatus, InboxItem, Status, Tool } from "../core/types";
 import { safeId, statusDir, writeFileAtomic } from "../core/paths";
@@ -35,6 +39,8 @@ import { geminiMessages, loadGeminiChat } from "../adapters/gemini";
 import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
+import { askStation } from "../station/client";
+import { describeRequest, permissionReply } from "../station/reply";
 import { briefFor, checkOutgoing, checkWrittenDoc, forgetGiven, holdOnce, notYetGiven, outgoingText, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
 
 export type HookTool = "claude" | "codex" | "gemini";
@@ -62,7 +68,7 @@ export interface HookInput {
 
 /** Each tool's event names, as the one set Airband works with. */
 const EVENT_ALIASES: Record<HookTool, Record<string, string>> = {
-  claude: {},
+  claude: { PermissionRequest: "Notification" },
   codex: { PermissionRequest: "Notification" },
   gemini: { BeforeAgent: "UserPromptSubmit", AfterAgent: "Stop", AfterTool: "PostToolUse", BeforeTool: "PreToolUse" },
 };
@@ -96,6 +102,10 @@ export function record(input: HookInput, now = Date.now()): void {
   if (!id || !status || !safeId(id)) return;
   const entry: HookStatus = { status, at: now, event: input.hook_event_name!, cwd: input.cwd };
   if (status === "waiting" && input.message) entry.message = input.message.slice(0, 200);
+  else if (status === "waiting" && input.tool_name) {
+    const d = describeRequest(input.tool_name, input.tool_input);
+    entry.message = (d.detail ? `${d.title}: ${d.detail}` : d.title).slice(0, 200);
+  }
   writeFileAtomic(path.join(statusDir(), `${id}.json`), JSON.stringify(entry));
 }
 
@@ -257,6 +267,8 @@ function out(tool: HookTool, event: "UserPromptSubmit" | "SessionStart", context
 }
 
 export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claude"): string | undefined {
+  // The app's own questions to Claude Code (what its companion looks up) are not chats of yours.
+  if (process.env.AIRBAND_COMPANION) return undefined;
   const input = normalise(raw, tool);
   record(input, now);
   switch (input.hook_event_name) {
@@ -383,6 +395,29 @@ export function sendCheck(input: HookInput, tool: HookTool): string | undefined 
   }
 }
 
+/**
+ * A permission request: the chat shows as needing you, and the request goes to the Airband app.
+ * The reply is the person's click in the shape the agent reads, or nothing (the terminal asks).
+ */
+export async function permission(raw: HookInput, tool: HookTool, now = Date.now()): Promise<string | undefined> {
+  try {
+    handle(raw, now, tool);
+  } catch {
+    // The status is a nicety; the question still goes to the app.
+  }
+  if (process.env.AIRBAND_COMPANION || (tool !== "claude" && tool !== "codex")) return undefined;
+  const answer = await askStation({ agent: tool, session_id: raw.session_id, cwd: raw.cwd, transcript_path: raw.transcript_path, tool_name: raw.tool_name, tool_input: raw.tool_input });
+  // Answered or not, the chat is no longer waiting on the app.
+  if (answer && raw.session_id && safeId(raw.session_id)) {
+    try {
+      writeFileAtomic(path.join(statusDir(), `${raw.session_id}.json`), JSON.stringify({ status: "working", at: Date.now(), event: "PermissionAnswered", cwd: raw.cwd } satisfies HookStatus));
+    } catch {
+      // Only a status.
+    }
+  }
+  return permissionReply(tool, raw.tool_name, raw.tool_input, answer);
+}
+
 export function main(): void {
   const arg = (process.argv[2] ?? "claude").toLowerCase();
   const tool: HookTool = arg === "codex" || arg === "gemini" ? arg : "claude";
@@ -390,14 +425,34 @@ export function main(): void {
   process.stdin.setEncoding("utf8");
   process.stdin.on("data", (chunk) => (raw += chunk));
   process.stdin.on("end", () => {
+    let input: HookInput;
     try {
-      const out = handle(JSON.parse(raw) as HookInput, Date.now(), tool);
+      input = JSON.parse(raw) as HookInput;
+    } catch {
+      process.exit(0);
+    }
+    if (input.hook_event_name === "PermissionRequest") {
+      // The one event that waits for a person: the usual 4 s limit gives way to the app's own.
+      clearTimeout(limit);
+      setTimeout(() => process.exit(0), 115_000).unref();
+      void permission(input, tool).then(
+        (out) => {
+          if (out) process.stdout.write(out);
+          process.exit(0);
+        },
+        () => process.exit(0),
+      );
+      return;
+    }
+    try {
+      const out = handle(input, Date.now(), tool);
       if (out) process.stdout.write(out);
     } catch {
       // Never interrupt anyone's chat.
     }
     process.exit(0);
   });
-  setTimeout(() => process.exit(0), 4000).unref();
+  const limit = setTimeout(() => process.exit(0), 4000);
+  limit.unref();
 }
 

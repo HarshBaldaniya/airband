@@ -58,6 +58,12 @@ export function installFiles(fromDir: string): number {
     }
     const wasm = path.join(fromDir, "wasm");
     for (const f of fs.existsSync(wasm) ? fs.readdirSync(wasm) : []) fs.copyFileSync(path.join(wasm, f), path.join(home, "wasm", f));
+    // The companion's screen, which `airband station` serves (to a browser or a phone).
+    const screen = path.join(fromDir, "companion");
+    if (fs.existsSync(screen)) {
+      fs.mkdirSync(path.join(home, "companion"), { recursive: true });
+      for (const f of fs.readdirSync(screen)) fs.copyFileSync(path.join(screen, f), path.join(home, "companion", f));
+    }
   }
   writeFileAtomic(airbandFile("version.json"), `${JSON.stringify({ version: VERSION, at: new Date().toISOString() }, null, 2)}\n`);
   return n;

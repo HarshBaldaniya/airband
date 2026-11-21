@@ -4,6 +4,7 @@
 //   dist/airband-mcp.js   the MCP server that lets any AI tool save and read notes
 //   dist/webview.js     the React UI for the sidebar and the board (+ webview.css)
 //   dist/airband.js   the command line: map, find, check, backup ... on any computer
+//   dist/companion/     the companion's screen (ui.js + ui.css): the Airband app's corner and the phone page
 //   dist/wasm/          the code map's parser (tree-sitter runtime and grammars)
 // `--tests` instead builds test/*.test.ts into out-test/ for `node --test`.
 import { build, context } from "esbuild";
@@ -72,6 +73,21 @@ const configs = tests
         loader: { ".svg": "text" },
         entryPoints: ["webview-ui/main.tsx"],
         outfile: "dist/webview.js",
+      },
+      {
+        // The companion's screen: the Airband app's corner on the desktop and the phone page, served by the Station.
+        bundle: true,
+        platform: "browser",
+        format: "iife",
+        target: "es2022",
+        jsx: "automatic",
+        minify: !watch,
+        sourcemap: watch,
+        logLevel: "info",
+        define: { "process.env.NODE_ENV": watch ? '"development"' : '"production"' },
+        loader: { ".svg": "text" },
+        entryPoints: ["desktop/ui/main.tsx"],
+        outfile: "dist/companion/ui.js",
       },
     ];
 

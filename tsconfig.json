@@ -13,5 +13,5 @@
     "isolatedModules": true,
     "types": ["node", "vscode"]
   },
-  "include": ["src", "webview-ui", "test"]
+  "include": ["src", "webview-ui", "test", "desktop/ui"]
 }

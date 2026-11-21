@@ -12,6 +12,9 @@ const out = "npm-dist";
 rmSync(out, { recursive: true, force: true });
 mkdirSync(join(out, "wasm"), { recursive: true });
 for (const f of ["airband.js", "airband-mcp.js", "airband-hook.js"]) copyFileSync(join("dist", f), join(out, f));
+// The companion's screen, which `airband station` serves to a browser or a phone.
+mkdirSync(join(out, "companion"), { recursive: true });
+for (const f of ["ui.js", "ui.css"]) copyFileSync(join("dist/companion", f), join(out, "companion", f));
 // Only the common parsers ride along (BUNDLED_GRAMMARS in src/codemap/parser.ts; keep the two the
 // same). Go, Rust, Java, C#, Ruby and PHP are fetched the first time a project needs them, checked
 // against fingerprints written in at build time: the package is a third of the size.
@@ -32,7 +35,7 @@ const pkg = {
   author: root.author,
   // One command, so `npx airband` knows what to run.
   bin: { airband: "airband.js" },
-  files: ["airband.js", "airband-mcp.js", "airband-hook.js", "wasm/", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"],
+  files: ["airband.js", "airband-mcp.js", "airband-hook.js", "wasm/", "companion/", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"],
   engines: { node: ">=20" },
   publishConfig: { access: "public" },
 };

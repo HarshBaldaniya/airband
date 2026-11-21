@@ -1,0 +1,36 @@
+# Builds the Airband app for macOS and Windows from the same code, and keeps the builds as
+# downloads on the run. Runs by hand, on a release tag, and when the app or the Station changes.
+name: Desktop app
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+    paths: ["desktop/**", "src/station/**", ".github/workflows/desktop.yml"]
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+      - run: npm --prefix desktop ci
+      - run: npx tsc --noEmit -p desktop
+      # Not signed yet: no Apple or Windows signing account is set up.
+      - run: npm --prefix desktop run dist -- --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: airband-${{ matrix.os }}
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.exe
+          if-no-files-found: ignore

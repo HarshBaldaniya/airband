@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
-import { HOOK_EVENTS, claudeAiCreditShown, connect, disconnect, isConnected, setClaudeAiCredit } from "../src/core/hooks";
+import { CLAUDE_TIMEOUTS, HOOK_EVENTS, claudeAiCreditShown, connect, disconnect, isConnected, setClaudeAiCredit } from "../src/core/hooks";
 import { handle, record, statusFor } from "../src/hook/airband-hook";
 import { addConnection, addPending, appendInbox, getCursor, readConnections, readDeliveries, readInbox, setCursor } from "../src/core/store";
 
@@ -32,6 +32,11 @@ test("connect adds Airband's hook to every event, keeps other settings, and disc
   for (const e of HOOK_EVENTS) assert.ok(after.hooks[e].some((g: any) => g.hooks.some((h: any) => h.command.includes("airband-hook.js"))));
   assert.equal(after.hooks.Stop[0].hooks[0].command, "say done");
   assert.equal(after.hooks.PreToolUse[0].matcher, "Bash|mcp__.*", "before a tool: only shell commands and MCP tools start the hook");
+  assert.equal(after.hooks.Stop[1].hooks[0].timeout, 5);
+  connect('"/usr/bin/node" "/h/.airband/airband-hook.js"', file, HOOK_EVENTS, 5, CLAUDE_TIMEOUTS);
+  const timed = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.equal(timed.hooks.PermissionRequest[0].hooks[0].timeout, 120, "a permission request may wait for a click in the Airband app");
+  assert.equal(timed.hooks.PermissionRequest[0].matcher, undefined, "every tool's request, questions too");
   assert.deepEqual(JSON.parse(fs.readFileSync(`${file}.airband-backup`, "utf8")), before);
   connect('"/usr/bin/node" "/h/.airband/airband-hook.js"', file);
   assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).hooks.Stop.length, 2);

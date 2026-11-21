@@ -1,0 +1,180 @@
+// The cards the companion shows: a permission request, a question with its choices, a plan to
+// approve, a chat that finished, and the companion's own answer. Each says who asks, what, and the
+// buttons; nothing more. The same cards fill the phone page.
+import { useEffect, useState } from "react";
+import { Check, CheckCheck, Eye, SquareTerminal, X } from "lucide-react";
+import claudeLogo from "@lobehub/icons-static-svg/icons/claude-color.svg";
+import codexLogo from "@lobehub/icons-static-svg/icons/codex-color.svg";
+import geminiLogo from "@lobehub/icons-static-svg/icons/gemini-color.svg";
+import { api, type CompanionAnswer, type FinishedView, type PendingView } from "../api";
+
+const LOGO: Record<string, string> = { claude: claudeLogo, codex: codexLogo, gemini: geminiLogo };
+
+export function AgentMark({ agent, size = 14 }: { agent: string; size?: number }) {
+  const svg = LOGO[agent];
+  if (!svg) return null;
+  return <span className="agentmark" style={{ width: size, height: size }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />;
+}
+
+export function ago(at: number, now = Date.now()): string {
+  const s = Math.max(0, Math.round((now - at) / 1000));
+  if (s < 45) return "now";
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h} h` : `${Math.round(h / 24)} d`;
+}
+
+function CardHead({ agent, title, project, at, tone }: { agent: string; title: string; project: string; at: number; tone: "needs" | "done" }) {
+  return (
+    <div className="cardhead">
+      <span className={`dot ${tone}`} />
+      <AgentMark agent={agent} />
+      <b className="ellipsis">{title}</b>
+      <span className="muted ellipsis">{project}</span>
+      <span className="grow" />
+      <span className="muted">{ago(at)}</span>
+    </div>
+  );
+}
+
+/** How much of the wait is left, as a thin line: when it runs out, the terminal asks. */
+function TimeLeft({ at, until }: { at: number; until: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
+  const left = Math.max(0, Math.min(1, (until - now) / Math.max(1, until - at)));
+  return (
+    <div className="timeleft" title={`${Math.ceil(Math.max(0, until - now) / 1000)} s, then the terminal asks`}>
+      <span style={{ width: `${left * 100}%` }} />
+    </div>
+  );
+}
+
+export function RequestCard({ request, onError }: { request: PendingView; onError: (m: string) => void }) {
+  const p = request;
+  const [busy, setBusy] = useState(false);
+  const [picks, setPicks] = useState<Record<string, string[]>>({});
+  const decide = async (decision: "allow" | "always" | "deny" | "terminal", extra: Record<string, unknown> = {}) => {
+    setBusy(true);
+    try {
+      await api.decide(p.id, { decision, ...extra });
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+  const terminal = (
+    <button className="iconbtn term" disabled={busy} onClick={() => decide("terminal")} title="Answer in the chat's own terminal instead" aria-label="Answer in the terminal instead">
+      <SquareTerminal size={16} />
+    </button>
+  );
+
+  if (p.questions?.length) {
+    const qs = p.questions;
+    const complete = qs.every((q) => (picks[q.question]?.length ?? 0) > 0);
+    const send = (all: Record<string, string[]>) => decide("allow", { answers: Object.fromEntries(qs.map((q) => [q.question, q.multiSelect ? all[q.question] : all[q.question][0]])) });
+    const pick = (q: (typeof qs)[number], label: string) => {
+      const cur = picks[q.question] ?? [];
+      const next = q.multiSelect ? (cur.includes(label) ? cur.filter((l) => l !== label) : [...cur, label]) : [label];
+      const all = { ...picks, [q.question]: next };
+      setPicks(all);
+      // One question, one choice: the click is the answer.
+      if (qs.length === 1 && !q.multiSelect) void send(all);
+    };
+    return (
+      <div className="card needs" data-hit>
+        <CardHead agent={p.agent} title={p.chatTitle} project={p.project} at={p.at} tone="needs" />
+        {qs.map((q) => (
+          <div key={q.question} className="question">
+            <span className="qtext">{q.question}</span>
+            <div className="choices">
+              {q.options.map((o) => (
+                <button key={o.label} className={`choice${picks[q.question]?.includes(o.label) ? " on" : ""}`} disabled={busy} onClick={() => pick(q, o.label)} title={o.description}>
+                  {q.multiSelect && <span className="tick">{picks[q.question]?.includes(o.label) ? <Check size={12} /> : null}</span>}
+                  <span>{o.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div className="actions">
+          {(qs.length > 1 || qs.some((q) => q.multiSelect)) && (
+            <button className="btn primary" disabled={busy || !complete} onClick={() => send(picks)}>
+              <Check size={14} /> Send
+            </button>
+          )}
+          {terminal}
+        </div>
+        <TimeLeft at={p.at} until={p.expiresAt} />
+      </div>
+    );
+  }
+
+  const plan = p.toolName === "ExitPlanMode";
+  return (
+    <div className="card needs" data-hit>
+      <CardHead agent={p.agent} title={p.chatTitle} project={p.project} at={p.at} tone="needs" />
+      <span className="qtext">{p.title}</span>
+      {p.detail && <pre className={`detail${plan ? " plan" : ""}`}>{p.detail}</pre>}
+      <div className="actions">
+        <button className="btn primary" disabled={busy} onClick={() => decide("allow")}>
+          <Check size={14} /> {plan ? "Approve" : "Allow"}
+        </button>
+        {!plan && (
+          <button className="btn" disabled={busy} onClick={() => decide("always")} title="Allow this same thing in this folder from now on">
+            <CheckCheck size={14} /> Always
+          </button>
+        )}
+        <button className="btn" disabled={busy} onClick={() => decide("deny", plan ? { message: "Keep planning: the person wants changes before you start." } : {})}>
+          <X size={14} /> {plan ? "Not yet" : "Deny"}
+        </button>
+        {terminal}
+      </div>
+      <TimeLeft at={p.at} until={p.expiresAt} />
+    </div>
+  );
+}
+
+export function FinishedCard({ finished, onSay }: { finished: FinishedView; onSay?: (text: string) => void }) {
+  const f = finished;
+  return (
+    <div className="card done" data-hit>
+      <CardHead agent={f.agent} title={f.title} project={f.project} at={f.at} tone="done" />
+      {f.did && <span className="did">{f.did}</span>}
+      <div className="actions">
+        <button className="btn done" onClick={() => void api.open(f.chatId).then((r) => onSay?.(r.text))}>
+          <Eye size={14} /> Review
+        </button>
+        <button className="btn ghost" onClick={() => void api.dismiss(f.chatId)}>
+          Later
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The companion's answer, with a button for each choice when it asks which one you mean. */
+export function AnswerCard({ answer, onClose, onChoose }: { answer: CompanionAnswer; onClose: () => void; onChoose: (ask: string) => void }) {
+  return (
+    <div className="card say" data-hit>
+      <div className="sayrow">
+        <span className="saytext">{answer.text}</span>
+        <button className="iconbtn close" onClick={onClose} aria-label="Close">
+          <X size={14} />
+        </button>
+      </div>
+      {!!answer.choices?.length && (
+        <div className="saychoices">
+          {answer.choices.map((c) => (
+            <button key={c.ask} className="choice light" onClick={() => onChoose(c.ask)}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

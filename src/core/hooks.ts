@@ -8,7 +8,10 @@ import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { airbandHome, guardRealHome, writeFileAtomic } from "./paths";
 
-export const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Notification", "Stop", "SessionEnd"] as const;
+export const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest", "Notification", "Stop", "SessionEnd"] as const;
+/** A permission request may wait for a click in the Airband app (110 s at most), so Claude Code
+ *  gives that one hook longer than the rest. With no app running it ends at once. */
+export const CLAUDE_TIMEOUTS: Partial<Record<string, number>> = { PermissionRequest: 120 };
 /** Tools a before-tool hook runs for: shell commands (commits, PRs) and MCP tools (Slack, email).
  *  Not file reads and edits, so most tool calls start no process at all. */
 const PRE_TOOL_MATCHER: Record<string, string> = { claude: "Bash|mcp__.*", gemini: "run_shell_command|.*__.*|mcp_.*" };
@@ -170,7 +173,7 @@ function geminiHome(): string {
 
 export function hookTargets(): HookTarget[] {
   return [
-    { tool: "Claude", file: claudeSettingsPath(), events: HOOK_EVENTS, timeout: 5, present: () => true },
+    { tool: "Claude", file: claudeSettingsPath(), events: HOOK_EVENTS, timeout: 5, timeouts: CLAUDE_TIMEOUTS, present: () => true },
     {
       tool: "Codex",
       file: path.join(codexHome(), "hooks.json"),

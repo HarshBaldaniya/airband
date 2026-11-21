@@ -285,6 +285,28 @@ export async function main(argv: string[]): Promise<number> {
       else out(renderWork(chats, since));
       return 0;
     }
+    case "station": {
+      // The Station without the app: approvals and the phone page, for any computer (the Mac app runs its own).
+      const { Station } = await import("../station");
+      const station = new Station();
+      if (flag(args, "--phone")) await station.setSettings({ phone: true });
+      try {
+        await station.start();
+      } catch (e) {
+        out(`  ${e instanceof Error ? e.message : String(e)}`);
+        return 1;
+      }
+      const s = station.snapshot();
+      out(`\n  ${paint.ok("●")} Airband's Station is running.`);
+      out(`  The companion's screen: http://127.0.0.1:${station.port}/app?t=${station.token}`);
+      if (s.settings.phone) out(`  On your phone (same Wi-Fi): ${station.phoneUrl() ?? "no network address found"}`);
+      else out(paint.dim(`  For your phone: ${self()} station --phone`));
+      out(paint.dim(`  Permission requests from Claude Code and Codex come here while it runs. Ctrl+C stops it.\n`));
+      const stop = () => void station.stop().then(() => process.exit(0));
+      process.on("SIGINT", stop);
+      process.on("SIGTERM", stop);
+      return -1;
+    }
     case "spend": {
       const days = Number(option(args, "--days") ?? "") || 7;
       const since = sinceDays(days);

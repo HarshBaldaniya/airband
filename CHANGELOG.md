@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.0.5
+- **A desktop companion (Mac, Windows build on GitHub).** Roger floats in a corner of your screen. He
+  shows each permission request and question from Claude Code and Codex, and you answer with a click.
+  He cheers when a chat finishes, opens chats, passes your messages to them, and answers "what's
+  happening?" from Airband's records. Drag him anywhere, tuck him away, or rename him: his name and
+  look are settings. `npm run desktop:install` builds and installs the app, and on first start it sets
+  up every agent.
+- **Your phone too.** Turn on **Phone link** and scan the code: the same requests and chats on your
+  phone, over your own Wi-Fi. `airband station --phone` does the same without the app.
+- **Private by design.** The companion sees only your chats' records. Open questions go to Claude Code
+  only after you turn on **Look things up**, with no file, shell or web tools.
+- **Claude Code's permission requests** now pass through Airband's hook, which waits up to 110 s for
+  the app and otherwise lets the terminal ask at once.
+
 ## 0.0.4
 - **A simpler Writing page.** It is now only the switches, in two groups: how agents write, and
   what happens before anything goes out. "Hide AI credit lines" is one of them. The page uses

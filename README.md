@@ -258,6 +258,32 @@ Ask an agent for "my standup" or "AI spend this month" and it uses these, then w
 you. Tokens are what each agent reported in its own files. Tokens per ticket are an estimate, because
 agents report tokens per reply, not per topic.
 
+### A companion on your desktop
+
+The Airband app puts a small companion, Roger, in a corner of your screen. It watches every chat in
+Claude Code, Codex and Gemini CLI, so you don't have to check each one.
+
+- **A chat needs you:** Roger hops and shows the request. Click **Allow**, **Always**, **Deny**, or
+  pick an answer to the chat's question. The chat carries on.
+- **A chat finished:** Roger cheers once and offers **Review**, which opens that chat.
+- **Ask him:** "what's happening?", "what did I do today?", "open the billing chat", "tell the API
+  chat that the route changed", "allow it", "hide". If he isn't sure which chat you mean, he asks.
+- **Move him:** drag him anywhere. Tuck him away small with the **–** button, and click to bring him
+  back. Right-click him for the menu, or use ⌥⌘R.
+- **On your phone:** turn on **Phone link** in his settings and scan the code. Your phone must be on
+  the same Wi-Fi.
+
+Roger's name and look are settings, so you can call him something else.
+
+```bash
+npm run desktop:install      # from a clone of this repository: builds the Mac app, installs it, opens it
+```
+
+On first start the app sets up Airband in every agent it finds, so that is the only step. With no
+app running, nothing changes: each chat asks in its own terminal, as before. On any computer,
+`airband station --phone` gives the same requests and chats in a browser or on a phone, without the
+app.
+
 ## How it works
 
 Airband sits beside your agents. It reads the session files they already write, keeps its own short
@@ -457,6 +483,14 @@ Press `?` on any page for the full list.
 
 ## Privacy and security
 
+- **The desktop companion sees your chats' records in Airband and nothing else.** It never opens
+  your files, folders, screen or clipboard. Asked to, it says so and asks which chat to look in.
+- **Open questions wait for your yes.** Only after you turn on **Look things up** does the companion
+  pass a question to Claude Code. Even then, Claude Code gets no file, shell or web tools and none of
+  your other connections: only Airband's read-only flightlog. Nothing of it is saved as a chat.
+- **Permission requests stay on your computer.** The app listens on this computer only. The phone
+  link, when you turn it on, answers on your local network and needs the phone's own key. A phone
+  can answer requests but can't change settings.
 - **Nothing is sent anywhere by Airband.** It reads the session files your agents already write and
   keeps its own data in `~/.airband`, readable only by you. No server, no account, no telemetry.
 - **Online for two things only:** a daily npm version check, and a language parser the first time a
