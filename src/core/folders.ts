@@ -65,6 +65,8 @@ export interface OpenRequest {
   at: number;
   /** For the terminal's name, so the other window needn't list its chats first. */
   title?: string;
+  /** Only this editor takes it ("Visual Studio Code", "Cursor"): the one where the chat already is. */
+  app?: string;
 }
 
 const OPEN_FRESH_MS = 2 * 60_000;
@@ -91,10 +93,11 @@ function samePath(a: string, b: string): boolean {
  * The requests for this window (any of its folders), taken so no other window acts on them;
  * stale ones are dropped.
  */
-export function takeOpenRequests(roots: string | string[], now = Date.now(), which: (r: OpenRequest) => boolean = () => true): OpenRequest[] {
+/** `app`: this window's editor. A request meant for another editor is left for that one. */
+export function takeOpenRequests(roots: string | string[], now = Date.now(), which: (r: OpenRequest) => boolean = () => true, app?: string): OpenRequest[] {
   const all = readJson<OpenRequest[]>(openFile(), []);
   if (!all.length) return [];
-  const mine = (x: OpenRequest) => which(x) && (Array.isArray(roots) ? roots : [roots]).some((r) => samePath(x.cwd, r));
+  const mine = (x: OpenRequest) => which(x) && (!x.app || !app || x.app === app) && (Array.isArray(roots) ? roots : [roots]).some((r) => samePath(x.cwd, r));
   const fresh = all.filter((x) => now - x.at < OPEN_FRESH_MS);
   const taken = fresh.filter(mine);
   const rest = fresh.filter((x) => !mine(x));
@@ -127,12 +130,14 @@ export interface OpenWindow {
   pid: number;
   roots: string[];
   at: number;
+  /** The editor this window belongs to ("Visual Studio Code", "Cursor"). */
+  app?: string;
 }
 
-export function registerWindow(roots: string[], pid = process.pid, now = Date.now()): void {
+export function registerWindow(roots: string[], app?: string, pid = process.pid, now = Date.now()): void {
   try {
     fs.mkdirSync(windowsDir(), { recursive: true });
-    writeFileAtomic(path.join(windowsDir(), `${pid}.json`), JSON.stringify({ pid, roots, at: now } satisfies OpenWindow));
+    writeFileAtomic(path.join(windowsDir(), `${pid}.json`), JSON.stringify({ pid, roots, at: now, ...(app ? { app } : {}) } satisfies OpenWindow));
   } catch {
     // Only a note.
   }
@@ -167,9 +172,10 @@ export function openWindows(now = Date.now()): OpenWindow[] {
   return out;
 }
 
-/** The open VS Code window whose folder holds `cwd`, if one does. */
-export function windowFor(cwd: string | undefined, now = Date.now()): { root: string } | undefined {
+/** The open editor window whose folder holds `cwd`, if one does (the most recently noted first). */
+export function windowFor(cwd: string | undefined, now = Date.now()): { root: string; app?: string } | undefined {
   if (!cwd) return undefined;
-  for (const w of openWindows(now)) for (const root of w.roots) if (samePath(cwd, root) || path.resolve(cwd).startsWith(path.resolve(root) + path.sep)) return { root };
+  for (const w of openWindows(now).sort((a, b) => b.at - a.at))
+    for (const root of w.roots) if (samePath(cwd, root) || path.resolve(cwd).startsWith(path.resolve(root) + path.sep)) return { root, ...(w.app ? { app: w.app } : {}) };
   return undefined;
 }

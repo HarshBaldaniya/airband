@@ -73,18 +73,28 @@ export function runningIn(chat: Pick<LiveChat, "id" | "agent" | "cwd">): { app: 
   return undefined;
 }
 
+const appName = (app: string) => path.basename(app, ".app");
+
 /** Opens the chat where it lives; says where, in a few words. */
 export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title">, now = Date.now()): string {
-  const code = findCommand("code");
   const live = runningIn(chat);
-  // 1. Its folder is open in VS Code (or it runs in VS Code's terminal): that window, this chat.
-  const win = windowFor(chat.cwd, now);
-  if (code && chat.cwd && (win || live?.vscode)) {
+  // 1. It runs in an editor now (its Claude panel, its terminal), or its folder is open in one:
+  //    that exact editor, by name, and only that editor's Airband opens it. Never the `code`
+  //    command: on many Macs it starts a different editor (Cursor's installs over VS Code's).
+  const win = live?.vscode ? undefined : windowFor(chat.cwd, now);
+  const editor = live?.vscode ? appName(live.app) : win?.app;
+  if (chat.cwd && editor && process.platform === "darwin") {
+    addOpenRequest({ id: chat.id, tool: toolName(chat.agent), cwd: chat.cwd, at: now, title: chat.title, app: editor });
+    if (run("open", ["-a", live?.vscode ? live.app : editor, win?.root ?? chat.cwd])) return `Showing it in ${editor}.`;
+  }
+  if (chat.cwd && win && !editor) {
+    // An editor that did not say its name (an older Airband): the folder's own window.
+    const code = findCommand("code");
     addOpenRequest({ id: chat.id, tool: toolName(chat.agent), cwd: chat.cwd, at: now, title: chat.title });
-    if (run(code, [win?.root ?? chat.cwd])) return "Showing it in VS Code.";
+    if (code && run(code, [win.root])) return "Showing it in your editor.";
   }
   // 2. It runs now in a terminal: bring that forward rather than start a second copy.
-  if (live && !live.vscode && run("open", ["-a", live.app])) return `Showing it in ${path.basename(live.app, ".app")}.`;
+  if (live && !live.vscode && run("open", ["-a", live.app])) return `Showing it in ${appName(live.app)}.`;
   // 3. Resume it in a new terminal window: the lightest way to see it.
   const resume = RESUME[chat.agent](chat.id);
   const line = chat.cwd ? `cd ${quote(chat.cwd)} && ${resume}` : resume;

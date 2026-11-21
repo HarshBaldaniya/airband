@@ -1,5 +1,6 @@
-// Packages Airband and installs it into VS Code, on macOS, Windows or Linux.
-// VS Code's own command is used, never a `code` on the PATH that may belong to another editor.
+// Packages Airband and installs it into VS Code, on macOS, Windows or Linux, and into Cursor too
+// when it is installed: every editor gets the same Airband, so none runs an older one.
+// Each editor's own command is used, never a `code` on the PATH that may belong to another editor.
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -36,6 +37,15 @@ for (const old of ["relay-dev.relay", "crosstalk-dev.crosstalk"]) {
   }
 }
 run(["--install-extension", vsix, "--force"]);
+// Cursor runs VS Code extensions too: an older Airband there would take requests meant for VS Code.
+const cursor = process.platform === "darwin" ? ["/Applications/Cursor.app/Contents/Resources/app/bin/cursor", join(home, "Applications/Cursor.app/Contents/Resources/app/bin/cursor")].find((c) => existsSync(c)) : undefined;
+if (cursor) {
+  try {
+    execFileSync(cursor, ["--install-extension", vsix, "--force"], { stdio: "inherit" });
+  } catch {
+    console.log("Cursor is there, but Airband could not be installed into it.");
+  }
+}
 mkdirSync(join(home, ".airband"), { recursive: true });
 copyFileSync(join("dist", "airband-hook.js"), join(home, ".airband", "airband-hook.js"));
-console.log("Installed. Reload the VS Code window to use it.");
+console.log(`Installed${cursor ? " in VS Code and Cursor" : ""}. Reload the editor windows to use it.`);

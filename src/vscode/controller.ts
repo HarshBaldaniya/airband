@@ -957,7 +957,7 @@ export class Controller implements vscode.Disposable {
   }
 
   private noteWindow(): void {
-    registerWindow((vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath));
+    registerWindow((vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath), vscode.env.appName);
   }
 
   private openingRequests = false;
@@ -970,7 +970,7 @@ export class Controller implements vscode.Disposable {
     try {
       // Every request opens at once, by id: Claude's in Claude's panel, another agent's resumed in
       // a terminal here. Neither waits for this window to list its chats.
-      for (const r of takeOpenRequests(roots)) {
+      for (const r of takeOpenRequests(roots, Date.now(), () => true, vscode.env.appName)) {
         if (r.tool === "Claude") await this.openClaudeChatWhenReady(r.id);
         else if (this.byId.has(r.id)) await this.open(r.id);
         else this.chatTerminal({ id: r.id, tool: r.tool, cwd: r.cwd, title: r.title ?? r.tool, status: "idle", lastModified: r.at });

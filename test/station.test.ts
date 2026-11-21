@@ -326,8 +326,16 @@ test("open chats the light way: Airband knows which folders are open in VS Code"
   assert.equal(openWindows().length, 1);
   assert.deepEqual(windowFor(path.join(root, "src")), { root }, "a chat in a subfolder belongs to that window");
   assert.equal(windowFor(tmp("airband-other-")), undefined, "a folder no window has: the terminal, not VS Code");
-  registerWindow(["/gone"], 999999);
+  registerWindow(["/gone"], "Visual Studio Code", 999999);
   assert.equal(openWindows().length, 1, "a note left by a closed window is dropped");
   unregisterWindow();
   assert.equal(openWindows().length, 0);
+});
+
+test("a chat open in one editor is opened there, never in another editor with the same folder", async () => {
+  const { addOpenRequest, takeOpenRequests } = await import("../src/core/folders");
+  const cwd = tmp("airband-two-editors-");
+  addOpenRequest({ id: "c1", tool: "Claude", cwd, at: Date.now(), app: "Visual Studio Code" });
+  assert.deepEqual(takeOpenRequests([cwd], Date.now(), () => true, "Cursor"), [], "Cursor leaves it");
+  assert.equal(takeOpenRequests([cwd], Date.now(), () => true, "Visual Studio Code").length, 1, "VS Code takes it");
 });
