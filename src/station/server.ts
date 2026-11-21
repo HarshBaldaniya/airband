@@ -153,7 +153,7 @@ export class Station extends EventEmitter {
     await this.listen(this.o.port ?? DEFAULT_PORT);
     this.writeInfo();
     this.refresh(true);
-    this.timers.push(setInterval(() => this.refresh(), this.o.pollMs ?? 3000));
+    this.timers.push(setInterval(() => this.refresh(), this.o.pollMs ?? 4000));
     this.timers.push(setInterval(() => this.sse.forEach((r) => r.write(": ping\n\n")), 20_000));
     try {
       fs.mkdirSync(statusDir(), { recursive: true });

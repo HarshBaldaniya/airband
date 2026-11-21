@@ -76,7 +76,12 @@
       ],
       "category": "Development",
       "icon": "build/icon.png"
-    }
+    },
+    "electronLanguages": [
+      "en",
+      "en-GB"
+    ],
+    "compression": "maximum"
   },
   "devDependencies": {
     "@types/qrcode": "^1.5.6",

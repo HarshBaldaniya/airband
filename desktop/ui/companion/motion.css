@@ -1,0 +1,34 @@
+/* The motion every design shares: the whole figure floats, hops, jumps and sits, and its shadow on
+   the ground follows. Only transform and opacity move, on their own layers, so the graphics chip
+   slides the finished picture: nothing is redrawn while the figure floats. */
+.companion-figure { position: relative; display: block; }
+.figure-motion { position: relative; will-change: transform; transform-origin: 50% 90%; animation: figure-float 4.6s ease-in-out infinite; }
+.figure-shadow { position: absolute; left: 50%; bottom: 0; width: 46%; height: 6%; margin-left: -23%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0)); will-change: transform, opacity; animation: figure-shadow 4.6s ease-in-out infinite; }
+
+.companion-figure.mood-working .figure-motion, .companion-figure.mood-working .figure-shadow { animation-duration: 3.6s; }
+.companion-figure.mood-thinking .figure-motion, .companion-figure.mood-thinking .figure-shadow { animation-duration: 5.4s; }
+.companion-figure.mood-needs .figure-motion { animation: figure-hop 1.6s cubic-bezier(0.3, 0.6, 0.4, 1) infinite; }
+.companion-figure.mood-needs .figure-shadow { animation: figure-shadow-hop 1.6s cubic-bezier(0.3, 0.6, 0.4, 1) infinite; }
+.companion-figure.mood-done .figure-motion { animation: figure-jump 1.3s cubic-bezier(0.3, 0.7, 0.4, 1) 2, figure-float 4.6s ease-in-out 2.6s infinite; }
+.companion-figure.mood-hello .figure-motion { animation: figure-arrive-hop 0.9s cubic-bezier(0.3, 0.7, 0.4, 1) 1, figure-float 4.6s ease-in-out 0.9s infinite; }
+.companion-figure.mood-talking .figure-motion { animation: figure-nod 1.3s ease-in-out infinite; }
+.companion-figure.mood-dizzy .figure-motion { animation: figure-wobble 0.5s ease-in-out infinite; }
+/* Resting: it lands and sits still. Nothing moves, so nothing is drawn at all. */
+.companion-figure.mood-resting .figure-motion { animation: none; transform: translateY(6%) scale(1.03, 0.96); transition: transform 0.9s cubic-bezier(0.3, 0.7, 0.3, 1); }
+.companion-figure.mood-resting .figure-shadow { animation: none; opacity: 0.55; transform: scale(1.15); }
+.companion-figure.gesture-wiggle .figure-motion { animation: figure-wiggle 0.9s ease-in-out; }
+.companion-figure.gesture-hop .figure-motion { animation: figure-arrive-hop 0.8s cubic-bezier(0.3, 0.7, 0.4, 1); }
+
+/* Still: the float holds where it is, hovering, until something happens. */
+.companion-figure.still .figure-motion, .companion-figure.still .figure-shadow { animation-play-state: paused; }
+
+@keyframes figure-float { 0%, 100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-6%) rotate(1.2deg); } }
+@keyframes figure-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.8); opacity: 0.6; } }
+@keyframes figure-hop { 0%, 100%, 70% { transform: translateY(0) scale(1, 1); } 12% { transform: translateY(0) scale(1.05, 0.95); } 35% { transform: translateY(-11%) scale(0.97, 1.03); } 55% { transform: translateY(0) scale(1.03, 0.97); } }
+@keyframes figure-shadow-hop { 0%, 100%, 70% { transform: scale(1); opacity: 1; } 35% { transform: scale(0.75); opacity: 0.5; } }
+@keyframes figure-jump { 0%, 100%, 78% { transform: translateY(0) scale(1, 1); } 14% { transform: translateY(0) scale(1.07, 0.92); } 40% { transform: translateY(-20%) scale(0.95, 1.05) rotate(-4deg); } 62% { transform: translateY(0) scale(1.05, 0.95); } }
+@keyframes figure-arrive-hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-8%); } 70% { transform: translateY(0) scale(1.03, 0.97); } }
+@keyframes figure-nod { 0%, 100% { transform: rotate(0deg); } 30% { transform: rotate(-2.5deg); } 65% { transform: rotate(2deg); } }
+@keyframes figure-wobble { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes figure-wiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-6deg); } 50% { transform: rotate(5deg); } 75% { transform: rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) { .figure-motion, .figure-shadow { animation: none !important; } }

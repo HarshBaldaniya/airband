@@ -137,7 +137,7 @@ function createWindow(): void {
     enableLargerThanScreen: true,
     show: false,
     ...(process.platform === "darwin" ? { type: "panel" } : {}),
-    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false, autoplayPolicy: "no-user-gesture-required", backgroundThrottling: false },
+    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: false, autoplayPolicy: "no-user-gesture-required" },
   });
   win.setAlwaysOnTop(true, "floating");
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -272,17 +272,20 @@ function followCursor(): void {
     const a = prefs.anchor ?? defaultAnchor();
     const fx = a.side === "right" ? b.x + b.width - FIGURE.pad - FIGURE.w / 2 : b.x + FIGURE.pad + FIGURE.w / 2;
     const fy = a.vertical === "bottom" ? b.y + b.height - FIGURE.pad - FIGURE.h / 2 : b.y + FIGURE.pad + FIGURE.h / 2;
-    const tx = Math.max(-1, Math.min(1, (c.x - fx) / 360));
-    const ty = Math.max(-1, Math.min(1, (c.y - fy) / 280));
+    // Far away, the eyes rest ahead and nothing is sent: no work while the pointer is elsewhere.
+    const far = Math.hypot(c.x - fx, c.y - fy) > 700;
+    const tx = far ? 0 : Math.max(-1, Math.min(1, (c.x - fx) / 360));
+    const ty = far ? 0 : Math.max(-1, Math.min(1, (c.y - fy) / 280));
     // Glide a part of the way each step, so the eyes and face drift instead of jumping.
     eased.dx += (tx - eased.dx) * 0.22;
     eased.dy += (ty - eased.dy) * 0.22;
-    const key = `${eased.dx.toFixed(2)},${eased.dy.toFixed(2)}`;
+    // Steps of 0.05: the eyes still glide, with a tenth of the updates.
+    const key = `${(Math.round(eased.dx * 20) / 20).toFixed(2)},${(Math.round(eased.dy * 20) / 20).toFixed(2)}`;
     if (key !== last) {
       last = key;
-      win.webContents.send("cursor", { dx: Number(eased.dx.toFixed(3)), dy: Number(eased.dy.toFixed(3)) });
+      win.webContents.send("cursor", { dx: Math.round(eased.dx * 20) / 20, dy: Math.round(eased.dy * 20) / 20 });
     }
-  }, 50);
+  }, 80);
 }
 
 async function runSetup(asked = false): Promise<void> {
@@ -340,6 +343,8 @@ function debugHooks(): void {
 
 // Sounds play from the start, not only after the first click in the window.
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+// Light on the disk: the screen is a few local files, so the web cache stays tiny.
+app.commandLine.appendSwitch("disk-cache-size", String(4 * 1024 * 1024));
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else {

@@ -64,7 +64,6 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
           <stop offset="100%" stopColor="#e07a4f" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <ellipse className="fig-shadow" cx="100" cy="228" rx="46" ry="6" fill="#000" />
       <g className="fig-float">
         <g className="fig-body">
           <ellipse className={`fig-glow ${show(!sitting)}`} cx="100" cy="204" rx="40" ry="9" fill="url(#headset-glow)" />
@@ -127,11 +126,6 @@ function Figure({ mood, look, blinking, gesture, count, size, label }: FigurePro
         </g>
       </g>
 
-      <g className={`fig-orbit ${show(mood === "working")}`}>
-        <circle cx="100" cy="18" r="3.4" fill="#8fc0ff" />
-        <circle cx="100" cy="18" r="2.6" fill="#8fc0ff" opacity="0.6" transform="rotate(120 100 118)" />
-        <circle cx="100" cy="18" r="2" fill="#8fc0ff" opacity="0.35" transform="rotate(240 100 118)" />
-      </g>
       <g className={`fig-badge ${show(mood === "needs")}`}>
         <circle cx="168" cy="36" r="17" fill="#e0a22c" />
         <text x="168" y="44" textAnchor="middle" fontSize={count > 9 ? 17 : 22} fontWeight="700" fill="#141416" fontFamily={FONT}>

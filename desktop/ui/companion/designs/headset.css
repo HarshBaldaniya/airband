@@ -1,92 +1,56 @@
-/* The "headset" design's moves: soft and slow, never a flash. Every class and animation here
-   belongs to this design, so another design can move in its own way. */
+/* The "headset" design's own moves: only its parts (eyes, arms, mouth, sparkles). The whole figure
+   floats, hops and sits in the shared motion layer (companion/motion.css), which the graphics chip
+   moves without redrawing anything. Here every animation runs only while its mood shows it, and most
+   run a few times and stop: a part that keeps moving makes the whole drawing redraw every frame. */
 .design-headset { overflow: visible; display: block; }
 .design-headset .fig-on, .design-headset .fig-off { transition: opacity 0.35s ease; }
 .design-headset .fig-on { opacity: 1; }
 .design-headset .fig-off { opacity: 0; }
-.design-headset .fig-float { transform-box: view-box; transform-origin: 100px 200px; animation: headset-float 4.4s ease-in-out infinite; }
 .design-headset .fig-body { transform-box: view-box; transform-origin: 100px 196px; }
-.design-headset .fig-shadow { transform-box: fill-box; transform-origin: center; opacity: 0.28; animation: headset-shadowfloat 4.4s ease-in-out infinite; transition: opacity 0.6s ease; }
-.design-headset .fig-glow { transform-box: fill-box; transform-origin: center; animation: headset-hoverglow 4.4s ease-in-out infinite; }
-.design-headset .fig-antenna { transform-box: view-box; transform-origin: 100px 44px; animation: headset-antenna 3.4s ease-in-out infinite; }
-.design-headset .fig-light { animation: headset-softpulse 2.6s ease-in-out infinite; }
-.design-headset .fig-arm-left { transform-box: fill-box; transform-origin: 70% 10%; animation: headset-arm-l 4.4s ease-in-out infinite; }
-.design-headset .fig-arm-right { transform-box: fill-box; transform-origin: 30% 10%; animation: headset-arm-r 4.4s ease-in-out infinite; }
 .design-headset .fig-eyes { transform-box: fill-box; transform-origin: center; transition: opacity 0.35s ease; }
 .design-headset .fig-eyes.fig-blink { animation: headset-blink 0.26s ease-in-out; }
-@keyframes headset-blink { 0% { transform: scaleY(1); } 35% { transform: scaleY(0.08); } 50% { transform: scaleY(0.08); } 100% { transform: scaleY(1); } }
 .design-headset .fig-pupils { transition: transform 0.25s ease-out; }
-/* Depth: the face and earcups move with the look, a little slower than the eyes, as a head turns. */
+/* Depth: the face and headset move with the look, a little slower than the eyes, as a head turns. */
 .design-headset .fig-face, .design-headset .fig-headset { transition: transform 0.35s ease-out; }
-.design-headset .fig-float, .design-headset .fig-body { will-change: transform; }
 .design-headset .fig-cheek { opacity: 0.75; transition: opacity 0.4s ease, fill 0.4s ease; }
 .design-headset .fig-cheek.fig-blush { opacity: 1; fill: #f59a85; }
-.design-headset .fig-mouth-talk { transform-box: fill-box; transform-origin: 50% 0%; }
-.design-headset .fig-mouth-talk.fig-on { animation: headset-talk 0.42s ease-in-out infinite; }
-.design-headset .fig-orbit { transform-box: view-box; transform-origin: 100px 118px; animation: headset-orbit 4s linear infinite; }
+.design-headset .fig-light { transition: fill 0.5s ease; }
 .design-headset .fig-badge { transform-box: fill-box; transform-origin: 20% 100%; transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.2, 1.6, 0.4, 1); transform: scale(0.4); }
-.design-headset .fig-badge.fig-on { transform: scale(1); animation: headset-bubblebob 2.2s ease-in-out 0.4s infinite; }
-.design-headset .fig-z { animation: headset-floatz 3.4s ease-out infinite; }
-.design-headset .fig-z2 { animation-delay: 1.1s; }
-.design-headset .fig-z3 { animation-delay: 2.2s; }
-.design-headset .fig-sparkle { transform-box: fill-box; transform-origin: center; animation: headset-twinkle 1.8s ease-in-out infinite; }
-.design-headset .fig-sparkle2 { animation-delay: 0.6s; }
-.design-headset .fig-sparkle3 { animation-delay: 1.2s; }
-.design-headset .fig-dot { animation: headset-dot 1.2s ease-in-out infinite; }
-.design-headset .fig-dot2 { animation-delay: 0.2s; }
-.design-headset .fig-dot3 { animation-delay: 0.4s; }
-.design-headset .fig-spin { transform-box: fill-box; transform-origin: center; animation: headset-spin 0.9s linear infinite; }
+.design-headset .fig-badge.fig-on { transform: scale(1); }
+.design-headset .fig-arm-left { transform-box: fill-box; transform-origin: 70% 10%; }
+.design-headset .fig-arm-right { transform-box: fill-box; transform-origin: 30% 10%; }
+.design-headset .fig-mouth-talk { transform-box: fill-box; transform-origin: 50% 0%; }
+.design-headset .fig-sparkle { transform-box: fill-box; transform-origin: center; }
+.design-headset .fig-spin { transform-box: fill-box; transform-origin: center; }
 
-/* Working: a little quicker, a ring of light circling him. */
-.design-headset.mood-working .fig-float { animation-duration: 3.4s; }
-.design-headset.mood-working .fig-shadow, .design-headset.mood-working .fig-glow { animation-duration: 3.4s; }
-/* Needs you: a soft headset-hop and a headset-wave until you answer. */
-.design-headset.mood-needs .fig-body { animation: headset-hop 1.6s cubic-bezier(0.3, 0.6, 0.4, 1) infinite; }
-.design-headset.mood-needs .fig-arm-right { animation: headset-wave 1s ease-in-out infinite; }
-.design-headset.mood-needs .fig-light { animation-duration: 1.4s; }
-/* Done: one happy headset-jump, then calm. */
-.design-headset.mood-done .fig-body { animation: headset-jump 1.3s cubic-bezier(0.3, 0.7, 0.4, 1) 2; }
-.design-headset.mood-done .fig-arm-left { animation: headset-cheer-l 0.65s ease-in-out 4; }
-.design-headset.mood-done .fig-arm-right { animation: headset-cheer-r 0.65s ease-in-out 4; }
+/* Needs you: a wave, three times, each time a request comes. */
+.design-headset.mood-needs .fig-arm-right { animation: headset-wave 1s ease-in-out 3; }
+/* Done and hello: a cheer and a short twinkle, then calm. */
+.design-headset.mood-done .fig-arm-left { animation: headset-cheer-l 0.65s ease-in-out 3; }
+.design-headset.mood-done .fig-arm-right { animation: headset-cheer-r 0.65s ease-in-out 3; }
 .design-headset.mood-hello .fig-arm-right { animation: headset-wave 0.8s ease-in-out 3; }
-.design-headset.mood-hello .fig-body { animation: headset-smallhop 0.9s cubic-bezier(0.3, 0.7, 0.4, 1) 1; }
-/* Resting: he lands and sits, breathing slowly. */
-.design-headset.mood-resting .fig-float { animation: none; transform: translateY(15px); transition: transform 0.9s cubic-bezier(0.3, 0.7, 0.3, 1); }
-.design-headset.mood-resting .fig-body { animation: headset-sitbreathe 5s ease-in-out infinite; }
-.design-headset.mood-resting .fig-shadow { animation: none; opacity: 0.4; transform: scale(1.12); }
-.design-headset.mood-resting .fig-glow { animation: none; }
-.design-headset.mood-resting .fig-arm-left, .design-headset.mood-resting .fig-arm-right, .design-headset.mood-resting .fig-antenna { animation: none; }
-.design-headset.mood-resting .fig-light { animation: none; opacity: 0.6; }
-.design-headset.mood-talking .fig-body { animation: headset-nod 1.3s ease-in-out infinite; }
-.design-headset.mood-thinking .fig-float { animation-duration: 5.2s; }
-.design-headset.mood-dizzy .fig-body { animation: headset-wobble 0.5s ease-in-out infinite; }
-/* Little things he does now and then. */
-.design-headset.gesture-wiggle .fig-body { animation: headset-wiggle 0.9s ease-in-out; }
-.design-headset.gesture-hop .fig-body { animation: headset-smallhop 0.8s cubic-bezier(0.3, 0.7, 0.4, 1); }
-.design-headset.gesture-turn .fig-body { animation: headset-turn 1.6s ease-in-out; }
+.design-headset.mood-done .fig-sparkle, .design-headset.mood-hello .fig-sparkle { animation: headset-twinkle 1.6s ease-in-out 2 both; }
+.design-headset .fig-sparkle2 { animation-delay: 0.5s !important; }
+.design-headset .fig-sparkle3 { animation-delay: 1s !important; }
+/* Only while it lasts: talking, thinking, dizzy. */
+.design-headset.mood-talking .fig-mouth-talk { animation: headset-talk 0.42s ease-in-out infinite; }
+.design-headset.mood-thinking .fig-dot { animation: headset-dot 1.2s ease-in-out infinite; }
+.design-headset.mood-thinking .fig-dot2 { animation-delay: 0.2s; }
+.design-headset.mood-thinking .fig-dot3 { animation-delay: 0.4s; }
+.design-headset.mood-dizzy .fig-spin { animation: headset-spin 0.9s linear infinite; }
+/* Resting: a few slow "z"s, then quiet. */
+.design-headset.mood-resting .fig-z { animation: headset-floatz 3.4s ease-out 4 both; }
+.design-headset.mood-resting .fig-z2 { animation-delay: 1.1s; }
+.design-headset.mood-resting .fig-z3 { animation-delay: 2.2s; }
+.design-headset.mood-resting .fig-light { opacity: 0.6; }
+/* A head turn: the face slides across the round body. */
 .design-headset.gesture-turn .fig-face { animation: headset-face-turn 1.6s ease-in-out; }
 .design-headset.gesture-turn .fig-headset { animation: headset-band-turn 1.6s ease-in-out; }
 
-@keyframes headset-float { 0%, 100% { transform: translateY(0) rotate(-1.2deg); } 50% { transform: translateY(-7px) rotate(1.2deg); } }
-@keyframes headset-shadowfloat { 0%, 100% { transform: scale(1); opacity: 0.28; } 50% { transform: scale(0.8); opacity: 0.15; } }
-@keyframes headset-hoverglow { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(0.85, 0.8); } }
-@keyframes headset-antenna { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
-@keyframes headset-softpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-@keyframes headset-arm-l { 0%, 100% { transform: rotate(5deg); } 50% { transform: rotate(-7deg); } }
-@keyframes headset-arm-r { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(7deg); } }
-@keyframes headset-orbit { to { transform: rotate(360deg); } }
-@keyframes headset-bubblebob { 0%, 100% { transform: scale(1) translateY(0); } 50% { transform: scale(1.06) translateY(-3px); } }
-@keyframes headset-hop { 0%, 100%, 70% { transform: translateY(0) scale(1, 1); } 12% { transform: translateY(0) scale(1.05, 0.95); } 35% { transform: translateY(-14px) scale(0.97, 1.03); } 55% { transform: translateY(0) scale(1.03, 0.97); } }
-@keyframes headset-jump { 0%, 100%, 78% { transform: translateY(0) scale(1, 1); } 14% { transform: translateY(0) scale(1.07, 0.92); } 40% { transform: translateY(-28px) scale(0.95, 1.05) rotate(-4deg); } 62% { transform: translateY(0) scale(1.05, 0.95); } }
-@keyframes headset-smallhop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 70% { transform: translateY(0) scale(1.03, 0.97); } }
+@keyframes headset-blink { 0% { transform: scaleY(1); } 35% { transform: scaleY(0.08); } 50% { transform: scaleY(0.08); } 100% { transform: scaleY(1); } }
 @keyframes headset-wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-38deg) translateY(-4px); } }
 @keyframes headset-cheer-l { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(40deg) translateY(-6px); } }
 @keyframes headset-cheer-r { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-40deg) translateY(-6px); } }
-@keyframes headset-sitbreathe { 0%, 100% { transform: scale(1.03, 0.97); } 50% { transform: scale(1.01, 0.99); } }
-@keyframes headset-nod { 0%, 100% { transform: rotate(0deg); } 30% { transform: rotate(-2.5deg); } 65% { transform: rotate(2deg); } }
-@keyframes headset-wobble { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
-@keyframes headset-wiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-6deg); } 50% { transform: rotate(5deg); } 75% { transform: rotate(-3deg); } }
-@keyframes headset-turn { 0%, 100% { transform: scaleX(1); } 30%, 70% { transform: scaleX(0.95); } 50% { transform: scaleX(0.97); } }
 @keyframes headset-face-turn { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-13px); } 70% { transform: translateX(13px); } }
 @keyframes headset-band-turn { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-5px); } 70% { transform: translateX(5px); } }
 @keyframes headset-spin { to { transform: rotate(360deg); } }

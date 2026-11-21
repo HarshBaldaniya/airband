@@ -2,6 +2,7 @@
 // now: read from Airband's own records (the flightlog) and the status each chat's hook writes.
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { airbandHome } from "../core/paths";
 import { listHeads, readAsks, type RecordHead, type RecordTool } from "../core/record";
 import { readHookStatus, resolveStatus } from "../core/status";
 import type { Status } from "../core/types";
@@ -61,15 +62,43 @@ function mtime(file: string | undefined): number | undefined {
   }
 }
 
+// Light on the disk: the chat records are read again only every so often (a status change comes
+// from the hook's small status file at once), and each chat's latest ask only when its file grows.
+const HEADS_FRESH_MS = 15_000;
+let heads: { at: number; home: string; list: RecordHead[] } | undefined;
+const lastAsk = new Map<string, { size: number; ask: ReturnType<typeof readAsks>[number] | undefined }>();
+
+function cachedHeads(now: number): RecordHead[] {
+  const home = airbandHome();
+  if (heads?.home !== home) lastAsk.clear();
+  if (!heads || heads.home !== home || now - heads.at > HEADS_FRESH_MS) heads = { at: now, home, list: listHeads() };
+  return heads.list;
+}
+
+function cachedLastAsk(h: RecordHead): ReturnType<typeof readAsks>[number] | undefined {
+  const size = h.n;
+  const hit = lastAsk.get(h.id);
+  if (hit && hit.size === size) return hit.ask;
+  const ask = readAsks(h.id, 1)[0];
+  lastAsk.set(h.id, { size, ask });
+  return ask;
+}
+
+/** Forget what was read, so the next look reads everything again (tests, a new day). */
+export function forgetReads(): void {
+  heads = undefined;
+  lastAsk.clear();
+}
+
 /** Chats that moved in the last `windowMs`, the ones that need you first. */
 export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60): LiveChat[] {
   const out: LiveChat[] = [];
-  for (const h of listHeads()) {
+  for (const h of cachedHeads(now)) {
     const hook = readHookStatus(h.id);
     const last = Math.max(h.updatedAt, hook?.at ?? 0);
     if (now - last > windowMs) continue;
     const r = resolveStatus(mtime(h.file) ?? h.updatedAt, hook, now);
-    const ask = readAsks(h.id, 1)[0];
+    const ask = cachedLastAsk(h);
     out.push({
       id: h.id,
       agent: h.tool,
