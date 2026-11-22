@@ -7,7 +7,7 @@
     "dev": "npm run sync && next dev -p 3500",
     "build": "npm run sync && next build",
     "start": "npx serve out -l 3500",
-    "deploy": "npm run build && npx -y wrangler@4 pages deploy out --project-name airband-site --branch main"
+    "deploy": "npm run build && npx -y vercel@latest deploy out --prod --yes --project airband"
   },
   "dependencies": {
     "@lobehub/icons-static-svg": "^1.0.0",

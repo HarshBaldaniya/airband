@@ -21,12 +21,13 @@ the agents' logos. The copies are git-ignored.
 
 The pictures in `public/shots/` are of the real app, taken from a test Station with made-up chats.
 
-**Deploy:** Cloudflare Pages (free), project `airband-site`, served at
-`airband.harshbaldaniya.com`. From `site/`, signed in to Cloudflare (`npx wrangler login`):
+**Deploy:** Vercel, project `airband`, served at `airband.harshbaldaniya.com` (the domain's DNS
+is on Vercel). The built files are deployed as they are, so Vercel builds nothing. From `site/`,
+signed in once with `npx vercel login`:
 
 ```bash
 npm run deploy
 ```
 
-Rebuild and deploy after each release, once its files are on GitHub: the sizes and the version
-come from the release.
+Deploy again after each release, once its files are on GitHub: the version and the file sizes come
+from the release.
