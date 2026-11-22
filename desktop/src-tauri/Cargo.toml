@@ -1,6 +1,6 @@
 [package]
 name = "airband"
-version = "0.1.1"
+version = "0.1.2"
 description = "Airband: Roger on your desktop"
 edition = "2021"
 

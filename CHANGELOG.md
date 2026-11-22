@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 - **Install the app in one line.** `curl -fsSL https://airband.harshbaldaniya.com/install.sh | sh` on
   a Mac, `irm https://airband.harshbaldaniya.com/install.ps1 | iex` on Windows: it installs Airband
   and opens it, with no warning to click through.
