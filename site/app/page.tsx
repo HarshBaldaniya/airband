@@ -1,7 +1,7 @@
 import { ArrowUpRight, Eye, KeyRound, Lock, ServerOff } from "lucide-react";
 import { HeroRoger } from "@/components/HeroRoger";
 import { Copy } from "@/components/Copy";
-import { DownloadButton } from "@/components/DownloadButton";
+import { DownloadButton, InstallLine } from "@/components/DownloadButton";
 import { How } from "@/components/How";
 import { GitHub, Npm } from "@/components/Marks";
 import { Reveal } from "@/components/Reveal";
@@ -46,8 +46,8 @@ export default async function Home() {
           </Reveal>
           <Reveal delay={0.26}>
             <div className="actions">
-              <DownloadButton files={files} />
-              <Copy text="npx airband" />
+              <DownloadButton />
+              <InstallLine />
             </div>
           </Reveal>
           <Reveal delay={0.34}>

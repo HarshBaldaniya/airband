@@ -1,12 +1,10 @@
 "use client";
-// "Download for Mac" or "for Windows", for the computer the page is open on. It starts as a link
-// to the downloads page (the page is built ahead, so it can't know), and becomes the file once the
-// browser says what it runs on. A Mac gets the Apple silicon file: Safari can't tell the two apart,
-// and Intel Macs are a few years old now, so the page names the other one under it.
+// The hero's two ways in, named for the computer the page is open on (the page is built ahead, so
+// it says Mac until the browser answers).
 import Link from "next/link";
 import { ArrowDownToLine } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Download } from "@/lib/download";
+import { Copy } from "./Copy";
 import { Apple, Windows } from "./Marks";
 
 type Os = "mac" | "windows" | "other";
@@ -21,42 +19,23 @@ export function useOs(): Os | undefined {
   return os;
 }
 
-/** The button: the file for this computer, or the downloads page. */
-export function DownloadButton({ files }: { files: Download[] }) {
+/** The button: named for this computer, and it opens the downloads page, where the one-line
+ *  install comes first (a file from the browser makes the system warn on its first start). */
+export function DownloadButton() {
   const os = useOs();
-  const f = files.find((x) => x.platform === (os === "mac" ? "mac-arm" : "windows"))!;
-  if (os === "mac" || os === "windows")
-    return (
-      <a className="btn primary" href={f.url}>
-        {os === "mac" ? <Apple /> : <Windows />}
-        Download for {os === "mac" ? "Mac" : "Windows"}
-      </a>
-    );
   return (
     <Link className="btn primary" href="/download/">
-      <ArrowDownToLine />
-      Download
+      {os === "mac" ? <Apple /> : os === "windows" ? <Windows /> : <ArrowDownToLine />}
+      {os === "mac" ? "Download for Mac" : os === "windows" ? "Download for Windows" : "Download"}
     </Link>
   );
 }
 
-/** The line under it: the other Mac, every download, or what Linux has. */
-export function DownloadNote({ files }: { files: Download[] }) {
+/** The one-line install for this computer, shown without "https://"; the copy is the full line.
+ *  On anything but a Mac or Windows, the command line. */
+export function InstallLine() {
   const os = useOs();
-  const intel = files.find((x) => x.platform === "mac-intel")!;
-  return (
-    <p className="also">
-      {os === "mac" ? (
-        <>
-          For Macs with Apple silicon. <a href={intel.url}>Intel Mac?</a> · <Link href="/download/">All downloads</Link>
-        </>
-      ) : os === "windows" ? (
-        <>
-          Windows 10 or 11. <Link href="/download/">All downloads</Link>
-        </>
-      ) : (
-        <>For Mac and Windows. On Linux, the command line has everything.</>
-      )}
-    </p>
-  );
+  if (os === "windows") return <Copy text="irm https://airband.harshbaldaniya.com/install.ps1 | iex" show="irm airband.harshbaldaniya.com/install.ps1 | iex" />;
+  if (os === "other") return <Copy text="npx airband" />;
+  return <Copy text="curl -fsSL https://airband.harshbaldaniya.com/install.sh | sh" show="curl -fsSL airband.harshbaldaniya.com/install.sh | sh" />;
 }

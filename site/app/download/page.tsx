@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { ArrowUpRight } from "lucide-react";
 import { Copy } from "@/components/Copy";
-import { Install } from "@/components/Install";
+import { Get } from "@/components/Get";
 import { GitHub, Npm } from "@/components/Marks";
 import { Reveal } from "@/components/Reveal";
-import { Tiles } from "@/components/Tiles";
 import { NEW_TAB } from "@/lib/ext";
 import { downloads, VERSION } from "@/lib/release";
 import { SITE } from "@/lib/site";
@@ -12,9 +11,9 @@ import { SITE } from "@/lib/site";
 export const metadata: Metadata = { title: "Download", description: "Airband for Mac and Windows, about 2 MB, or npx airband on any computer.", alternates: { canonical: "/download/" } };
 
 const THEN = [
-  { title: "Open it", line: "Double-click Airband, or run the installer" },
-  { title: "Allow it once", line: "It isn't signed by Apple or Microsoft yet" },
-  { title: "Follow Roger", line: "He sets up the rest" },
+  { title: "Roger opens", line: "In a corner of your screen" },
+  { title: "He finds your agents", line: "Every one on this computer" },
+  { title: "They're connected", line: "Chats share what they did" },
 ];
 
 export default async function DownloadPage() {
@@ -27,11 +26,7 @@ export default async function DownloadPage() {
           <p>Version {VERSION}. About 2 MB, and Roger sets up the rest.</p>
         </Reveal>
         <Reveal delay={0.05}>
-          <Install />
-        </Reveal>
-        <Reveal delay={0.1}>
-          <p className="or">Or download the file</p>
-          <Tiles files={files} />
+          <Get files={files} />
         </Reveal>
         <Reveal delay={0.15}>
           <div className="then" id="first">
@@ -45,9 +40,6 @@ export default async function DownloadPage() {
               </div>
             ))}
           </div>
-          <p className="head" style={{ margin: "18px auto 0", fontSize: 13.5, color: "var(--faint)" }}>
-            Mac: System Settings → Privacy &amp; Security → Open Anyway · Windows: More info → Run anyway
-          </p>
         </Reveal>
         <Reveal delay={0.1}>
           <div className="alt">
