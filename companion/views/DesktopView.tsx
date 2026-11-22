@@ -5,9 +5,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Minus } from "lucide-react";
 import { desktop, type DesktopPrefs } from "../api";
-import { Companion } from "../companion/Companion";
-import { pokedLine } from "../companion/lines";
-import { useCompanionState } from "../companion/useCompanionState";
+import { Companion } from "../figure/Companion";
+import { pokedLine } from "../figure/lines";
+import { useCompanionState } from "../figure/useCompanionState";
 import { FinishedToast, RequestCard } from "../components/Cards";
 import { Conversation } from "../components/Conversation";
 import { Panel } from "../components/Panel";

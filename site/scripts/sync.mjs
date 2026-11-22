@@ -1,5 +1,5 @@
 // Copies what the site shares with the app, so there is one source for each:
-//   Roger (companion/companion and its sounds)   -> roger/
+//   Roger (companion/figure and its sounds)       -> roger/
 //   the wordmark and icon (media/)               -> public/brand/
 //   the agents' logos (the app's icon set)        -> public/brand/agents/
 import { cpSync, mkdirSync, rmSync, copyFileSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,7 +10,7 @@ const site = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repo = join(site, "..");
 rmSync(join(site, "roger"), { recursive: true, force: true });
 mkdirSync(join(site, "roger"), { recursive: true });
-cpSync(join(repo, "companion/companion"), join(site, "roger/companion"), {
+cpSync(join(repo, "companion/figure"), join(site, "roger/companion"), {
   recursive: true,
   // Only the figure: the rest of the folder is the app's state.
   filter: (f) => !/useCompanionState|lines\.ts|mood\.ts/.test(f),

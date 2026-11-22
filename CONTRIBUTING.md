@@ -41,7 +41,7 @@ when `AIRBAND_TEST_DIR` names a folder that has some; otherwise they are skipped
 | `src/remote/` | The end-to-end lock and Web Push for the iPhone link |
 | `src/vscode/` | The VS Code extension: the sidebar, the board pages and their services |
 | `webview-ui/` | The extension's pages (React): Tower, Fuel, Map, Commands, the sidebar |
-| `companion/` | Roger's screens (React), served by the Station to the desktop app and the iPhone |
+| `companion/` | Roger's screens (React), served by the Station: `figure/` (Roger himself), `views/` (the desktop corner), `phone/` (the iPhone app) |
 | `desktop/` | The desktop app (Tauri and Rust) and its setup tour; see [desktop/README.md](desktop/README.md) |
 | `relay/` | The Cloudflare Worker that carries the locked iPhone messages |
 | `skills/` | The skills set up in each agent |

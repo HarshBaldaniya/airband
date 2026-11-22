@@ -17,8 +17,8 @@ const browser = {
   loader: { ".svg": "text" },
   legalComments: "eof",
 };
-await build({ ...browser, format: "iife", jsx: "automatic", entryPoints: ["companion/remote/main.tsx"], outfile: join(out, "app.js") });
-await build({ ...browser, format: "iife", entryPoints: ["companion/remote/sw.ts"], outfile: join(out, "sw.js") });
+await build({ ...browser, format: "iife", jsx: "automatic", entryPoints: ["companion/phone/main.tsx"], outfile: join(out, "app.js") });
+await build({ ...browser, format: "iife", entryPoints: ["companion/phone/sw.ts"], outfile: join(out, "sw.js") });
 
 const tool = join("relay", ".wrangler", "icon-tool.cjs");
 mkdirSync(join("relay", ".wrangler"), { recursive: true });

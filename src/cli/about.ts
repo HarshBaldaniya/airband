@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import { airbandHome } from "../core/paths";
 import { agentSummary, installedVersion, VERSION } from "../core/setup";
-import type { OurCommand } from "./pm";
+import type { OurCommand } from "./package-managers";
 
 export const REPO = "https://github.com/HarshBaldaniya/airband";
 export const DOCS = `${REPO}#readme`;

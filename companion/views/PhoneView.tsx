@@ -2,8 +2,8 @@
 // (Allow, Deny, Always, a question's choices) and shows what finished. Nothing is typed here:
 // asking and telling a chat stay on the computer.
 import { useState } from "react";
-import { Companion } from "../companion/Companion";
-import { useCompanionState } from "../companion/useCompanionState";
+import { Companion } from "../figure/Companion";
+import { useCompanionState } from "../figure/useCompanionState";
 import { Panel } from "../components/Panel";
 import { useStation } from "./useStation";
 

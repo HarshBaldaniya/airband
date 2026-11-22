@@ -5,7 +5,7 @@
 // from his corner.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Companion } from "../../companion/companion/Companion";
+import { Companion } from "../../companion/figure/Companion";
 import "./setup.css";
 
 interface Found { name: string; found: boolean; detail?: string | null; link: string }

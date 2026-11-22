@@ -3,8 +3,8 @@
 // done on the computer.
 import { useState } from "react";
 import type { FinishedView, LiveChat, PendingView, StationState } from "../api";
-import { Companion } from "../companion/Companion";
-import type { Mood } from "../companion/types";
+import { Companion } from "../figure/Companion";
+import type { Mood } from "../figure/types";
 import { AgentMark, ago, RequestCard } from "../components/Cards";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

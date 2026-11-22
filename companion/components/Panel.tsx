@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ExternalLink, MessageSquare, Send, Settings as Gear, X } from "lucide-react";
 import { api, desktop, MODE, type DesktopPrefs, type LiveChat, type StationState } from "../api";
 import { PHONE_LINK } from "../../src/station/phone";
-import { CompanionMark } from "../companion/Companion";
+import { CompanionMark } from "../figure/Companion";
 import { sounds } from "../sound";
 import { AgentMark, ago, FinishedCard, RequestCard } from "./Cards";
 

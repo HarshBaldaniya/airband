@@ -7,7 +7,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { main } from "../src/cli/main";
 import { closest, commandInfo, COMMANDS, completion, renderCommandHelp, renderHelp, SHELLS } from "../src/cli/help";
-import { findOnPath, globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, startedBy, temporary } from "../src/cli/pm";
+import { findOnPath, globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, startedBy, temporary } from "../src/cli/package-managers";
 import { bugUrl } from "../src/cli/about";
 import { plain } from "../src/cli/ui";
 

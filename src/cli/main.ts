@@ -15,7 +15,7 @@ import { agentSummary, doctor, installedVersion, latestVersion, needsSetup, newe
 import type { AgentId } from "../core/toolkit";
 import { aboutInfo, bugUrl, CHANGELOG, DOCS, openUrl, REPO } from "./about";
 import { closest, commandInfo, completion, renderCommandHelp, renderHelp, SHELLS, type Shell } from "./help";
-import { globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, pmCommand, startedBy, type OurCommand, type PackageManager } from "./pm";
+import { globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, pmCommand, startedBy, type OurCommand, type PackageManager } from "./package-managers";
 import { columns, out, paint, plain } from "./ui";
 import { readConfig, setConfig } from "../core/updates";
 import { changesSince, releases } from "./changes";

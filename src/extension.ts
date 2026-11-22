@@ -3,7 +3,7 @@ import { Controller } from "./vscode/controller";
 import { CodeMapService } from "./vscode/codemap-service";
 import { BackupService } from "./vscode/backup-service";
 import { RunsService } from "./vscode/runs-service";
-import { RUNS_OFFERED } from "./core/offered";
+import { RUNS_OFFERED } from "./core/features";
 
 export function activate(ctx: vscode.ExtensionContext): void {
   const controller = new Controller(ctx);

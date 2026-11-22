@@ -32,7 +32,7 @@ import {
 } from "@xyflow/react";
 import type { BoardTab, ConnectionView, ViewState } from "../src/core/protocol";
 import { Orbit, PenLine, SquareSlash, Workflow } from "lucide-react";
-import { RUNS_OFFERED } from "../src/core/offered";
+import { RUNS_OFFERED } from "../src/core/features";
 import { PAGE_KEYS } from "./pagekeys";
 import type { BoardArrange, BoardPosition, ChatSession } from "../src/core/types";
 import { DRAG_TYPE, agoText, charsToTokens, contextPct, folderName, modelName, remember, remembered, send, tokens, whereItOpens } from "./api";
