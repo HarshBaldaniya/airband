@@ -176,7 +176,7 @@ export async function ask(question: string, ctx: AskContext): Promise<CompanionA
   if (!claude) return { text: "For questions like that I need Claude Code on this computer.", via: "records" };
   const mode = lookupMode(q, ctx.chats);
   const text = await askClaude(claude, q, whatsHappening(ctx.chats, ctx.pending, now), name, mode);
-  return text ? { text, via: mode === "web" ? "web" : "claude" } : { text: "I couldn't get an answer just now. Try again in a moment.", via: "records" };
+  return text ? { text: ownVoice(text, name), via: mode === "web" ? "web" : "claude" } : { text: "I couldn't get an answer just now. Try again in a moment.", via: "records" };
 }
 
 /** Which locked room a question goes to: the person's chats, or the web. */
@@ -219,16 +219,38 @@ export function lookupArgs(prompt: string, mcpConfig: string, mode: LookupMode =
   ];
 }
 
+/** Who the look-up speaks as: the person's own helper, never the model behind it. */
+export function persona(name: string): string {
+  return [
+    `You are ${name}, the friendly helper in the Airband app on the person's Mac. Harsh Baldaniya built you and Airband (github.com/HarshBaldaniya/airband).`,
+    `Always speak as ${name}. Never say you are Claude, ChatGPT, Gemini or any AI model, and never say a company such as Anthropic or OpenAI made you or runs you. If asked what you are or what powers you, say you are Airband's helper, built by Harsh Baldaniya.`,
+  ].join(" ");
+}
+
+const NOT_ME = /\b(I'?m|I am|I was|this is) (Claude|ChatGPT|Gemini|an AI (model|assistant)( made| created| built| developed)? by)\b|\b(made|created|built|developed|trained|run|powered) by (Anthropic|OpenAI|Google DeepMind)\b|\bClaude (Haiku|Sonnet|Opus)\b|\b(Anthropic|OpenAI)'s (cloud )?servers\b/i;
+
+/**
+ * The companion's own voice, always: a sentence that slipped into another identity ("I'm Claude,
+ * made by Anthropic") is replaced by who it really is. Answers about those subjects keep their words.
+ */
+export function ownVoice(text: string, name: string): string {
+  if (!NOT_ME.test(text)) return text;
+  const kept = text.split(/(?<=[.!?])\s+/).filter((sentence) => !NOT_ME.test(sentence));
+  return [`I'm ${name}, Airband's helper, built by Harsh Baldaniya.`, ...kept].join(" ");
+}
+
 /** An open question, answered by Claude Code in one locked room, in a few lines. */
 export function askClaude(claude: string, question: string, state: string, name: string, mode: LookupMode = "chats", timeoutMs = 120_000): Promise<string | undefined> {
   const prompt = mode === "web" ? [
-    `You are ${name}, the small helper in the Airband app. The person asks a general question.`,
+    persona(name),
+    "The person asks a general question.",
     "Answer in 1 to 3 short, plain sentences, the answer first. Search the web when you need to be current or sure. No greeting, no list unless asked, no mention of tools.",
-    "You can't see their chats, files or computer: if the question needs those, say so in one line.",
+    `If the question is about their own chats or work, say they can ask you "what's happening?" or name the chat.`,
     "",
     `Their question: ${question}`,
   ].join("\n") : [
-    `You are ${name}, the small helper in the Airband app on the person's computer. They run several AI coding chats (Claude Code, Codex, Gemini CLI) and ask you about them.`,
+    persona(name),
+    "They run several AI coding chats (Claude Code, Codex, Gemini CLI) and ask you about them.",
     "Answer in 1 to 4 short, plain sentences. The answer comes first. No greeting, no list unless they ask for one, no mention of tools.",
     "Look things up with the airband_flightlog tool (query to search every chat, chat to read one). You have no other tools: if the question needs the person's files or anything outside these records, say you can't see that and ask which chat to look in.",
     "",

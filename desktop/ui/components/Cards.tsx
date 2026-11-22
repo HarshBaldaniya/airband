@@ -259,12 +259,17 @@ export function AnswerCard({ answer, onClose, onChoose, question }: { answer: Co
     <div className="card say" data-hit onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
       {question && <span className="asked">{question}</span>}
       <div className="sayrow">
-        <div className={`saytext${long && !all ? " clamp" : ""}`}>
-          {lines.map((l, i) => {
-            // "project: what happened" reads best with the project in bold.
-            const m = /^([^:]{1,32}):\s(.+)$/.exec(l);
-            return <p key={i}>{m && i > 0 ? (<><b>{m[1]}</b> {m[2]}</>) : l}</p>;
-          })}
+        <div className={`saytext${long && !all ? " clamp" : ""}`} key={answer.text}>
+          {(() => {
+            // The words come in one after another, like being said (the first 60; the rest together).
+            let n = 0;
+            const words = (t: string) => t.split(/(\s+)/).map((w, j) => (/^\s+$/.test(w) || !w ? w : <span key={j} className="w" style={{ animationDelay: `${Math.min(n++, 60) * 28}ms` }}>{w}</span>));
+            return lines.map((l, i) => {
+              // "project: what happened" reads best with the project in bold.
+              const m = /^([^:]{1,32}):\s(.+)$/.exec(l);
+              return <p key={i}>{m && i > 0 ? (<><b>{words(m[1])}</b> {words(m[2])}</>) : words(l)}</p>;
+            });
+          })()}
         </div>
         <button className="iconbtn close" onClick={onClose} aria-label="Close">
           <X size={14} />

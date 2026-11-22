@@ -454,3 +454,34 @@ test("a growing chat file is read only where it grew, and a rename there is stil
   assert.equal(renamedTitle(file, after, after), undefined, "nothing new: nothing read, the caller keeps the name it had");
   assert.equal(renamedTitle(file, after), "Seat sync", "a first look reads the tail");
 });
+
+test("the companion knows itself: chat-speak, who built it, where it lives, two questions at once", () => {
+  const c = { name: "Roger", version: "0.0.8", headline: "All quiet." };
+  assert.match(knowledge("who r u?", c)!.text, /I'm Roger, Airband's helper, built by Harsh Baldaniya/);
+  assert.match(knowledge("are you claude?", c)!.text, /Airband's helper/);
+  assert.match(knowledge("who builds u?", c)!.text, /Harsh Baldaniya built me/);
+  assert.match(knowledge("do u know harsh baldaniya?", c)!.text, /Harsh Baldaniya is the one who built me/);
+  assert.match(knowledge("where do u live", c)!.text, /corner of your screen/);
+  const both = knowledge("who builds u? and where are u lived?", c)!.text;
+  assert.match(both, /Harsh Baldaniya built me.*corner of your screen/s, "both questions, in order");
+  assert.equal(knowledge("who built you? and what is the capital of France?", c), undefined, "a part it doesn't know goes to a look-up");
+  assert.match(knowledge("why roger?", c)!.text, /message received/);
+  assert.match(knowledge("how old are u", c)!.text, /0\.0\.8/);
+  assert.equal(knowledge("fix the bug in the billing chat", c), undefined);
+  assert.equal(knowledge("run the build", c), undefined, "'r' and 'u' inside words are left alone");
+});
+
+test("a look-up always answers in the companion's own voice", async () => {
+  const { ownVoice, persona } = await import("../src/station/manager");
+  assert.match(persona("Roger"), /Harsh Baldaniya built you/);
+  assert.match(persona("Roger"), /Never say you are Claude/);
+  assert.equal(ownVoice("I'm Claude, made by Anthropic, and I run on Anthropic's cloud servers, not on your computer. Paris is the capital of France.", "Roger"), "I'm Roger, Airband's helper, built by Harsh Baldaniya. Paris is the capital of France.");
+  assert.equal(ownVoice("Claude Code is a coding tool from Anthropic.", "Roger"), "Claude Code is a coding tool from Anthropic.", "talking about Claude is fine");
+});
+
+test("a favourite answers the thing asked about", () => {
+  const c = { name: "Roger", version: "x", headline: "" };
+  assert.match(knowledge("what's your favourite colour?", c)!.text, /Orange/);
+  assert.match(knowledge("favourite food?", c)!.text, /bytes/);
+  assert.match(knowledge("favorite music", c)!.text, /test suite/);
+});

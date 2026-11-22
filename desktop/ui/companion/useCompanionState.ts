@@ -5,6 +5,9 @@ import { api, desktop, type CompanionAnswer, type StationState } from "../api";
 import { setSoundsOn, sounds } from "../sound";
 import { moodOf, SLEEP_AFTER_MS } from "./mood";
 
+/** The shortest the thinking card shows before an answer. */
+const THINK_MS = 650;
+
 /** `keepAwake`: the person is looking (its panel is open): it stays awake, and the quiet starts after. */
 export function useCompanionState(state: StationState | undefined, keepAwake = false) {
   const [asking, setAsking] = useState(false);
@@ -72,7 +75,12 @@ export function useCompanionState(state: StationState | undefined, keepAwake = f
       setAnswer(undefined);
       setAsking(true);
       try {
-        speak(await api.ask(q));
+        const started = Date.now();
+        const a = await api.ask(q);
+        // Even an answer it knows by heart gets a moment of thought: an instant reply reads as a jump.
+        const think = THINK_MS + Math.min(400, a.text.length * 2) - (Date.now() - started);
+        if (think > 0) await new Promise((r) => setTimeout(r, think));
+        speak(a);
       } catch (e) {
         speak({ text: e instanceof Error ? e.message : String(e), via: "records" });
       } finally {

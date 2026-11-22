@@ -344,3 +344,13 @@ body.phone .figure-motion, body.phone .figure-shadow { will-change: auto; }
 
 /* Nobody can see the screen (the Mac is locked or asleep): every animation holds where it is. */
 .dock.unseen, .dock.unseen * { animation-play-state: paused !important; }
+
+/* An answer's words come in one after another (Cards.tsx). */
+.saytext .w { opacity: 0; display: inline-block; animation: wordin 0.32s ease-out forwards; }
+@keyframes wordin { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .saytext .w { animation: none; opacity: 1; } }
+
+/* Quick asks under the Ask box: one click, no typing. */
+.quickasks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -2px; }
+.chip { height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid var(--line); background: var(--surface2); color: var(--muted); font-size: 12px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease; }
+.chip:hover { color: var(--ink); border-color: #4a4a54; }

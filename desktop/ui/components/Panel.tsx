@@ -99,6 +99,25 @@ export function AskBox({ name, onAsk, busy }: { name: string; onAsk: (q: string)
   );
 }
 
+/** A few things to ask with one click, when nothing else is showing. */
+const QUICK = [
+  { label: "What's happening?", ask: "what's happening?" },
+  { label: "What did I do today?", ask: "what did I do today?" },
+  { label: "Tell me a joke", ask: "tell me a joke" },
+];
+
+function QuickAsks({ name, onAsk }: { name: string; onAsk: (q: string) => void }) {
+  return (
+    <div className="quickasks" role="group" aria-label={`Ask ${name}`}>
+      {QUICK.map((q) => (
+        <button key={q.ask} className="chip" onClick={() => (sounds.tick(), onAsk(q.ask))}>
+          {q.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 type Saving = "idle" | "busy" | "done";
 
 /** A switch that shows its own progress: a short pulse while it saves, then a check. No message. */
@@ -318,13 +337,15 @@ export interface PanelProps {
   onPref?: (k: keyof DesktopPrefs, on: boolean) => void;
   /** The companion's latest answer, shown at the top of the panel. */
   answer?: ReactNode;
+  /** An answer or a question is showing: the quick asks step aside. */
+  hasAnswer?: boolean;
 }
 
 /**
  * The panel: a fixed top (who, how things stand, the ask box, the tabs) and one short list that
  * scrolls. However many chats run, it stays the same size, one tab at a time.
  */
-export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onError, showSettings, prefs, onPref, answer }: PanelProps) {
+export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onError, showSettings, prefs, onPref, answer, hasAnswer }: PanelProps) {
   const [settings, setSettings] = useState(!!showSettings);
   useEffect(() => setSettings(!!showSettings), [showSettings]);
   const start = new Date(state.now);
@@ -373,6 +394,7 @@ export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onEr
       ) : (
         <>
           {TYPING && onAsk && <AskBox name={name} onAsk={onAsk} busy={!!asking} />}
+          {TYPING && onAsk && !asking && !hasAnswer && <QuickAsks name={name} onAsk={onAsk} />}
           {answer}
           {!!state.pending.length && (
             <div className={`requests${compact ? " compact" : ""}`}>

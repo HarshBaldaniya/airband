@@ -227,7 +227,7 @@ export function DesktopView() {
           {!showPanel && talk}
           {showPanel ? (
             <div className={panel === "closing" ? "panelwrap closing" : "panelwrap"}>
-              <Panel state={s} name={c.name} design={c.design} onClose={closePanel} onAsk={(q) => (sounds.tick(), void c.ask(q))} asking={c.asking} onSay={c.say} onError={setError} showSettings={settings} prefs={prefs} onPref={setPref} answer={talk} />
+              <Panel state={s} name={c.name} design={c.design} onClose={closePanel} onAsk={(q) => (sounds.tick(), void c.ask(q))} asking={c.asking} onSay={c.say} onError={setError} showSettings={settings} prefs={prefs} onPref={setPref} answer={talk} hasAnswer={!!c.answer || !!error} />
             </div>
           ) : (
             <>

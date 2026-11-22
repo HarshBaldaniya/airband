@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.0.8
+- **Roger answers as himself.** Ask who he is, who built him or what runs him, and he says he is
+  Airband's helper, built by Harsh Baldaniya. Look-ups speak as Roger too, and a line such as "I'm
+  Claude, made by Anthropic" is replaced by his own.
+- **He understands chat spelling.** "who r u", "where do u live" and "who builds u" work like the
+  full words. Two questions in one message get both answers, in order.
+- **More to ask him.** Where he lives, how old he is, why he is called Roger, whether he sleeps, his
+  favourite colour, food, music, movie and place, the time and the date.
+- **A moment to think.** Every answer, even one he knows by heart, shows his thinking card first,
+  then its words come in one after another.
+- **Quick asks.** Under the Ask box: "What's happening?", "What did I do today?" and "Tell me a
+  joke", one click each.
+
 ## 0.0.7
 - **Roger stays awake while a chat works.** He falls asleep only when every chat is done: none
   working, none waiting for you, and two quiet minutes after the last one finished. Asleep on the
