@@ -2,9 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import { watchState, type StationState } from "../api";
 
-/** What can change an asleep companion: a request, a finished chat, a chat that waits, its own look. */
+/** What can change an asleep companion: a request, a finished chat, a chat that starts working or
+ *  waiting, its own look. */
 function wakeKey(s: StationState): string {
-  return JSON.stringify([s.pending.map((p) => p.id), s.finished.map((f) => `${f.chatId}:${f.at}`), s.chats.filter((c) => c.status === "waiting").map((c) => c.id), s.settings, s.link]);
+  return JSON.stringify([s.pending.map((p) => p.id), s.finished.map((f) => `${f.chatId}:${f.at}`), s.chats.filter((c) => c.status === "waiting" || c.status === "working").map((c) => `${c.id}:${c.status}`), s.settings, s.link]);
 }
 
 /**

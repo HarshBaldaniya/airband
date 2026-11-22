@@ -35,6 +35,8 @@ export function useCompanionState(state: StationState | undefined, keepAwake = f
       greeted.current = true;
       setTimeout(sounds.hello, 350);
     }
+    // Something still going on (a chat working or waiting, a request): the quiet starts after it.
+    if (state.pending.length || state.chats.some((c) => c.status === "working" || c.status === "waiting")) lastEvent.current = Date.now();
     const pending = new Set(state.pending.map((p) => p.id));
     const finished = new Set(state.finished.map((f) => `${f.chatId}:${f.at}`));
     const before = seen.current;
@@ -91,7 +93,8 @@ export function useCompanionState(state: StationState | undefined, keepAwake = f
   // The real time, not the Station's: its state arrives only when something changes, so its clock
   // stood still in a quiet hour, and the companion never fell asleep.
   const now = Date.now();
-  if (keepAwake) lastEvent.current = now;
+  const busy = !!state && (state.pending.length > 0 || state.chats.some((c) => c.status === "working" || c.status === "waiting"));
+  if (keepAwake || busy) lastEvent.current = now;
   const asleep = !keepAwake && now - lastEvent.current > SLEEP_AFTER_MS;
   const mood = moodOf(state, { dizzy: dizzyUntil > now, asking, talking: talkUntil > now, hello, cheering: cheerUntil > now, asleep });
 

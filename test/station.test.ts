@@ -430,12 +430,12 @@ test("a brand-new chat's first answer counts as finished, so the companion comes
   assert.equal(finished.length, 1, "and only once");
 });
 
-test("the companion sleeps when nothing is for you, even while chats work, and wakes for what needs you", async () => {
+test("the companion sleeps only when every chat is done, and wakes for what needs you", async () => {
   const { moodOf } = await import("../desktop/ui/companion/mood");
   const base = { dizzy: false, asking: false, talking: false, hello: false, cheering: false };
   const state = (chats: Partial<LiveChat>[], pending = 0) => ({ chats: chats.map(chat), pending: Array.from({ length: pending }, (_, i) => ({ id: `p${i}` })), finished: [] }) as unknown as Parameters<typeof moodOf>[0];
   assert.equal(moodOf(state([{ status: "working" }]), { ...base, asleep: false }), "working");
-  assert.equal(moodOf(state([{ status: "working" }]), { ...base, asleep: true }), "resting", "a working chat does not keep it awake");
+  assert.equal(moodOf(state([{ status: "working" }]), { ...base, asleep: true }), "working", "never asleep while a chat works");
   assert.equal(moodOf(state([{ status: "idle" }]), { ...base, asleep: true }), "resting");
   assert.equal(moodOf(state([{ status: "working" }], 1), { ...base, asleep: true }), "needs", "a request always wakes it");
   assert.equal(moodOf(state([{ status: "waiting" }]), { ...base, asleep: true }), "needs");

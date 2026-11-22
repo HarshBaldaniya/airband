@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.7
+- **Roger stays awake while a chat works.** He falls asleep only when every chat is done: none
+  working, none waiting for you, and two quiet minutes after the last one finished. Asleep on the
+  way looked like nothing was running.
+
 ## 0.0.6
 - **Roger falls asleep when nothing is for you.** After two quiet minutes he sleeps, even while chats
   work. A request, a finished chat, or your pointer on him wakes him. Before, his clock stood still

@@ -2,7 +2,7 @@
   "name": "airband",
   "displayName": "Airband",
   "description": "See every Claude Code, Codex and Gemini CLI chat in one place, and let them share what they did. A map of your code for agents, ready-made commands, and your plan limits.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "airband-dev",
   "author": {
     "name": "Harsh Baldaniya"
