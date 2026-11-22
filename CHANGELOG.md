@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+- **An easier npm page.** A quick start with what setup prints, the commands in one place, and the
+  other ways to install.
+
 ## 0.1.0
 - **A website.** [airband.harshbaldaniya.com](https://airband.harshbaldaniya.com) has the downloads
   for your computer, a one-page guide, what's new and privacy.

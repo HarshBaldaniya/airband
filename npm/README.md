@@ -1,73 +1,70 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/HarshBaldaniya/airband/main/media/airband-wordmark-light.png" alt="Airband" width="240">
+  <img src="https://raw.githubusercontent.com/HarshBaldaniya/airband/main/media/airband-wordmark-light.png" alt="Airband" width="180">
 </p>
 
 <p align="center">
-  Connect your Claude Code, Codex and Gemini CLI chats, so each one knows what the others did.
-</p>
-
-<p align="center">
+  Connect your Claude Code, Codex and Gemini CLI chats, so each one knows what the others did.<br>
   <a href="https://airband.harshbaldaniya.com">Website</a> ·
-  <a href="https://github.com/HarshBaldaniya/airband#documentation">Documentation</a> ·
+  <a href="https://github.com/HarshBaldaniya/airband#documentation">Docs</a> ·
   <a href="https://github.com/HarshBaldaniya/airband">GitHub</a>
 </p>
 
-## Install
+## Quick start
 
 ```bash
 npx airband
 ```
 
-This finds Claude Code, Codex and Gemini CLI on your computer, sets each one up, and adds the
-`airband` command. Every settings file it touches is backed up first. Restart your agent chats
-afterwards. In Codex, type `/hooks` once and trust Airband's hook.
+```text
+  Airband  setting up your agents
 
-To install the command first: `npm i -g airband`, then run `airband`. With other package managers:
-`pnpm dlx airband`, `yarn dlx airband` or `bunx airband`.
+  ✓ Claude Code   tools · skills · auto-sharing
+  ✓ Codex         tools · skills · auto-sharing
+  ✓ Gemini CLI    tools · auto-sharing
+  ✓ airband       the command, in any new terminal
 
-Requires Node.js 20 or newer. Works on macOS (Apple silicon and Intel), Windows 10 and 11, and Linux.
+  Done. Restart open agent chats to pick it up.
+```
 
-## What your agents get
+Every settings file it touches is backed up first. In Codex, type `/hooks` once and trust Airband's
+hook. Needs Node.js 20 or newer, on macOS, Windows or Linux.
 
-- **A map of your code.** `airband_map` finds code by name or meaning, outlines a file, shows who
-  uses what and reviews a branch or pull request, in a few hundred tokens instead of a search
-  through files.
-- **Each other's work.** `airband_flightlog` reads what your other chats did, in any agent, and
-  `airband_notes` leaves notes for the next chat in a project.
-- **15 skills** they use by themselves: find code, check a change's impact, review a PR, debug,
-  onboard, write a test plan, pick up a ticket, say where work stands, write a standup, show AI
-  spend, recall past work, catch up, hand off, and write docs and messages.
-- **Writing rules** when they write a doc or a message, and a check of what they wrote.
+## What it does
 
-The three tools add under 400 tokens of definitions in all.
+- **Chats share their work.** When a chat finishes a reply, the chats connected to it get a short
+  note with their next message: what was asked, what was done, which files changed.
+- **Agents get a map of your code.** Finding something costs a few hundred tokens instead of a
+  search through files. Three tools, under 400 tokens of definitions.
+- **15 skills agents use by themselves,** from reviewing a pull request to writing a standup.
 
 ## Commands
 
-| Command | What it does |
-|---|---|
-| `airband` | Show what each agent has, and set up anything missing |
-| `airband doctor` | Check that everything works, with the exact fix for anything that doesn't |
-| `airband update` | Move to the newest version and refresh every agent |
-| `airband remove` | Take Airband out of every agent (`--purge` also deletes its data) |
-| `airband find "rate limiter"` | Where something is in your code; also `outline`, `graph`, `overview` |
-| `airband diff #128` | What a pull request or branch changed, who calls it, which tests reach it |
-| `airband standup` | What your chats did since yesterday (`--days 7` for a week) |
-| `airband spend` | Tokens spent by project, agent, ticket and chat |
-| `airband station` | Requests and chats in a browser |
-| `airband help` | Every command |
+```bash
+airband               # what each agent has; set up anything missing
+airband doctor        # check everything, with the exact fix for anything wrong
+airband update        # move to the newest version and refresh every agent
+airband remove        # take Airband out of every agent (--purge deletes its data)
 
-## Desktop app
+airband find "x"      # where something is in your code (also outline, graph)
+airband diff #128     # what a pull request changed, who calls it, which tests reach it
+airband standup       # what your chats did since yesterday
+airband spend         # tokens by project, agent, ticket and chat
+airband help          # every command
+```
 
-Roger, Airband's desktop companion, shows when a chat needs you and what a finished chat did, with
-alerts on your iPhone from a Mac. Download it for Mac or Windows (about 2 MB) from
-[airband.harshbaldaniya.com](https://airband.harshbaldaniya.com/download/).
+## Other ways in
+
+- **Desktop app** for Mac and Windows, about 2 MB: Roger, a companion that shows when a chat needs
+  you. [Download](https://airband.harshbaldaniya.com/download/)
+- **Claude Code plugin:** `/plugin install airband --marketplace HarshBaldaniya/airband`
+- **Gemini CLI extension:** `gemini extensions install https://github.com/HarshBaldaniya/airband`
+- **VS Code extension:** from the [latest release](https://github.com/HarshBaldaniya/airband/releases/latest)
 
 ## Privacy
 
-Airband runs on your computer. It needs no account, sends no telemetry and never reads a login,
-token or key file. Its data stays in `~/.airband`. See
-[Privacy and security](https://github.com/HarshBaldaniya/airband/blob/main/docs/privacy.md).
+Runs on your computer. No account, no telemetry, and it never reads a login, token or key file.
+[Details](https://github.com/HarshBaldaniya/airband/blob/main/docs/privacy.md)
 
-## License
+---
 
-[MIT](https://github.com/HarshBaldaniya/airband/blob/main/LICENSE) © Harsh Baldaniya
+MIT © [Harsh Baldaniya](https://harshbaldaniya.com)
