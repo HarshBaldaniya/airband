@@ -179,6 +179,8 @@ export function DesktopView() {
       d.moving = true;
       const r = figure.current!.getBoundingClientRect();
       bridge.dragStart({ x: r.x, y: r.y, width: r.width, height: r.height });
+      // The system moves the window from here, and keeps the pointer: nothing more comes to us.
+      if (bridge.nativeDrag) return void (drag.current = undefined);
     }
     if (d.moving) bridge.dragMove();
   };
@@ -201,11 +203,37 @@ export function DesktopView() {
     togglePanel();
   };
 
-  // After anything changes on screen, the spot under a still pointer is checked again.
+  // After anything changes on screen, the spot under a still pointer is checked again. The lighter
+  // app instead gets where the clickable parts are, whenever they change.
+  const areas = useRef("");
   useEffect(() => {
-    const t = requestAnimationFrame(checkHit);
+    const t = requestAnimationFrame(() => {
+      checkHit();
+      if (!bridge.setHitAreas) return;
+      const rects = [...document.querySelectorAll("[data-hit]")].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+      }).filter((r) => r.width > 0 && r.height > 0);
+      const key = JSON.stringify(rects);
+      if (key !== areas.current) {
+        areas.current = key;
+        bridge.setHitAreas(rects);
+      }
+    });
     return () => cancelAnimationFrame(t);
   });
+
+  // A new request or a finished chat while hidden or tucked away: the lighter app brings it back.
+  const seenKey = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!state || !bridge.comeBack) return;
+    const ids = [...state.pending.map((p) => p.id), ...state.finished.map((f) => `${f.chatId}:${f.at}`)];
+    const before = seenKey.current;
+    seenKey.current = JSON.stringify(ids);
+    if (before === undefined) return;
+    const was = new Set(JSON.parse(before) as string[]);
+    if (ids.some((id) => !was.has(id))) bridge.comeBack();
+  }, [state, bridge]);
 
   const s = state;
   const pending = s?.pending ?? [];

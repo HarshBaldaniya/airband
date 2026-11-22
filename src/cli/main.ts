@@ -440,10 +440,17 @@ export async function main(argv: string[]): Promise<number> {
 
   async function runSetup(rest: string[], all: string[]): Promise<number> {
     const agents = option(rest, "--agents")?.split(",").map((a) => a.trim().toLowerCase()).filter((a): a is AgentId => a === "claude" || a === "codex" || a === "gemini");
-    out(`\n  ${paint.bold(`Airband ${VERSION}`)}  ${paint.dim("setting up your agents")}`);
+    if (!all.includes("--json")) out(`\n  ${paint.bold(`Airband ${VERSION}`)}  ${paint.dim("setting up your agents")}`);
     // The version that was set up before this one, to say what changed once it's done.
     const before = installedVersion();
-    const r = await setup({ fromDir: __dirname, agents, sharing: !all.includes("--no-sharing"), skills: !all.includes("--no-skills") });
+    // `--node <path>`: the Node the hook and tools run with (the desktop app's own, when the computer has none).
+    const node = option(rest, "--node");
+    const r = await setup({ fromDir: __dirname, agents, sharing: !all.includes("--no-sharing"), skills: !all.includes("--no-skills"), ...(node ? { node } : {}) });
+    // `--json`: what the desktop app's setup tour reads.
+    if (all.includes("--json")) {
+      json({ version: VERSION, agents: r.agents, codexTrust: r.codexTrust, lines: r.lines, list: agentSummary() });
+      return r.agents.length ? 0 : 1;
+    }
     if (!r.agents.length) {
       out(`\n  No Claude Code, Codex or Gemini CLI found on this computer. Install one, then run: ${self()}\n`);
       return 1;

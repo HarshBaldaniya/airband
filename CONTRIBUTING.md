@@ -41,12 +41,14 @@ when `AIRBAND_TEST_DIR` names a folder that has some; otherwise they are skipped
 
 ## Releasing
 
-One version lives in `package.json`, `.claude-plugin/plugin.json` and `gemini-extension.json`.
+One version lives in `package.json`, `.claude-plugin/plugin.json`, `gemini-extension.json` and
+both desktop apps (`desktop/`, and `desktop-lite/`: its `package.json`, `tauri.conf.json` and Cargo
+files).
 Write the notes for the next version under `## Unreleased` in CHANGELOG.md as you go: they are built
 into Airband, and shown after an update and by `airband changelog`.
 
 ```bash
-npm run set-version -- 0.0.3   # sets it in all three, and turns "## Unreleased" into "## 0.0.3"
+npm run set-version -- 0.0.3   # sets it everywhere, and turns "## Unreleased" into "## 0.0.3"
 npm test
 npm run publish:npm             # publishes airband (npm asks you to confirm in the browser)
 git commit -am "0.0.3" && git tag -a v0.0.3 -m "0.0.3" && git push --follow-tags
@@ -56,6 +58,9 @@ Publish to npm before pushing the tag: the plugin and the Gemini extension start
 `bin/mcp.cjs`, which fetches `airband@<version>` when it isn't on the computer yet, so that
 version has to exist. Check the plugin with
 `claude plugin validate .`.
+
+The tag builds the desktop app's downloads (the "Desktop app (small)" workflow) and attaches them
+to the tag's GitHub release. To build them on a Mac instead, see `desktop-lite/README.md`.
 
 ## Style
 

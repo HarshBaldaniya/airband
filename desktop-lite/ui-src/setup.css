@@ -1,0 +1,75 @@
+:root { --bg: #161618; --line: #2c2c32; --ink: #f2f2f4; --muted: #8e8e96; --brand: #e07a4f; --ok: #3fb57d; --needs: #e0a22c; --bad: #e5675a; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; user-select: none; cursor: default; }
+/* The window has no title bar: its top strip moves it. */
+.drag { position: fixed; top: 0; left: 0; right: 0; height: 36px; z-index: 5; }
+
+.tour { height: 100%; animation: fade 0.35s ease both; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.screen { height: 100%; display: flex; flex-direction: column; padding: 44px 40px 0; }
+.body { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.body.center { align-items: center; justify-content: center; text-align: center; gap: 12px; padding-bottom: 8px; }
+
+h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -0.015em; }
+.lede { margin: 0; max-width: 340px; color: var(--muted); line-height: 1.55; }
+.body:not(.center) .lede { margin-bottom: 16px; }
+
+/* The checklist: a status, a label, and a note on the right. */
+.lines { list-style: none; margin: 0; padding: 0; }
+.line { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; column-gap: 12px; padding: 13px 0; border-top: 1px solid var(--line); }
+.line:last-child { border-bottom: 1px solid var(--line); }
+.label { font-weight: 550; }
+.note { color: var(--muted); font-size: 13px; text-align: right; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.line.waiting .label { color: var(--muted); }
+.line.needs .note { color: var(--needs); }
+.line.failed .note { color: var(--bad); white-space: normal; }
+.more { grid-column: 2 / -1; }
+.more p { margin: 8px 0 0; font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--muted); }
+.more p.say { display: block; }
+.more p.say + p { margin-top: 10px; }
+.lines.left { width: 100%; margin-top: 10px; text-align: left; }
+
+.status { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; transition: background 0.25s ease; }
+.status.waiting { border: 1.5px solid var(--line); }
+.status.working { border: 2px solid var(--line); border-top-color: var(--brand); animation: spin 0.8s linear infinite; }
+.status.done { background: var(--ok); color: #0d2a1c; animation: pop 0.3s ease; }
+.status.needs { background: var(--needs); color: #2a1d05; }
+.status.failed { background: var(--bad); color: #2a0b07; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pop { from { transform: scale(0.6); } to { transform: none; } }
+
+/* Where Roger lives: a small screen, his corner lit. */
+.desk { position: relative; width: 264px; height: 150px; margin-bottom: 10px; border-radius: 12px; border: 1px solid var(--line); background: linear-gradient(180deg, #1e1e23, #18181b); overflow: hidden; }
+.desk .bar { position: absolute; left: 0; right: 0; top: 0; height: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 6px; padding: 0 9px; border-bottom: 1px solid var(--line); background: #1b1b1f; }
+.desk.windows .bar, .desk.linux .bar { top: auto; bottom: 0; border-bottom: 0; border-top: 1px solid var(--line); }
+.desk .bar i { width: 14px; height: 4px; border-radius: 2px; background: #34343b; }
+.desk .bar i.me { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px rgba(224, 122, 79, 0.18); }
+.desk .win { position: absolute; left: 20px; top: 32px; width: 140px; height: 86px; border-radius: 7px; border: 1px solid var(--line); background: #202026; }
+.desk.windows .win, .desk.linux .win { top: 18px; }
+.desk .roger { position: absolute; right: 10px; bottom: 8px; }
+.desk.windows .roger, .desk.linux .roger { bottom: 24px; }
+.desk .roger::before { content: ""; position: absolute; inset: -14px -10px -6px; border-radius: 50%; background: radial-gradient(closest-side, rgba(224, 122, 79, 0.16), transparent); }
+
+/* Two things to know, side by side. */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 360px; margin-top: 6px; text-align: left; }
+.tiles div { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; color: #c4c4ca; }
+.tiles b { color: var(--ink); font-weight: 600; font-size: 13px; }
+.tiles kbd { align-self: flex-start; }
+kbd { font: 12px ui-monospace, "SF Mono", Menlo, monospace; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); color: var(--ink); }
+.error { margin: 0; color: var(--bad); font-size: 13px; }
+
+footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 18px 0 22px; }
+.step { margin-right: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+button { font: inherit; cursor: pointer; border-radius: 9px; border: 1px solid var(--line); background: #232328; color: var(--ink); height: 34px; padding: 0 16px; transition: background 0.15s ease, opacity 0.15s ease, transform 0.08s ease; }
+button:hover:not(:disabled) { background: #2b2b31; }
+button:active:not(:disabled) { transform: scale(0.98); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.primary { min-width: 120px; background: var(--brand); border-color: transparent; color: #1b1310; font-weight: 600; }
+button.primary:hover:not(:disabled) { background: #e88a62; }
+button.ghost { background: transparent; }
+button.small { height: 28px; padding: 0 12px; font-size: 13px; }
+button.link { height: auto; padding: 0; border: 0; background: none; color: var(--brand); font-size: 13px; }
+button.link:hover { background: none; text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .tour, .status.working, .status.done { animation: none; } }

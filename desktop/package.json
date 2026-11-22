@@ -2,7 +2,7 @@
   "name": "airband-desktop",
   "productName": "Airband",
   "private": true,
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Airband's desktop companion: every AI chat on your computer, from a corner of your screen.",
   "author": "Harsh Baldaniya",
   "license": "MIT",

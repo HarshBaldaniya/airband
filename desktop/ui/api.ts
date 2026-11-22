@@ -105,6 +105,15 @@ export interface DesktopBridge {
   hide(): void;
   /** Asleep: the app stops following the pointer until it wakes. */
   setAsleep?(asleep: boolean): void;
+  /**
+   * The lighter app (the system's own web view): it can't see the pointer while clicks pass
+   * through, so the screen tells it where its clickable parts are, and it watches the pointer.
+   */
+  setHitAreas?(rects: { x: number; y: number; width: number; height: number }[]): void;
+  /** The window is moved by the system itself: a drag is handed over once it starts. */
+  nativeDrag?: boolean;
+  /** A request or a finished chat came while hidden or tucked away: show the companion. */
+  comeBack?(): void;
 }
 
 export const desktop: DesktopBridge | undefined = (window as unknown as { airbandDesktop?: DesktopBridge }).airbandDesktop;

@@ -180,8 +180,10 @@ function PhoneRow({ state }: { state: StationState }) {
     return () => clearInterval(t);
   }, [waiting, url]);
   useEffect(() => {
-    if (url && desktop) void desktop.qr(url).then(setQr);
-    else setQr(undefined);
+    if (!url) return setQr(undefined);
+    // The app's own QR maker, or the screen's (the lighter app has none of its own).
+    if (desktop?.qr) void desktop.qr(url).then((q) => (q ? setQr(q) : void import("qrcode").then((m) => m.toDataURL(url, { margin: 1, width: 264 }).then(setQr))));
+    else void import("qrcode").then((m) => m.toDataURL(url, { margin: 1, width: 264 }).then(setQr));
   }, [url]);
   // Test: a pretend request goes to the iPhone at once; the line below says what happened.
   const [sent, setSent] = useState<{ at: number; text: string; ok: boolean }>();

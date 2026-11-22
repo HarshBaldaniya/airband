@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.0.10
+- **A desktop app of about 2 MB.** Downloads for Macs with Apple silicon (2.0 MB) and Intel (2.1
+  MB), and a Windows installer (1.4 MB), in place of the 108 MB app. It runs on the computer's own
+  web view, and Roger's corner and menu work as before.
+- **Setup in the app.** The first start opens a short tour: it finds your AI coding tools, Node.js
+  and Airband's engine, gets what is missing from its official source (Node.js from nodejs.org,
+  the engine from npm), checks each download's fingerprint before it runs, and connects your tools.
+- **Nothing blocks the setup.** A missing or old Node.js (Airband needs 20 or newer), no AI coding
+  tool yet, or a failed download each say what they need, with a link. Continue still works, and
+  "Set up Airband…" in the menu finishes it later.
+- **Click-through around Roger.** Only Roger and his panel take clicks; the rest of his corner lets
+  them through to the window behind.
+- `airband setup --json --node <path>`, for the app: it sets up every agent with that Node and
+  answers in JSON.
+
 ## 0.0.9
 - **Alerts with a real summary.** A finished chat's alert on your iPhone says what happened, then
   up to three key points, about 300 characters at most. You can read the result without going back

@@ -277,11 +277,19 @@ Claude Code, Codex and Gemini CLI, so you don't have to check each one.
 
 Roger's name and look are settings, so you can call him something else.
 
-```bash
-npm run desktop:install      # from a clone of this repository: builds the Mac app, installs it, opens it
-```
+Download it from the [latest release](https://github.com/HarshBaldaniya/airband/releases/latest):
 
-On first start the app sets up Airband in every agent it finds, so that is the only step. With no
+| Computer | File | Size |
+|---|---|---|
+| Mac with Apple silicon (M1 or later) | `Airband-<version>-Apple-Silicon.dmg` | about 2 MB |
+| Mac with an Intel processor | `Airband-<version>-Intel.dmg` | about 2 MB |
+| Windows 10 or 11 | `Airband-Setup-<version>.exe` | about 1.5 MB |
+
+The app isn't signed yet, so the first start shows a warning. On a Mac, open it once, then choose
+**Open Anyway** in System Settings → Privacy & Security. On Windows, choose **More info**, then
+**Run anyway**.
+
+On first start a short tour sets up Airband in every agent it finds, so that is the only step. With no
 app running, nothing changes: each chat asks in its own terminal, as before. On any computer,
 `airband station` gives the same requests and chats in a browser, without the app.
 
