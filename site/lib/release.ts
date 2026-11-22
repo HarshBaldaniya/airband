@@ -31,6 +31,17 @@ export async function publishedAt(): Promise<string | undefined> {
   return undefined;
 }
 
+/** When each version was published on GitHub ("0.1.1" → ISO date), as far as GitHub answers. */
+export async function releaseDates(): Promise<Record<string, string>> {
+  try {
+    const r = await fetch("https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=100", { headers: { accept: "application/vnd.github+json" } });
+    if (r.ok) return Object.fromEntries(((await r.json()) as { tag_name: string; published_at: string }[]).map((x) => [x.tag_name.replace(/^v/, ""), x.published_at]));
+  } catch {
+    // Offline build: versions without dates.
+  }
+  return {};
+}
+
 export async function downloads(): Promise<Download[]> {
   const base = `${SITE.repo}/releases/download/v${VERSION}`;
   let assets: { name: string; size: number; digest?: string }[] = [];
