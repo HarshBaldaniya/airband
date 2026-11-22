@@ -1,5 +1,5 @@
 // Copies what the site shares with the app, so there is one source for each:
-//   Roger (desktop/ui/companion and its sounds)  -> roger/
+//   Roger (companion/companion and its sounds)   -> roger/
 //   the wordmark and icon (media/)               -> public/brand/
 //   the agents' logos (the app's icon set)        -> public/brand/agents/
 import { cpSync, mkdirSync, rmSync, copyFileSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,12 +10,12 @@ const site = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repo = join(site, "..");
 rmSync(join(site, "roger"), { recursive: true, force: true });
 mkdirSync(join(site, "roger"), { recursive: true });
-cpSync(join(repo, "desktop/ui/companion"), join(site, "roger/companion"), {
+cpSync(join(repo, "companion/companion"), join(site, "roger/companion"), {
   recursive: true,
   // Only the figure: the rest of the folder is the app's state.
   filter: (f) => !/useCompanionState|lines\.ts|mood\.ts/.test(f),
 });
-copyFileSync(join(repo, "desktop/ui/sound.ts"), join(site, "roger/sound.ts"));
+copyFileSync(join(repo, "companion/sound.ts"), join(site, "roger/sound.ts"));
 mkdirSync(join(site, "public/brand"), { recursive: true });
 for (const f of ["airband-wordmark-dark.svg", "airband-wordmark-light.svg", "airband-icon.svg", "icon.png"]) copyFileSync(join(repo, "media", f), join(site, "public/brand", f));
 copyFileSync(join(repo, "media/airband-icon.svg"), join(site, "app/icon.svg"));

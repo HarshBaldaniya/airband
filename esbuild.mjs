@@ -86,7 +86,7 @@ const configs = tests
         logLevel: "info",
         define: { "process.env.NODE_ENV": watch ? '"development"' : '"production"' },
         loader: { ".svg": "text" },
-        entryPoints: ["desktop/ui/main.tsx"],
+        entryPoints: ["companion/main.tsx"],
         outfile: "dist/companion/ui.js",
       },
     ];

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0
+- **A website.** [airband.harshbaldaniya.com](https://airband.harshbaldaniya.com) has the downloads
+  for your computer, a one-page guide, what's new and privacy.
+- **Clearer documentation.** A shorter README, guides for each part in `docs/`, and a new npm page.
+- **One desktop app.** The 2 MB app is now the only desktop app; the old 108 MB one is retired. Its
+  settings are kept in `~/.airband/app.json`, and settings from earlier versions carry over.
+
 ## 0.0.10
 - **A desktop app of about 2 MB.** Downloads for Macs with Apple silicon (2.0 MB) and Intel (2.1
   MB), and a Windows installer (1.4 MB), in place of the 108 MB app. It runs on the computer's own

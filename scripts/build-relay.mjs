@@ -17,12 +17,12 @@ const browser = {
   loader: { ".svg": "text" },
   legalComments: "eof",
 };
-await build({ ...browser, format: "iife", jsx: "automatic", entryPoints: ["desktop/ui/remote/main.tsx"], outfile: join(out, "app.js") });
-await build({ ...browser, format: "iife", entryPoints: ["desktop/ui/remote/sw.ts"], outfile: join(out, "sw.js") });
+await build({ ...browser, format: "iife", jsx: "automatic", entryPoints: ["companion/remote/main.tsx"], outfile: join(out, "app.js") });
+await build({ ...browser, format: "iife", entryPoints: ["companion/remote/sw.ts"], outfile: join(out, "sw.js") });
 
 const tool = join("relay", ".wrangler", "icon-tool.cjs");
 mkdirSync(join("relay", ".wrangler"), { recursive: true });
-await build({ bundle: true, platform: "node", format: "cjs", entryPoints: ["desktop/src/icon.ts"], outfile: tool, logLevel: "warning" });
+await build({ bundle: true, platform: "node", format: "cjs", entryPoints: ["scripts/icon.ts"], outfile: tool, logLevel: "warning" });
 const { phoneIconPng } = createRequire(import.meta.url)(join(process.cwd(), tool));
 for (const size of [180, 192, 512]) writeFileSync(join(out, `icon-${size}.png`), phoneIconPng(size));
 rmSync(tool, { force: true });

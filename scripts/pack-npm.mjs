@@ -25,7 +25,7 @@ for (const f of ["LICENSE", "THIRD_PARTY_NOTICES.md"]) copyFileSync(f, join(out,
 const pkg = {
   name: "airband",
   version: root.version,
-  description: "Set up Claude Code, Codex and Gemini CLI in one command: a map of your code, shared chat records, 15 skills, and writing rules for docs and messages.",
+  description: "Connect your Claude Code, Codex and Gemini CLI chats so each one knows what the others did: a code map, shared chat records and 15 skills for every agent.",
   // What people type into npm search: the agents, and what Airband does for them.
   keywords: ["claude-code", "claude", "codex", "openai-codex", "gemini-cli", "gemini", "mcp", "mcp-server", "ai-agents", "ai-coding", "coding-agent", "code-map", "code-search", "skills", "cli", "developer-tools"],
   homepage: "https://airband.harshbaldaniya.com",
@@ -41,46 +41,7 @@ const pkg = {
 };
 writeFileSync(join(out, "package.json"), `${JSON.stringify(pkg, null, 2)}\n`);
 
-writeFileSync(
-  join(out, "README.md"),
-  `<p align="center"><img src="https://raw.githubusercontent.com/HarshBaldaniya/airband/main/media/airband-wordmark-light.png" alt="Airband" width="260"></p>
-
-# airband
-
-One command sets up **Claude Code**, **Codex** and **Gemini CLI** with a map of your code, ready-made
-commands, skills, and shared records of your chats. No AI of its own, no server, no telemetry.
-
-\`\`\`bash
-npx airband           # set up every agent found, and add the airband command
-\`\`\`
-
-Or install the command first: \`npm i -g airband\`, then run \`airband\`. With other package
-managers: \`pnpm dlx airband\`, \`yarn dlx airband\`, \`bunx airband\`.
-
-\`\`\`bash
-airband                    # what each agent has
-airband doctor             # check everything works, with the fix for anything that doesn't
-airband update             # move to the newest version and refresh every agent
-airband remove             # take it all out again (--purge also deletes its data)
-airband help               # every command
-\`\`\`
-
-Once set up, your agents:
-
-- find code through the Map (\`airband_map\`) before grepping, in a few hundred tokens;
-- read what your other chats did (\`airband_flightlog\`) and leave notes for each other (\`airband_notes\`);
-- have ready-made commands (\`/airband:review\` in Claude Code, \`/prompts:review\` in Codex, \`/review\` in Gemini CLI);
-- have 15 skills they use by themselves, for developers, QA, product and finance: find code, recall past work, catch up, review a PR, check a change's impact, onboard, debug, write a test plan, hand off, pick up a ticket, say where work stands, write a standup, show AI spend, and write docs and messages people can read;
-- get short writing rules when they write a doc or a message, a check after they write a doc, and a check before they send a message, a PR or a commit (\`airband writing\`).
-
-The Map also works on its own: \`airband find "rate limiter"\`, \`airband outline src/api\`, \`airband graph RateLimiter\`, \`airband diff #128\`. So do your chats: \`airband standup\`, \`airband spend\`, \`airband writing check README.md\`.
-
-Works on macOS (Apple silicon and Intel), Windows and Linux, with Node.js 20 or newer. The full app,
-with the Tower board, Fuel and the Map as a picture, is the VS Code extension:
-https://github.com/HarshBaldaniya/airband
-
-MIT © Harsh Baldaniya
-`,
-);
+// The npm page: its own short README, kept in npm/README.md.
+copyFileSync(join("npm", "README.md"), join(out, "README.md"));
 console.log(`npm-dist/ ready: ${pkg.name}@${pkg.version}`);
 

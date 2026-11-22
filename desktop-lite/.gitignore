@@ -1,8 +1,0 @@
-node_modules/
-src-tauri/target/
-src-tauri/gen/
-ui/setup.js
-ui/setup.css
-release/
-# Written by build.rs from the commands it names, on every build.
-src-tauri/permissions/

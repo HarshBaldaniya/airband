@@ -16,7 +16,7 @@ from the GitHub release of that version. Rebuild it after a release, once the re
 up.
 
 `npm run sync` (run by `dev` and `build`) copies in what the site shares with the app, so each has
-one source: Roger's figure from `desktop/ui/companion`, the wordmark and icon from `media/`, and
+one source: Roger's figure from `companion/companion`, the wordmark and icon from `media/`, and
 the agents' logos. The copies are git-ignored.
 
 The pictures in `public/shots/` are of the real app, taken from a test Station with made-up chats.
