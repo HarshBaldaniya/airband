@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="https://airband.harshbaldaniya.com"><strong>Website</strong></a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#what-you-get">What you get</a> ·
   <a href="#how-it-works">How it works</a> ·

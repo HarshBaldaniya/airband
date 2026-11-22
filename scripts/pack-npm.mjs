@@ -28,7 +28,7 @@ const pkg = {
   description: "Set up Claude Code, Codex and Gemini CLI in one command: a map of your code, shared chat records, 15 skills, and writing rules for docs and messages.",
   // What people type into npm search: the agents, and what Airband does for them.
   keywords: ["claude-code", "claude", "codex", "openai-codex", "gemini-cli", "gemini", "mcp", "mcp-server", "ai-agents", "ai-coding", "coding-agent", "code-map", "code-search", "skills", "cli", "developer-tools"],
-  homepage: "https://github.com/HarshBaldaniya/airband#readme",
+  homepage: "https://airband.harshbaldaniya.com",
   bugs: { url: "https://github.com/HarshBaldaniya/airband/issues" },
   repository: { type: "git", url: "git+https://github.com/HarshBaldaniya/airband.git" },
   license: "MIT",

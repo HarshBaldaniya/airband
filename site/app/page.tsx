@@ -9,6 +9,7 @@ import { Ways } from "@/components/Ways";
 import { NEW_TAB } from "@/lib/ext";
 import { downloads, VERSION } from "@/lib/release";
 import { SITE } from "@/lib/site";
+import { JsonLd, faqGraph } from "@/lib/schema";
 
 const AGENTS = [
   { name: "Claude Code", logo: "claudecode" },
@@ -27,6 +28,7 @@ export default async function Home() {
   const files = await downloads();
   return (
     <>
+      <JsonLd data={faqGraph()} />
       <section className="hero">
         <div className="wrap">
           <Reveal>
