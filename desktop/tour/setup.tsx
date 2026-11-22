@@ -10,7 +10,7 @@ import "./setup.css";
 
 interface Found { name: string; found: boolean; detail?: string | null; link: string }
 interface Scan { os: "mac" | "windows" | "linux"; node?: string | null; node_ok: boolean; node_min: number; own_node: boolean; engine?: string | null; agents: Found[]; editors: Found[] }
-interface Connected { agents: string[]; codexTrust: boolean; list: { id: string; name: string; tools: boolean; sharing: boolean }[] }
+interface Connected { agents: string[]; codexTrust: boolean; list: { id: string; name: string; tools: boolean; sharing: boolean }[]; command?: string | null }
 
 const T = (window as unknown as { __TAURI_INTERNALS__: { invoke<R>(cmd: string, args?: unknown): Promise<R>; transformCallback(cb: (e: { payload: unknown }) => void): number } }).__TAURI_INTERNALS__;
 const call = <R,>(cmd: string, args?: unknown) => T.invoke<R>(cmd, args ?? {});
@@ -158,6 +158,7 @@ function Setup({ onDone }: { onDone: (r: Result) => void }) {
           </Line>
           <Line label="Airband engine" item={items.engine} />
           <Line label="Connect your tools" item={items.connect}>
+            {(connected?.command === "added" || connected?.command === "there") && <p>The airband command works in any new terminal.</p>}
             {connected?.codexTrust && <p>In Codex, type /hooks once and trust Airband.</p>}
           </Line>
         </ul>

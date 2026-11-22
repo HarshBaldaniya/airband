@@ -448,7 +448,7 @@ export async function main(argv: string[]): Promise<number> {
     const r = await setup({ fromDir: __dirname, agents, sharing: !all.includes("--no-sharing"), skills: !all.includes("--no-skills"), ...(node ? { node } : {}) });
     // `--json`: what the desktop app's setup tour reads.
     if (all.includes("--json")) {
-      json({ version: VERSION, agents: r.agents, codexTrust: r.codexTrust, lines: r.lines, list: agentSummary() });
+      json({ version: VERSION, agents: r.agents, codexTrust: r.codexTrust, lines: r.lines, list: agentSummary(), command: r.agents.length ? appCommand(all, node) : null });
       return r.agents.length ? 0 : 1;
     }
     if (!r.agents.length) {
@@ -519,6 +519,16 @@ export async function main(argv: string[]): Promise<number> {
       const off = [!a.tools ? "tools missing" : "", a.skills === false ? "no skills" : "", !a.sharing ? "auto-sharing off" : ""].filter(Boolean);
       out(`  ${a.tools ? paint.ok("✓") : paint.bad("✗")} ${a.name.padEnd(width)}${has.join(" · ")}${off.length ? paint.dim(`${has.length ? " · " : ""}${off.join(" · ")}`) : ""}`);
     }
+  }
+
+  /** The desktop app's tour adds the `airband` command too, as `npx airband` does: "added" or
+   *  "there", a reason when it couldn't, or "own-node" when the app runs on the Node.js it fetched
+   *  for itself (a command installed with that one wouldn't be on the terminal's PATH). */
+  function appCommand(all: string[], node: string | undefined): string | null {
+    if (all.includes("--no-command")) return null;
+    if (node && path.resolve(node).startsWith(path.join(airbandHome(), "runtime") + path.sep)) return "own-node";
+    const c = addCommand();
+    return c === true ? "added" : c === undefined ? "there" : c;
   }
 
   /** Installs this version as the `airband` command, with the package manager that started this

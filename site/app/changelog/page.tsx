@@ -7,7 +7,7 @@ import { inline } from "@/lib/inline";
 import { NEW_TAB } from "@/lib/ext";
 import { SITE } from "@/lib/site";
 
-export const metadata: Metadata = { title: "What's new", description: "What's new in Airband, version by version.", alternates: { canonical: "/changelog/" } };
+export const metadata: Metadata = { title: "What's new", description: "What's new in the latest Airband.", alternates: { canonical: "/changelog/" } };
 
 const day = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : undefined);
 
@@ -44,7 +44,7 @@ function Line({ text }: { text: string }) {
 }
 
 export default async function WhatsNew() {
-  const [latest, ...earlier] = changelog();
+  const [latest] = changelog();
   const dates = await releaseDates();
   const top = heading(latest);
   return (
@@ -52,7 +52,7 @@ export default async function WhatsNew() {
       <div className="wrap">
         <Reveal className="head">
           <h1 className="grad">What&apos;s new</h1>
-          <p>Every version of Airband, newest first.</p>
+          <p>The latest version of Airband.</p>
         </Reveal>
         <Reveal delay={0.1}>
           <article className="latest">
@@ -82,43 +82,6 @@ export default async function WhatsNew() {
             </ol>
           </article>
         </Reveal>
-
-        <section className="tl" aria-label="Earlier versions">
-          {earlier.map((r) => {
-            const h = heading(r);
-            const when = day(dates[h.number]);
-            return (
-              <Reveal key={r.version} className="tl-row">
-                <div className="tl-when">
-                  <b>{h.number}</b>
-                  {when && <small>{when}</small>}
-                  {h.note && <span className="tag quiet">{h.note}</span>}
-                </div>
-                <details className="tl-body">
-                  <summary>
-                    <ul className="tl-titles">
-                      {r.items.map((t, i) => (
-                        <li key={i}>{item(t).label}</li>
-                      ))}
-                    </ul>
-                    <span className="tl-toggle" />
-                  </summary>
-                  <ul className="tl-items">
-                    {r.items.map((t, i) => {
-                      const it = item(t);
-                      return (
-                        <li key={i}>
-                          {it.title && <b>{it.title}</b>}
-                          <Line text={it.line} />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </details>
-              </Reveal>
-            );
-          })}
-        </section>
 
         <p className="tl-end">
           <a className="pill" href={`${SITE.repo}/releases`} {...NEW_TAB}>

@@ -239,7 +239,8 @@ pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
     Ok(version)
 }
 
-/// Connects Airband to the agents found: its hook, tools and skills (the engine's own setup).
+/// Connects Airband to the agents found: its hook, tools and skills, and the `airband` command
+/// (the engine's own setup, as `npx airband` runs it).
 #[tauri::command]
 pub async fn connect_agents() -> Result<serde_json::Value, String> {
     connect()
@@ -248,7 +249,7 @@ pub async fn connect_agents() -> Result<serde_json::Value, String> {
 pub fn connect() -> Result<serde_json::Value, String> {
     let node = engine::node().ok_or("Node isn't there yet")?;
     let mut c = Command::new(&node);
-    c.arg(engine::engine_js()).args(["setup", "--json", "--no-command"]).arg("--node").arg(&node);
+    c.arg(engine::engine_js()).args(["setup", "--json"]).arg("--node").arg(&node);
     hide_window(&mut c);
     let out = c.output().map_err(|e| format!("couldn't start Airband's engine: {e}"))?;
     let text = String::from_utf8_lossy(&out.stdout);
