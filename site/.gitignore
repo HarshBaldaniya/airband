@@ -1,0 +1,9 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+# Copied from the app on every build (scripts/sync.mjs): one source for Roger and the brand.
+roger/
+public/brand/
+app/icon.svg
