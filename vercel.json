@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --prefix site",
+  "buildCommand": "npm run build --prefix site",
+  "outputDirectory": "site/out",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- site companion media CHANGELOG.md package.json",
+  "headers": [
+    { "source": "/opengraph-image", "headers": [{ "key": "Content-Type", "value": "image/png" }, { "key": "Cache-Control", "value": "public, max-age=86400" }] },
+    { "source": "/llms.txt", "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }] }
+  ]
+}

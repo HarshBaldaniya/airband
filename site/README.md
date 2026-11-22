@@ -22,12 +22,14 @@ the agents' logos. The copies are git-ignored.
 The pictures in `public/shots/` are of the real app, taken from a test Station with made-up chats.
 
 **Deploy:** Vercel, project `airband`, served at `airband.harshbaldaniya.com` (the domain's DNS
-is on Vercel). The built files are deployed as they are, so Vercel builds nothing. From `site/`,
-signed in once with `npx vercel login`:
+is on Vercel). The project is connected to this repository: a push to `main` that changes the site,
+`companion/`, `media/`, the changelog or the version builds and deploys it. The build settings are in
+the repository's root `vercel.json`. To deploy by hand from `site/` (signed in with
+`npx vercel login`):
 
 ```bash
 npm run deploy
 ```
 
-Deploy again after each release, once its files are on GitHub: the version and the file sizes come
-from the release.
+After a release, deploy once more when its files are on GitHub: the file sizes come from the
+release.
