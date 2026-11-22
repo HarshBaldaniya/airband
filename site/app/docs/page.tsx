@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowUpRight, Cable, Headphones, LifeBuoy, Rocket, Smartphone, SquareTerminal, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { Copy } from "@/components/Copy";
+import { InstallLine } from "@/components/DownloadButton";
 import { Reveal } from "@/components/Reveal";
 import { Toc } from "@/components/Toc";
 
@@ -15,6 +19,57 @@ const SECTIONS = [
   { id: "remove", title: "Uninstall" },
 ];
 
+const START = [
+  { title: "Paste the line", line: "In Terminal or PowerShell" },
+  { title: "Roger opens", line: "In a corner of your screen" },
+  { title: "Follow the tour", line: "It connects your agents" },
+];
+
+const MAC = (
+  <>
+    <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>R</kbd>
+  </>
+);
+
+const ROGER: { title: string; line: ReactNode }[] = [
+  { title: "A chat needs you", line: "He shows the request: Allow, Always or Deny" },
+  { title: "A chat is done", line: "He says what it did, and Review opens it" },
+  { title: "Move him", line: "Drag him anywhere. The – button tucks him away" },
+  { title: "Show or hide him", line: <>{MAC} on a Mac, <kbd>Alt</kbd> <kbd>Ctrl</kbd> <kbd>R</kbd> on Windows</> },
+];
+
+const LEVELS = [
+  { name: "Ping", line: "One line per ask", tag: "Default" },
+  { name: "Brief", line: "What was asked, done and still open" },
+  { name: "Full", line: "The reply in its own words" },
+];
+
+const COMMANDS = [
+  { cmd: "airband doctor", line: "Check everything, with the fix" },
+  { cmd: "airband update", line: "Move to the newest version" },
+  { cmd: 'airband find "x"', line: "Where something is in your code" },
+  { cmd: "airband standup", line: "What your chats did since yesterday" },
+  { cmd: "airband help", line: "Every command" },
+];
+
+const HELP: { when: string; fix: ReactNode }[] = [
+  { when: "An agent isn't connected", fix: <>Run <code>airband doctor</code>. It checks every agent and says what to fix.</> },
+  { when: "Roger is missing", fix: <>Press {MAC}, or choose <strong>Set up Airband…</strong> in the menu bar.</> },
+  { when: "You found a bug", fix: <><code>airband bug</code> opens a GitHub issue with your system filled in.</> },
+];
+
+function Part({ id, icon, title, children }: { id: string; icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <section id={id} className="gs">
+      <div className="gs-head">
+        <span className="gs-ico">{icon}</span>
+        <h2>{title}</h2>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default function Guide() {
   return (
     <div className="page">
@@ -23,75 +78,108 @@ export default function Guide() {
           <h1 className="grad">Guide</h1>
           <p>Everything you need, on one page.</p>
         </Reveal>
-        <div className="doc">
+        <Toc items={SECTIONS} chips />
+        <div className="gd">
           <aside>
             <Toc items={SECTIONS} />
           </aside>
           <article>
-            <section id="start">
-              <h2>Get started</h2>
-              <ol>
-                <li>Download the app for Mac or Windows, or run the command below in a terminal.</li>
-                <li>Open it. The first time, allow it once: it isn't signed yet.</li>
-                <li>Follow the tour. It finds your AI tools, fetches what's missing and connects them.</li>
+            <Part id="start" icon={<Rocket />} title="Get started">
+              <ol className="gs-steps">
+                {START.map((s, i) => (
+                  <li key={s.title}>
+                    <span className="n">{i + 1}</span>
+                    <span>
+                      <b>{s.title}</b>
+                      <span>{s.line}</span>
+                    </span>
+                  </li>
+                ))}
               </ol>
-              <Copy text="npx airband" />
-            </section>
+              <div className="gs-install">
+                <InstallLine />
+              </div>
+              <div className="gs-more">
+                <Link href="/download/">
+                  Download the file instead <ArrowUpRight />
+                </Link>
+                <span>
+                  Only the agents: <code>npx airband</code>
+                </span>
+              </div>
+            </Part>
 
-            <section id="roger">
-              <h2>Roger on your screen</h2>
-              <ul>
-                <li><strong>A chat needs you:</strong> Roger shows the request. Choose Allow, Always or Deny.</li>
-                <li><strong>A chat is done:</strong> he says what it did. Review opens it.</li>
-                <li><strong>Move him</strong> by dragging. The <strong>–</strong> button tucks him away.</li>
-                <li><kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>R</kbd> shows or hides him. On Windows, <kbd>Alt</kbd> <kbd>Ctrl</kbd> <kbd>R</kbd>.</li>
-              </ul>
-            </section>
+            <Part id="roger" icon={<Headphones />} title="Roger on your screen">
+              <div className="gs-tiles">
+                {ROGER.map((r) => (
+                  <div key={r.title}>
+                    <b>{r.title}</b>
+                    <span>{r.line}</span>
+                  </div>
+                ))}
+              </div>
+            </Part>
 
-            <section id="chats">
-              <h2>Connect chats</h2>
-              <ol>
-                <li>In VS Code's Tower, drag one chat's card onto another.</li>
+            <Part id="chats" icon={<Cable />} title="Connect chats">
+              <ol className="gs-list">
+                <li>In VS Code&apos;s Tower, drag one chat&apos;s card onto another.</li>
                 <li>When one finishes a reply, the other gets a short note with your next message.</li>
-                <li>Pick how much it gets: <strong>Ping</strong> (one line per ask), <strong>Brief</strong> or <strong>Full</strong>.</li>
               </ol>
-            </section>
+              <div className="gs-tiles three">
+                {LEVELS.map((l) => (
+                  <div key={l.name}>
+                    <b>
+                      {l.name}
+                      {l.tag && <em>{l.tag}</em>}
+                    </b>
+                    <span>{l.line}</span>
+                  </div>
+                ))}
+              </div>
+            </Part>
 
-            <section id="iphone">
-              <h2>Link your iPhone</h2>
-              <ol>
-                <li>In Roger's settings, choose <strong>Link</strong> next to <strong>Your phone</strong>.</li>
-                <li>Scan the code with your iPhone's camera.</li>
+            <Part id="iphone" icon={<Smartphone />} title="Link your iPhone">
+              <ol className="gs-list">
+                <li>
+                  In Roger&apos;s settings, choose <strong>Link</strong> next to <strong>Your phone</strong>.
+                </li>
+                <li>Scan the code with your iPhone&apos;s camera.</li>
                 <li>Add Airband to your Home Screen and open it. It links by itself.</li>
               </ol>
-              <p className="aside">The code works once, for 10 minutes. One iPhone per Mac. Alerts need iOS 16.4 or later.</p>
-            </section>
+              <p className="gs-note">The code works once, for 10 minutes. One iPhone per Mac. Alerts need iOS 16.4 or later.</p>
+            </Part>
 
-            <section id="commands">
-              <h2>The airband command</h2>
-              <pre>{`airband doctor      check everything, with the fix
-airband update      move to the newest version
-airband find "x"    where something is in your code
-airband standup     what your chats did since yesterday
-airband help        every command`}</pre>
-            </section>
+            <Part id="commands" icon={<SquareTerminal />} title="The airband command">
+              <div className="gs-rows">
+                {COMMANDS.map((c) => (
+                  <div key={c.cmd}>
+                    <code className="mono">{c.cmd}</code>
+                    <span>{c.line}</span>
+                  </div>
+                ))}
+              </div>
+            </Part>
 
-            <section id="help">
-              <h2>Something's not right</h2>
-              <ul>
-                <li>Run <code>airband doctor</code>. It checks every agent and says what to fix.</li>
-                <li>Roger missing? Press <kbd>⌥</kbd> <kbd>⌘</kbd> <kbd>R</kbd>, or choose <strong>Set up Airband…</strong> in his menu.</li>
-                <li><code>airband bug</code> opens a GitHub issue with your system filled in.</li>
-              </ul>
-            </section>
+            <Part id="help" icon={<LifeBuoy />} title="Something's not right">
+              <div className="gs-rows wide">
+                {HELP.map((h) => (
+                  <div key={h.when}>
+                    <b>{h.when}</b>
+                    <span>{h.fix}</span>
+                  </div>
+                ))}
+              </div>
+            </Part>
 
-            <section id="remove">
-              <h2>Uninstall</h2>
-              <ol>
-                <li>Run <code>npx airband remove</code>. Add <code>--purge</code> to delete its data too.</li>
+            <Part id="remove" icon={<Trash2 />} title="Uninstall">
+              <ol className="gs-list">
+                <li>
+                  Take Airband out of every agent. Add <code>--purge</code> to delete its data too.
+                </li>
                 <li>Quit Airband from its menu, then delete the app.</li>
               </ol>
-            </section>
+              <Copy text="npx airband remove" />
+            </Part>
           </article>
         </div>
       </div>

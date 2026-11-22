@@ -1,8 +1,9 @@
 "use client";
-// The guide's side menu: it marks the section you are reading.
+// The guide's menu: at the side on wide screens, a row of chips on narrow ones. It marks the
+// section you are reading.
 import { useEffect, useState } from "react";
 
-export function Toc({ items }: { items: { id: string; title: string }[] }) {
+export function Toc({ items, chips }: { items: { id: string; title: string }[]; chips?: boolean }) {
   const [on, setOn] = useState(items[0].id);
   useEffect(() => {
     const io = new IntersectionObserver(
@@ -19,7 +20,7 @@ export function Toc({ items }: { items: { id: string; title: string }[] }) {
     return () => io.disconnect();
   }, [items]);
   return (
-    <nav className="toc" aria-label="On this page">
+    <nav className={chips ? "toc-chips" : "toc"} aria-label="On this page">
       {items.map((i) => (
         <a key={i.id} href={`#${i.id}`} className={on === i.id ? "on" : undefined}>
           {i.title}
