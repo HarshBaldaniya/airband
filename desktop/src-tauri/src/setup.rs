@@ -67,7 +67,8 @@ fn home_dir() -> PathBuf {
     PathBuf::from(std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_else(|_| ".".into()))
 }
 
-fn engine_version() -> Option<String> {
+/// The engine's version, from its package.json.
+pub fn engine_version() -> Option<String> {
     let pkg = engine::engine_js().parent()?.join("package.json");
     let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(pkg).ok()?).ok()?;
     v["version"].as_str().map(String::from)
@@ -214,6 +215,12 @@ pub async fn install_engine(app: AppHandle) -> Result<String, String> {
     })
 }
 
+/// The newest engine on npm.
+pub fn latest_engine() -> Result<String, String> {
+    let meta: serde_json::Value = serde_json::from_str(&fetch_text("https://registry.npmjs.org/airband/latest")?).map_err(|_| "npm's answer didn't read")?;
+    meta["version"].as_str().map(String::from).ok_or_else(|| "no version on npm".into())
+}
+
 pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
     if std::env::var("AIRBAND_ENGINE_DIR").is_ok() {
         return engine_version().ok_or_else(|| "AIRBAND_ENGINE_DIR has no airband package".into());
@@ -233,9 +240,14 @@ pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
         let _ = std::fs::remove_file(&archive);
         return Err("the download didn't match npm's fingerprint, so it was thrown away. Try again.".into());
     }
-    let _ = std::fs::remove_dir_all(dir.join("package"));
-    untar(&archive, &dir)?;
+    // Unpacked beside the one in use, then swapped in, so a running Station never reads a half.
+    let next = dir.join("next");
+    let _ = std::fs::remove_dir_all(&next);
+    untar(&archive, &next)?;
     let _ = std::fs::remove_file(&archive);
+    let _ = std::fs::remove_dir_all(dir.join("package"));
+    std::fs::rename(next.join("package"), dir.join("package")).map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_dir_all(&next);
     Ok(version)
 }
 

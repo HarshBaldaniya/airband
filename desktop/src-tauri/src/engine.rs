@@ -11,6 +11,8 @@ use std::time::{Duration, SystemTime};
 use tauri::AppHandle;
 
 static CHILD: Mutex<Option<Child>> = Mutex::new(None);
+/// The engine is stopped on purpose, to start again on newer files (after an update).
+static RESTART: AtomicBool = AtomicBool::new(false);
 
 /// The engine's command line (airband.js).
 pub fn engine_js() -> PathBuf {
@@ -176,6 +178,7 @@ pub fn start(app: &AppHandle) {
                 return;
             };
             crate::log(&format!("engine: started (process {})", child.id()));
+            let started = std::time::Instant::now();
             *CHILD.lock().unwrap() = Some(child);
             let mut opened = false;
             for _ in 0..150 {
@@ -200,7 +203,16 @@ pub fn start(app: &AppHandle) {
                     break;
                 }
             }
+            if RESTART.swap(false, Ordering::Relaxed) {
+                crate::log("engine: starting again on the new version");
+                tries = 0;
+                continue;
+            }
             crate::log("engine: stopped by itself");
+            // A Station that ran a good while before stopping isn't one that can't start.
+            if started.elapsed() > Duration::from_secs(600) {
+                tries = 0;
+            }
             tries += 1;
             if tries >= 5 || (!opened && tries >= 2) {
                 crate::log("engine: gave up starting it again");
@@ -209,6 +221,15 @@ pub fn start(app: &AppHandle) {
             std::thread::sleep(Duration::from_secs(2));
         }
     });
+}
+
+/// Starts our Station again on the engine's newest files: it is stopped, and the watcher in
+/// `start` starts it again. A Station started elsewhere (the command line) is left as it is.
+pub fn restart() {
+    if let Some(c) = CHILD.lock().unwrap().as_mut() {
+        RESTART.store(true, Ordering::Relaxed);
+        let _ = c.kill();
+    }
 }
 
 pub fn stop(_app: &AppHandle) {

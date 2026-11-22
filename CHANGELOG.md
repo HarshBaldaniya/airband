@@ -6,6 +6,9 @@
   and opens it, with no warning to click through.
 - **The Mac app moves itself to Applications** when it is opened from its disk image, and starts
   again from there.
+- **The app keeps itself up to date.** Its engine (your agents' tools, skills and Roger's screens)
+  updates by itself. When a newer app is out, the menu and Roger's panel offer **Update**: one click
+  downloads it, checks its signature and starts it again.
 - **The app's setup adds the `airband` command too**, as `npx airband` does: one setup gives you
   Roger, your agents' tools and skills, and the command in any new terminal.
 

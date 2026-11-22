@@ -99,6 +99,18 @@ Click Airband's icon in the menu bar (Mac) or the tray (Windows), or right-click
 With no app running, nothing changes: each chat asks in its own terminal, as before.
 `airband station` gives the same requests and chats in a browser, on any computer.
 
+## Updates
+
+Airband keeps itself current:
+
+- **Its engine updates by itself.** Your agents' tools, skills and Roger's screens follow the newest
+  version within a few hours, with nothing to click.
+- **The app asks once.** When a newer app is out, Airband's menu shows **Update to Airband x.y.z**,
+  and Roger's panel shows **Update**. One click downloads it, checks its signature, and starts the new
+  version. No warning to click through, and your settings stay as they are.
+
+Apps from before 0.1.2 can't update themselves: install 0.1.2 once, the same way as the first time.
+
 ## Files
 
 The app keeps two files in `~/.airband`, next to the rest of Airband's data:

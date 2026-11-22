@@ -73,7 +73,9 @@ Publish to npm before pushing the tag: the plugin and the Gemini extension start
 has to exist. Check the plugin with `claude plugin validate .`.
 
 The tag builds the desktop app's downloads (the "Desktop app" workflow) and attaches them to the
-tag's GitHub release. To build them on a Mac instead, see [desktop/README.md](desktop/README.md).
+tag's GitHub release, with the signed update files and `latest.json`, which installed apps read to
+update themselves. Signing needs the repository secret `TAURI_SIGNING_PRIVATE_KEY` (see
+[desktop/README.md](desktop/README.md#updates)). To build them on a Mac instead, see [desktop/README.md](desktop/README.md).
 After the release's files are up, deploy the website again (`cd site && npm run deploy`): it reads
 the version and the file sizes from the release.
 

@@ -42,6 +42,24 @@ its first run, which accepts their license.
 Releases are built in CI: every `v*` tag runs the "Desktop app" workflow, which builds the three
 downloads and attaches them to the tag's GitHub release.
 
+## Updates
+
+An installed app updates itself (`src-tauri/src/update.rs`):
+
+- **The engine** (hook, tools, skills, Roger's screens) follows npm by itself. A minute after the
+  app starts, and every six hours, it fetches a newer `airband` package, checks npm's fingerprint,
+  sets the agents up with it and starts the Station again. Nothing to click.
+- **The app** reads `latest.json` from the latest GitHub release. When it names a newer version,
+  the menu shows **Update to Airband x.y.z** and Roger's panel shows **Update**. One click downloads
+  the file, checks its signature, puts it in place and starts the app again. `airband --update` (the
+  app's own binary) does the same from a terminal.
+
+Update files are signed with a key of the maintainer's: the private key is
+`~/.tauri/airband-updater.key` and the repository secret `TAURI_SIGNING_PRIVATE_KEY`, and its public
+half is `plugins.updater.pubkey` in `tauri.conf.json`. An installed app takes only files signed with
+that key, so keep a copy of it somewhere safe: without it, installed apps can't take a newer one.
+`npm run app:build` signs with the key in `~/.tauri`; a build without it stops at the signing step.
+
 ## Development
 
 `AIRBAND_ENGINE_DIR=<folder>` runs a local engine (a built `npm-dist/`) instead of the one from npm.

@@ -14,6 +14,16 @@ prints the exact fix for anything that isn't right.
 </details>
 
 <details>
+<summary><strong>The app doesn't show a newer version</strong></summary>
+
+It looks a minute after it starts, then every six hours. To update now, run this in Terminal:
+`/Applications/Airband.app/Contents/MacOS/airband --update`. On Windows:
+`& "$env:LOCALAPPDATA\Airband\airband.exe" --update`. What happened is in `~/.airband/app.log`
+(lines starting with `update:`).
+
+</details>
+
+<details>
 <summary><strong>A connected chat doesn't receive updates</strong></summary>
 
 Updates arrive with the chat's **next** message, not instantly (unless `airband.autoDeliver` is on).

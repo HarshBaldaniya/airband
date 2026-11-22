@@ -114,7 +114,36 @@ export interface DesktopBridge {
   nativeDrag?: boolean;
   /** A request or a finished chat came while hidden or tucked away: show the companion. */
   comeBack?(): void;
+  /** A newer app, if there is one; older apps don't have these. */
+  update?(): Promise<AppUpdate | undefined>;
+  onUpdate?(cb: (u: AppUpdate) => void): void;
+  /** Download the newer app, put it in place and start it. */
+  installUpdate?(): void;
+}
+
+/** A newer desktop app, as the app tells it. */
+export interface AppUpdate {
+  version?: string | null;
+  installing: boolean;
+  error?: string | null;
 }
 
 export const desktop: DesktopBridge | undefined = (window as unknown as { airbandDesktop?: DesktopBridge }).airbandDesktop;
+/** The newer app the desktop app found, followed from one place however often the panel opens. */
+let appUpdate: AppUpdate | undefined;
+const updateSubs = new Set<(u: AppUpdate | undefined) => void>();
+const setAppUpdate = (u: AppUpdate | undefined) => {
+  appUpdate = u;
+  updateSubs.forEach((f) => f(u));
+};
+if (desktop?.onUpdate) {
+  desktop.onUpdate(setAppUpdate);
+  void desktop.update?.().then((u) => u && setAppUpdate(u));
+}
+export function onAppUpdate(f: (u: AppUpdate | undefined) => void): () => void {
+  updateSubs.add(f);
+  f(appUpdate);
+  return () => void updateSubs.delete(f);
+}
+
 export const MODE: "desktop" | "phone" = (window as unknown as { AIRBAND_MODE?: string }).AIRBAND_MODE === "desktop" && desktop ? "desktop" : "phone";

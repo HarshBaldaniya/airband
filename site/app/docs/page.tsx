@@ -55,6 +55,7 @@ const COMMANDS = [
 const HELP: { when: string; fix: ReactNode }[] = [
   { when: "An agent isn't connected", fix: <>Run <code>airband doctor</code>. It checks every agent and says what to fix.</> },
   { when: "Roger is missing", fix: <>Press {MAC}, or choose <strong>Set up Airband…</strong> in the menu bar.</> },
+  { when: "A newer version is out", fix: <>The app updates its parts by itself. For the app, choose <strong>Update</strong> in its menu or Roger&apos;s panel.</> },
   { when: "You found a bug", fix: <><code>airband bug</code> opens a GitHub issue with your system filled in.</> },
 ];
 

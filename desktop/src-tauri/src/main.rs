@@ -7,6 +7,7 @@
 mod engine;
 mod install;
 mod setup;
+mod update;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -160,6 +161,9 @@ const BRIDGE: &str = r#"
     hide: () => invoke("hide"),
     setAsleep: (asleep) => invoke("asleep", { asleep }),
     comeBack: () => invoke("come_back"),
+    update: () => invoke("update_info"),
+    onUpdate: (cb) => on("update", cb),
+    installUpdate: () => invoke("install_update"),
   };
 })();
 "#;
@@ -418,6 +422,12 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let name = companion_name();
     let visible = app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false);
     let items = Menu::new(app)?;
+    let newer = update::current();
+    if let Some(v) = &newer.version {
+        let label = if newer.installing { format!("Updating to {v}…") } else { format!("Update to Airband {v}") };
+        items.append(&MenuItem::with_id(app, "update", label, !newer.installing, None::<&str>)?)?;
+        items.append(&PredefinedMenuItem::separator(app)?)?;
+    }
     if !p.set_up || !engine::was_ready() {
         items.append(&MenuItem::with_id(app, "setup", "Set up Airband…", true, None::<&str>)?)?;
     } else {
@@ -463,6 +473,7 @@ fn menu_event(app: &AppHandle, id: &str) {
         "notify" => set_pref_inner(app, "notify", !p.notify),
         "login" => set_pref_inner(app, "startAtLogin", !p.start_at_login),
         "setup" => setup::open(app),
+        "update" => update::install(app),
         "quit" => {
             engine::stop(app);
             app.exit(0);
@@ -520,6 +531,18 @@ fn asleep(asleep: bool, state: tauri::State<State>) {
 }
 
 /// A request or a finished chat came: hidden or tucked away, the companion comes back.
+/// A newer app, if there is one (Roger's panel shows it).
+#[tauri::command]
+fn update_info() -> update::AppUpdate {
+    update::current()
+}
+
+/// Update the app now (the panel's Update button).
+#[tauri::command]
+fn install_update(app: AppHandle) {
+    update::install(&app);
+}
+
 #[tauri::command]
 fn come_back(app: AppHandle) {
     let p = app.state::<State>().lock().unwrap().prefs.clone();
@@ -571,7 +594,12 @@ fn main() {
     install::offer_move();
     let state: State = Arc::new(Mutex::new(Shared { prefs: load_prefs(), hits: vec![], passing: true, asleep: false, side: "right", vertical: "bottom", last_move: None }));
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // `airband --update` while Airband runs: the running one updates.
+            if args.iter().any(|a| a == "--update") {
+                update::install(app);
+                return;
+            }
             // Opened again: show what is there instead of a second copy.
             if app.get_webview_window("main").is_some() {
                 show(app, true);
@@ -579,6 +607,7 @@ fn main() {
                 setup::open(app);
             }
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -614,11 +643,21 @@ fn main() {
             setup::connect_agents,
             setup::finish,
             setup::open_url,
+            update_info,
+            install_update,
         ])
         .setup(move |app| {
+            let handle = app.handle().clone();
+            // `--update` in a terminal: update the app, say what happened, and stop.
+            if std::env::args().any(|a| a == "--update") {
+                tauri::async_runtime::spawn(async move {
+                    let code = update::from_terminal(&handle).await;
+                    handle.exit(code);
+                });
+                return Ok(());
+            }
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-            let handle = app.handle().clone();
             let tray_icon = if cfg!(target_os = "macos") {
                 tauri::image::Image::from_bytes(include_bytes!("../icons/tray-template.png"))?
             } else {
@@ -641,6 +680,8 @@ fn main() {
             } else {
                 setup::open(&handle);
             }
+            // Newer engines by themselves, a newer app with one click.
+            update::watch(&handle);
             Ok(())
         })
         .build(tauri::generate_context!())

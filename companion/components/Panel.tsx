@@ -3,7 +3,7 @@
 // is this panel, full screen, without the settings (those change on the computer only).
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ExternalLink, MessageSquare, Send, Settings as Gear, X } from "lucide-react";
-import { api, desktop, MODE, type DesktopPrefs, type LiveChat, type StationState } from "../api";
+import { api, desktop, MODE, onAppUpdate, type AppUpdate, type DesktopPrefs, type LiveChat, type StationState } from "../api";
 import { PHONE_LINK } from "../../src/station/phone";
 import { CompanionMark } from "../figure/Companion";
 import { sounds } from "../sound";
@@ -347,6 +347,21 @@ export interface PanelProps {
  * The panel: a fixed top (who, how things stand, the ask box, the tabs) and one short list that
  * scrolls. However many chats run, it stays the same size, one tab at a time.
  */
+/** "Airband 0.1.2 is ready · Update": one click updates the app and starts it again. */
+function UpdateBar() {
+  const [u, setU] = useState<AppUpdate>();
+  useEffect(() => onAppUpdate(setU), []);
+  if (!u?.version) return null;
+  return (
+    <div className="updatebar">
+      <span className="ellipsis">{u.error ?? <>Airband {u.version} is ready</>}</span>
+      <button className="btn primary small" disabled={u.installing} onClick={() => (sounds.tick(), desktop?.installUpdate?.())}>
+        {u.installing ? "Updating…" : u.error ? "Try again" : "Update"}
+      </button>
+    </div>
+  );
+}
+
 export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onError, showSettings, prefs, onPref, answer, hasAnswer }: PanelProps) {
   const [settings, setSettings] = useState(!!showSettings);
   useEffect(() => setSettings(!!showSettings), [showSettings]);
@@ -389,6 +404,7 @@ export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onEr
           </button>
         )}
       </div>
+      {canSet && <UpdateBar />}
       {settings && canSet ? (
         <div className="panelscroll panelbody" key="settings">
           <SettingsView state={state} prefs={prefs} onPref={onPref ?? (() => undefined)} />

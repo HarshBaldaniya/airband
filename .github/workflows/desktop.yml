@@ -45,8 +45,13 @@ jobs:
       - run: npx esbuild desktop/tour/setup.tsx --bundle --minify --format=iife --jsx=automatic --target=es2020 --loader:.svg=text --define:process.env.NODE_ENV='"production"' --outfile=desktop/ui/setup.js
       - run: npm ci
         working-directory: desktop
+      # Signed for updates with the key in the repository's secrets (its public half is in
+      # tauri.conf.json): an installed app takes only files signed with it.
       - run: npx ${{ matrix.build }}
         working-directory: desktop
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       # The names people expect: Airband-<version>.dmg, Airband-Setup-<version>.exe.
       - run: node scripts/name-downloads.mjs
       # The size, so a release never grows past the target without anyone seeing it.
@@ -75,3 +80,22 @@ jobs:
             gh release create "$TAG" --title "$TAG" --notes-file notes.md || true
           fi
           gh release upload "$TAG" desktop/release/* --clobber
+
+  # Once every computer's files are on the release: latest.json, which installed apps read to
+  # find a newer version. "releases/latest" always points at the newest release's copy.
+  updater:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: desktop/release
+          merge-multiple: true
+      - run: node scripts/updater-manifest.mjs
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release upload "$TAG" desktop/release/latest.json --clobber

@@ -308,7 +308,7 @@
     "relay:dev": "node scripts/build-relay.mjs && npm --prefix relay run dev",
     "relay:deploy": "node scripts/build-relay.mjs && npm --prefix relay run deploy",
     "app:tour": "esbuild desktop/tour/setup.tsx --bundle --minify --format=iife --jsx=automatic --target=es2020 --loader:.svg=text --define:process.env.NODE_ENV=\"\\\"production\\\"\" --outfile=desktop/ui/setup.js",
-    "app:build": "npm run app:tour && npm --prefix desktop run tauri -- build --bundles app,dmg --target aarch64-apple-darwin && npm --prefix desktop run tauri -- build --bundles app,dmg --target x86_64-apple-darwin && node scripts/name-downloads.mjs",
+    "app:build": "npm run app:tour && export TAURI_SIGNING_PRIVATE_KEY=\"${TAURI_SIGNING_PRIVATE_KEY:-$HOME/.tauri/airband-updater.key}\" && npm --prefix desktop run tauri -- build --bundles app,dmg --target aarch64-apple-darwin && npm --prefix desktop run tauri -- build --bundles app,dmg --target x86_64-apple-darwin && node scripts/name-downloads.mjs",
     "app:build:windows": "npm run app:tour && npm --prefix desktop run tauri -- build --bundles nsis && node scripts/name-downloads.mjs",
     "app:build:windows-on-mac": "npm run app:tour && PATH=\"/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/lld/bin:$PATH\" npm --prefix desktop run tauri -- build --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis && node scripts/name-downloads.mjs"
   },

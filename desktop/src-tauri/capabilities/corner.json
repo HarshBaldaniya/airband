@@ -6,6 +6,6 @@
   "remote": { "urls": ["http://127.0.0.1:*/*", "http://127.0.0.1:*"] },
   "permissions": [
     "core:event:allow-listen", "core:event:allow-unlisten",
-    "allow-hit-areas", "allow-drag", "allow-prefs", "allow-set-pref", "allow-menu", "allow-hide", "allow-asleep", "allow-come-back", "allow-log-line"
+    "allow-hit-areas", "allow-drag", "allow-prefs", "allow-set-pref", "allow-menu", "allow-hide", "allow-asleep", "allow-come-back", "allow-log-line", "allow-update-info", "allow-install-update"
   ]
 }

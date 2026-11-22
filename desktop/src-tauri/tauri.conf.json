@@ -41,6 +41,18 @@
       "nsis": {
         "installMode": "currentUser"
       }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEREMUFDQ0VEREYzOTg5MTUKUldRVmlUbmY3Y3dhM1lXeWRRMzFRdnFNUDZOdFJnMGY0UlhaODlpZEptbkZuTU1qNHl6VitqZy8K",
+      "endpoints": [
+        "https://github.com/HarshBaldaniya/airband/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }
