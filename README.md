@@ -45,9 +45,15 @@ files.
 
 ## Install
 
-**Desktop app** (Mac and Windows). Download it from the
-[website](https://airband.harshbaldaniya.com/download/). The first start sets up every agent it finds.
-See [The desktop app](docs/desktop-app.md).
+**Desktop app** (Mac and Windows). One line installs it and opens it:
+
+```bash
+curl -fsSL https://airband.harshbaldaniya.com/install.sh | sh          # Mac, in Terminal
+irm https://airband.harshbaldaniya.com/install.ps1 | iex               # Windows, in PowerShell
+```
+
+Or download it from the [website](https://airband.harshbaldaniya.com/download/). The first start
+sets up every agent it finds. See [The desktop app](docs/desktop-app.md).
 
 **Command line** (any computer with [Node.js](https://nodejs.org) 20 or newer):
 

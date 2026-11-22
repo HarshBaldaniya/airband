@@ -5,6 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod engine;
+mod install;
 mod setup;
 
 use serde::{Deserialize, Serialize};
@@ -566,6 +567,8 @@ fn main() {
     if let Some(code) = self_check() {
         std::process::exit(code);
     }
+    // Started from the disk image: move to Applications and start from there.
+    install::offer_move();
     let state: State = Arc::new(Mutex::new(Shared { prefs: load_prefs(), hits: vec![], passing: true, asleep: false, side: "right", vertical: "bottom", last_move: None }));
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {

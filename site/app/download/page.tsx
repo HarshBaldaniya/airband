@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowUpRight } from "lucide-react";
 import { Copy } from "@/components/Copy";
+import { Install } from "@/components/Install";
 import { GitHub, Npm } from "@/components/Marks";
 import { Reveal } from "@/components/Reveal";
 import { Tiles } from "@/components/Tiles";
@@ -11,8 +12,8 @@ import { SITE } from "@/lib/site";
 export const metadata: Metadata = { title: "Download", description: "Airband for Mac and Windows, about 2 MB, or npx airband on any computer.", alternates: { canonical: "/download/" } };
 
 const THEN = [
-  { title: "Open it", line: "Drag to Applications, or run it" },
-  { title: "Allow it once", line: "It isn't signed yet" },
+  { title: "Open it", line: "Double-click Airband, or run the installer" },
+  { title: "Allow it once", line: "It isn't signed by Apple or Microsoft yet" },
   { title: "Follow Roger", line: "He sets up the rest" },
 ];
 
@@ -25,7 +26,11 @@ export default async function DownloadPage() {
           <h1 className="grad">Download Airband</h1>
           <p>Version {VERSION}. About 2 MB, and Roger sets up the rest.</p>
         </Reveal>
+        <Reveal delay={0.05}>
+          <Install />
+        </Reveal>
         <Reveal delay={0.1}>
+          <p className="or">Or download the file</p>
           <Tiles files={files} />
         </Reveal>
         <Reveal delay={0.15}>
@@ -41,12 +46,12 @@ export default async function DownloadPage() {
             ))}
           </div>
           <p className="head" style={{ margin: "18px auto 0", fontSize: 13.5, color: "var(--faint)" }}>
-            Mac: Privacy &amp; Security → Open Anyway · Windows: More info → Run anyway
+            Mac: System Settings → Privacy &amp; Security → Open Anyway · Windows: More info → Run anyway
           </p>
         </Reveal>
         <Reveal delay={0.1}>
           <div className="alt">
-            <b>Or in a terminal</b>
+            <b>Only the agents, no app</b>
             <Copy text="npx airband" />
             <a className="pill" href={SITE.npm} {...NEW_TAB}>
               <Npm /> npm <ArrowUpRight className="arrow" />

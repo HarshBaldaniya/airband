@@ -6,9 +6,22 @@ The desktop app puts Roger, a small companion, in a corner of your screen. He wa
 Claude Code, Codex and Gemini CLI, so you don't have to check each one. The app is built with Tauri
 on the system's own web view, so the download is about 2 MB.
 
+## Install in one line
+
+The quickest way: it picks the right file, checks it, installs Airband and opens it.
+
+| Computer | Paste this in |
+|---|---|
+| Mac (Apple silicon or Intel) | Terminal: `curl -fsSL https://airband.harshbaldaniya.com/install.sh \| sh` |
+| Windows 10 or 11 | PowerShell: `irm https://airband.harshbaldaniya.com/install.ps1 \| iex` |
+
+A file fetched this way isn't marked as downloaded by a browser, so there is no warning to click
+through and no second start. The scripts are short and readable:
+[install.sh](../site/public/install.sh), [install.ps1](../site/public/install.ps1).
+
 ## Download
 
-Get it from the [website](https://airband.harshbaldaniya.com/download/) or the
+Or get the file from the [website](https://airband.harshbaldaniya.com/download/) or the
 [latest release](https://github.com/HarshBaldaniya/airband/releases/latest):
 
 | Computer | File | Size |
@@ -17,9 +30,12 @@ Get it from the [website](https://airband.harshbaldaniya.com/download/) or the
 | Mac with an Intel processor | `Airband-<version>-Intel.dmg` | about 2 MB |
 | Windows 10 or 11 (64-bit) | `Airband-Setup-<version>.exe` | about 1.5 MB |
 
-The app isn't signed yet, so the first start shows a warning. On a Mac, open it once, then choose
-**Open Anyway** in System Settings → Privacy & Security. On Windows, choose **More info**, then
-**Run anyway**. The Windows installer installs for the current user and needs no admin rights.
+The app isn't signed by Apple or Microsoft yet, so a file downloaded in a browser shows a warning
+on its first start. On a Mac ("Airband.app" Not Opened), choose **Done**, then **Open Anyway** in
+System Settings → Privacy & Security. Opened from its disk image, Airband offers to move itself to
+Applications and starts again from there. On Windows, choose **More info**, then **Run anyway**: the
+installer starts Airband when it finishes. It installs for the current user and needs no admin
+rights.
 
 If an older download says **"Airband" is damaged and can't be opened**, download it again: releases
 from 0.1.1 on are signed so macOS offers Open Anyway instead. To open the copy you have, run

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+- **Install the app in one line.** `curl -fsSL https://airband.harshbaldaniya.com/install.sh | sh` on
+  a Mac, `irm https://airband.harshbaldaniya.com/install.ps1 | iex` on Windows: it installs Airband
+  and opens it, with no warning to click through.
+- **The Mac app moves itself to Applications** when it is opened from its disk image, and starts
+  again from there.
+
 ## 0.1.1
 - **An easier npm page.** A quick start with what setup prints, the commands in one place, and the
   other ways to install.

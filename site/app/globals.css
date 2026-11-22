@@ -358,6 +358,20 @@ p { margin: 0; }
 .page .head h1 { font-size: clamp(40px, 6vw, 64px); letter-spacing: -0.045em; }
 .page .head p { margin-top: 16px; color: var(--muted); font-size: 17px; }
 
+/* Download: the one-line install, then the files. */
+.install { max-width: 720px; margin: 0 auto 72px; padding: 24px; border-radius: 24px; border: 1px solid rgba(224, 122, 79, 0.4); background: radial-gradient(100% 90% at 50% 0%, rgba(224, 122, 79, 0.12), transparent 70%), var(--glass); }
+.install-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.install-top b { font-size: 16px; font-weight: 600; }
+.install p { margin-top: 14px; font-size: 13.5px; color: var(--muted); text-align: center; }
+.seg { display: inline-flex; padding: 3px; border-radius: 99px; border: 1px solid var(--line); background: rgba(0, 0, 0, 0.3); }
+.seg button { height: 30px; padding: 0 14px; border: 0; border-radius: 99px; background: transparent; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; transition: background 0.2s, color 0.2s; }
+.seg button:hover { color: var(--ink); }
+.seg button.on { background: var(--glass-2); color: var(--ink); }
+.install .cmd { height: auto; min-height: 48px; padding-top: 6px; padding-bottom: 6px; }
+.install .cmd .txt { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.or { margin: 0 0 20px; text-align: center; font-size: 14px; color: var(--faint); }
+@media (max-width: 520px) { .install { padding: 18px; } .install-top { flex-direction: column; align-items: stretch; text-align: center; } .seg { align-self: center; } }
+
 /* Download: three tiles of one shape; yours is lit. */
 .tiles { display: grid; grid-template-columns: 1fr 1.18fr 1fr; align-items: center; gap: 14px; max-width: 980px; margin: 0 auto; }
 .tile.side { padding: 30px 22px 22px; opacity: 0.85; }
