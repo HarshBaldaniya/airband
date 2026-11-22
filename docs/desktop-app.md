@@ -4,7 +4,7 @@
 
 The desktop app puts Roger, a small companion, in a corner of your screen. He watches every chat in
 Claude Code, Codex and Gemini CLI, so you don't have to check each one. The app is built with Tauri
-on the system's own web view, so the download is about 2 MB.
+on the system's own web view, so the download is about 3 MB.
 
 ## Install in one line
 
@@ -26,9 +26,9 @@ Or get the file from the [website](https://airband.harshbaldaniya.com/download/)
 
 | Computer | File | Size |
 |---|---|---|
-| Mac with Apple silicon (M1 or later) | `Airband-<version>-Apple-Silicon.dmg` | about 2 MB |
-| Mac with an Intel processor | `Airband-<version>-Intel.dmg` | about 2 MB |
-| Windows 10 or 11 (64-bit) | `Airband-Setup-<version>.exe` | about 1.5 MB |
+| Mac with Apple silicon (M1 or later) | `Airband-<version>-Apple-Silicon.dmg` | about 3 MB |
+| Mac with an Intel processor | `Airband-<version>-Intel.dmg` | about 3 MB |
+| Windows 10 or 11 (64-bit) | `Airband-Setup-<version>.exe` | about 2 MB |
 
 The app isn't signed by Apple or Microsoft yet, so a file downloaded in a browser shows a warning
 on its first start. On a Mac ("Airband.app" Not Opened), choose **Done**, then **Open Anyway** in

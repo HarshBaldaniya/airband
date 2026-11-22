@@ -54,7 +54,7 @@ airband help          # every command
 
 ## Other ways in
 
-- **Desktop app** for Mac and Windows, about 2 MB: Roger, a companion that shows when a chat needs
+- **Desktop app** for Mac and Windows, about 3 MB: Roger, a companion that shows when a chat needs
   you. [Download](https://airband.harshbaldaniya.com/download/)
 - **Claude Code plugin:** `/plugin install airband --marketplace HarshBaldaniya/airband`
 - **Gemini CLI extension:** `gemini extensions install https://github.com/HarshBaldaniya/airband`

@@ -17,7 +17,7 @@ export function GET() {
     "",
     "## Install",
     "",
-    `- Desktop app for Mac and Windows, about 2 MB: ${SITE.origin}/download/ (version ${VERSION})`,
+    `- Desktop app for Mac and Windows, about 3 MB: ${SITE.origin}/download/ (version ${VERSION})`,
     "- Any computer with Node.js 20 or newer: `npx airband`",
     "- Claude Code plugin: `/plugin install airband --marketplace HarshBaldaniya/airband`",
     "",

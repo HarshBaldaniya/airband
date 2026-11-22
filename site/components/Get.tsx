@@ -75,7 +75,7 @@ export function Get({ files }: { files: Download[] }) {
               <a key={pl} className="btn block" href={f.url}>
                 <ArrowDownToLine />
                 {NAME[pl]}
-                <span className="size">{mb(f.size) || "about 2 MB"}</span>
+                <span className="size">{mb(f.size) || "about 3 MB"}</span>
               </a>
             );
           })}

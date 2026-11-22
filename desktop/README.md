@@ -1,6 +1,6 @@
 # Desktop app
 
-The Airband desktop app: about 2 MB on a Mac and 1.5 MB on Windows. It is a Tauri 2 app on the
+The Airband desktop app: about 3 MB on a Mac and 2 MB on Windows. It is a Tauri 2 app on the
 system's own web view (WKWebView on macOS, WebView2 on Windows) and holds no copy of Airband itself.
 The first start's setup tour fetches Node.js (if needed) and the `airband` npm package, each checked
 against its publisher's fingerprint, then the app runs `airband station` and shows Roger from it.

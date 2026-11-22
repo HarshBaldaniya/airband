@@ -597,7 +597,7 @@ fn main() {
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // `airband --update` while Airband runs: the running one updates.
             if args.iter().any(|a| a == "--update") {
-                update::install(app);
+                update::check_and_install(app);
                 return;
             }
             // Opened again: show what is there instead of a second copy.

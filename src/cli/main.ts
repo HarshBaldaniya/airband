@@ -527,17 +527,42 @@ export async function main(argv: string[]): Promise<number> {
   function appCommand(all: string[], node: string | undefined): string | null {
     if (all.includes("--no-command")) return null;
     if (node && path.resolve(node).startsWith(path.join(airbandHome(), "runtime") + path.sep)) return "own-node";
-    const c = addCommand();
-    return c === true ? "added" : c === undefined ? "there" : c;
+    // One already there is kept when it is this version, and updated when it is older (the app
+    // updates its engine by itself, and the command follows it).
+    const have = theCommand();
+    if (have && commandVersion(have.path) === VERSION) return "there";
+    const c = addCommand(!!have);
+    return c === true ? (have ? "updated" : "added") : c === undefined ? "there" : c;
+  }
+
+  /** The version of the airband package a command on the PATH runs, when it can be read. */
+  function commandVersion(file: string): string | undefined {
+    try {
+      let dir = path.dirname(fs.realpathSync(file));
+      for (let i = 0; i < 4; i++) {
+        const pkg = path.join(dir, "package.json");
+        if (fs.existsSync(pkg)) {
+          const p = JSON.parse(fs.readFileSync(pkg, "utf8")) as { name?: string; version?: string };
+          if (p.name === NPM_PACKAGE) return p.version;
+        }
+        dir = path.dirname(dir);
+      }
+    } catch {
+      // A script that names the package (pnpm, Windows): its version can't be read.
+    }
+    return undefined;
   }
 
   /** Installs this version as the `airband` command, with the package manager that started this
    *  run (npm when that one can't: Yarn 2+, or pnpm without a global folder). True when added, a
-   *  reason when it couldn't be, undefined when it was already there. */
-  function addCommand(): true | string | undefined {
-    if (theCommand()) return undefined;
+   *  reason when it couldn't be, undefined when it was already there. `replace`: install this
+   *  version over the one there. */
+  function addCommand(replace = false): true | string | undefined {
+    const have = theCommand();
+    if (have && !replace) return undefined;
     const spec = process.env.AIRBAND_PACKAGE_SPEC || `${NPM_PACKAGE}@${VERSION}`;
-    const tries = [startedBy(), "npm" as const].filter((pm, i, all) => all.indexOf(pm) === i);
+    // Replacing one: with the package manager that installed it, so it stays in the same place.
+    const tries = [have && replace ? have.by : startedBy(), "npm" as const].filter((pm, i, all) => all.indexOf(pm) === i);
     let why = "";
     for (const pm of tries) {
       const g = globalInstall(pm, spec);

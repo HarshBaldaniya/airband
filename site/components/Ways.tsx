@@ -17,7 +17,7 @@ export function Ways({ files }: { files: Download[] }) {
           <AppWindow />
         </span>
         <b className="one">Desktop app</b>
-        <span className="one">Roger on your screen, about 2 MB</span>
+        <span className="one">Roger on your screen, about 3 MB</span>
         <div className="act">
           <a className="btn primary block" href={f.url}>
             {f.platform === "windows" ? <Windows /> : <Apple />}

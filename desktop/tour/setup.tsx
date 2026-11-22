@@ -158,7 +158,7 @@ function Setup({ onDone }: { onDone: (r: Result) => void }) {
           </Line>
           <Line label="Airband engine" item={items.engine} />
           <Line label="Connect your tools" item={items.connect}>
-            {(connected?.command === "added" || connected?.command === "there") && <p>The airband command works in any new terminal.</p>}
+            {(connected?.command === "added" || connected?.command === "updated" || connected?.command === "there") && <p>The airband command works in any new terminal.</p>}
             {connected?.codexTrust && <p>In Codex, type /hooks once and trust Airband.</p>}
           </Line>
         </ul>

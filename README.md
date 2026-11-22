@@ -39,7 +39,7 @@ files.
 
 - **Every agent, one place.** Claude Code, Codex and Gemini CLI, on macOS, Windows and Linux.
 - **Chats that keep each other informed,** at the level of detail you choose.
-- **Roger, a desktop companion** (about 2 MB) that shows when a chat needs you and what a finished
+- **Roger, a desktop companion** (about 3 MB) that shows when a chat needs you and what a finished
   chat did, with alerts on your iPhone from a Mac.
 - **Local by design.** No server, no account, no AI model of its own, and it never reads a login.
 

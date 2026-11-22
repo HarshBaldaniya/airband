@@ -8,7 +8,7 @@ import { NEW_TAB } from "@/lib/ext";
 import { downloads, VERSION } from "@/lib/release";
 import { SITE } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Download", description: "Airband for Mac and Windows, about 2 MB, or npx airband on any computer.", alternates: { canonical: "/download/" } };
+export const metadata: Metadata = { title: "Download", description: "Airband for Mac and Windows, about 3 MB, or npx airband on any computer.", alternates: { canonical: "/download/" } };
 
 const THEN = [
   { title: "Roger opens", line: "In a corner of your screen" },
@@ -23,7 +23,7 @@ export default async function DownloadPage() {
       <div className="wrap">
         <Reveal className="head">
           <h1 className="grad">Download Airband</h1>
-          <p>Version {VERSION}. About 2 MB, and Roger sets up the rest.</p>
+          <p>Version {VERSION}. About 3 MB, and Roger sets up the rest.</p>
         </Reveal>
         <Reveal delay={0.05}>
           <Get files={files} />

@@ -107,6 +107,19 @@ async fn check_app(app: &AppHandle) {
     }
 }
 
+/// `airband --update` while Airband runs: look now, and update only when there is a newer app.
+pub fn check_and_install(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        check_app(&app).await;
+        if current().version.is_some() {
+            install(&app);
+        } else {
+            log("update: asked to update, and this is the newest");
+        }
+    });
+}
+
 /// Downloads the newer app, checks it, puts it in place and starts it.
 pub fn install(app: &AppHandle) {
     {

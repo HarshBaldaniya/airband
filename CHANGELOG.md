@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+- **The `airband` command follows the app.** When the app updates its engine, an older `airband`
+  command is updated to the same version.
+
 ## 0.1.2
 - **Install the app in one line.** `curl -fsSL https://airband.harshbaldaniya.com/install.sh | sh` on
   a Mac, `irm https://airband.harshbaldaniya.com/install.ps1 | iex` on Windows: it installs Airband
