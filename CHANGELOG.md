@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3
 - **The `airband` command follows the app.** When the app updates its engine, an older `airband`
   command is updated to the same version.
 
