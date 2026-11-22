@@ -233,3 +233,50 @@ test("tickets, issues, bare PR numbers and Figma links are kept, from the ask an
   const [a] = updateRecord("tix", "claude", file);
   assert.deepEqual(a.refs.sort(), ["#128", "ENG-42", "Figma Billing-Page node 12:34", "ENG-142", "issue #77", "issue #78"].sort());
 });
+
+// ---- the summary a phone notification carries ----
+
+test("a finished reply becomes a short summary: the outcome, then up to three key points", async () => {
+  const { briefOf } = await import("../src/core/record");
+  const reply = [
+    "Airband 0.0.8 is released, and every part on your Mac now runs it.",
+    "",
+    "| Part | Now |",
+    "|---|---|",
+    "| **npm** | `airband@0.0.8` is the latest |",
+    "",
+    "**What changed:**",
+    "- **Roger answers as himself.** Who built him, what runs him, and his own voice in look-ups.",
+    "- **Chat spelling** like \"who r u\" works.",
+    "- **A thinking moment** before every answer, then the words come in.",
+    "- **Quick asks** under the Ask box.",
+  ].join("\n");
+  const brief = briefOf(reply);
+  const lines = brief.split("\n");
+  assert.equal(lines[0], "Airband 0.0.8 is released, and every part on your Mac now runs it.");
+  assert.equal(lines.length, 4, "the outcome and three points");
+  assert.equal(lines[1], "• Roger answers as himself. Who built him, what runs him, and his own voice in look-ups.", "a point that fits stays whole");
+  assert.ok(!/[*`|]/.test(brief), "no Markdown marks or tables");
+  assert.ok(brief.length <= 300);
+});
+
+test("a reply that leaves the next step to the person is your turn; a finished one is not", async () => {
+  const { briefOf, sentenceClip } = await import("../src/core/record");
+  const handBack = "I've prepared 0.0.8, committed and tagged it locally, but nothing is pushed yet: npm has to get 0.0.8 first, and only you can publish there.\n\n## Your step\nRun npm publish, then tell me \"published\".";
+  assert.match(briefOf(handBack), /only you can publish there\.$/m);
+  assert.equal(sentenceClip("One sentence here. And a second one that is long enough to go past the limit we set.", 40), "One sentence here.");
+  assert.equal(sentenceClip("a single very long sentence without any stop that keeps going on", 30), "a single very long sentence…");
+});
+
+test("an ask whose reply hands the next step to the person is marked yours", () => {
+  const file = chat(
+    you("bump the version and push it") +
+      ai("I've prepared 0.0.8, committed and tagged it locally, but nothing is pushed yet: only you can publish there.\n\n## Your step\nRun npm publish.") +
+      you("done") +
+      ai("Airband 0.0.8 is released, and every part on your Mac now runs it.\n\n- Tell me if the reload doesn't help."),
+  );
+  const [handBack, finished] = updateRecord("c2", "claude", file, { cwd: "/repo" });
+  assert.equal(handBack.yours, true, "only you can publish: your turn");
+  assert.equal(finished.yours, undefined, "a polite \"tell me if\" is not a hand-back");
+  assert.equal(finished.brief, "Airband 0.0.8 is released, and every part on your Mac now runs it.\n• Tell me if the reload doesn't help.");
+});

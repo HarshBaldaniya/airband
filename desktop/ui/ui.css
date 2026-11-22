@@ -354,3 +354,8 @@ body.phone .figure-motion, body.phone .figure-shadow { will-change: auto; }
 .quickasks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -2px; }
 .chip { height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid var(--line); background: var(--surface2); color: var(--muted); font-size: 12px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease; }
 .chip:hover { color: var(--ink); border-color: #4a4a54; }
+
+/* A finished chat's summary keeps its lines (the outcome, then its key points). */
+.psum { white-space: pre-line; }
+.pproj { display: flex; align-items: center; gap: 8px; }
+.yourturn { padding: 1px 8px; border-radius: 9px; background: rgba(224, 162, 44, 0.16); color: var(--needs); font-size: 12px; font-weight: 600; }

@@ -120,7 +120,7 @@ export interface CompanionProps {
  */
 const SCENE: Partial<Record<Mood, { length: number; every: number; later?: { after: number; every: number } }>> = {
   resting: { length: 5_600, every: 40_000, later: { after: 10 * 60_000, every: 90_000 } },
-  working: { length: 4_000, every: 30_000 },
+  working: { length: 4_000, every: 15_000 },
 };
 
 function useScene(mood: Mood): boolean {

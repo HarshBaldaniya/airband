@@ -232,7 +232,7 @@ export function FinishedToast({ finished, onSay, onClose }: { finished: Finished
       <CircleCheck size={16} className="toasticon" />
       <AgentMark agent={f.agent} />
       <span className="toasttext ellipsis">
-        <b>{f.title}</b> finished
+        <b>{f.title}</b> {f.yours ? "· your turn" : "finished"}
       </span>
       <button className="btn done small" onClick={() => (void api.open(f.chatId), onClose())}>
         <Eye size={13} /> Review

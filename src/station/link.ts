@@ -486,7 +486,10 @@ export class PhoneLink {
 
   private onFinished = (f: FinishedView) => {
     if (!this.file?.phone?.push || !this.away()) return;
-    void this.push({ title: `${f.title} is done`, body: f.did ?? "It finished. Have a look when you're back.", tag: `done-${f.chatId}`, kind: "done" });
+    // The chat, and whether the next step is yours, in the title; what happened in the body.
+    const where = f.project && f.project !== f.title ? ` · ${f.project}` : "";
+    const title = f.yours ? `${f.title}: your turn` : `${f.title} is done`;
+    void this.push({ title: `${title}${where}`, body: f.brief ?? f.did ?? "It finished. Have a look when you're back.", tag: `done-${f.chatId}`, kind: "done" });
   };
 
   /** An alert to the linked iPhone, straight to Apple's push service (no relay, nothing to pay). */
@@ -494,7 +497,8 @@ export class PhoneLink {
     const phone = this.file?.phone;
     if (!this.file || !phone?.push) return [];
     const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-    const payload = { ...note, title: clip(note.title, 80), body: clip(note.body, 240) };
+    // Room for a real summary (the Lock Screen shows its first lines; a long press shows it all).
+    const payload = { ...note, title: clip(note.title, 90), body: clip(note.body, 360) };
     let report: PushReport;
     try {
       const r = await sendPush(phone.push, payload, this.file.vapid, { topic: note.tag, ...(this.o.fetch ? { fetch: this.o.fetch } : {}) });

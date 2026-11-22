@@ -51,6 +51,9 @@ export interface FinishedView {
   agentName: string;
   did?: string;
   open?: string;
+  /** A summary for a notification, and whether the chat left the next step to you. */
+  brief?: string;
+  yours?: boolean;
   at: number;
 }
 
@@ -274,7 +277,7 @@ export class Station extends EventEmitter {
       // done, and only just stopped, it finished now too.
       const justNew = was === undefined && now - c.since < JUST_FINISHED_MS;
       if (!first && c.status === "done" && (was === "working" || was === "waiting" || justNew)) {
-        this.finished.set(c.id, { chatId: c.id, title: c.title, project: c.project, agent: c.agent, agentName: AGENT_NAME[c.agent], ...(c.lastDid ? { did: c.lastDid } : {}), ...(c.open ? { open: c.open } : {}), at: now });
+        this.finished.set(c.id, { chatId: c.id, title: c.title, project: c.project, agent: c.agent, agentName: AGENT_NAME[c.agent], ...(c.lastDid ? { did: c.lastDid } : {}), ...(c.open ? { open: c.open } : {}), ...(c.lastBrief ? { brief: c.lastBrief } : {}), ...(c.yours ? { yours: true } : {}), at: now });
         this.emit("finished", this.finished.get(c.id));
       }
       if (c.status === "working" || c.status === "waiting") this.finished.delete(c.id);

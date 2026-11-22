@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.9
+- **Alerts with a real summary.** A finished chat's alert on your iPhone says what happened, then
+  up to three key points, about 300 characters at most. You can read the result without going back
+  to your Mac.
+- **"Your turn" when a chat waits for you.** A turn that ends by handing you the next step (a
+  question, "your step", "only you can") now says "your turn" instead of "is done", followed by
+  exactly what to do. The Mac's card and the iPhone's Done list say it too. The alert's title names
+  the project.
+- **Working shows all the time.** While a chat works, Roger's antenna keeps a soft glow, and its
+  radio waves ripple out every 15 seconds.
+
 ## 0.0.8
 - **Roger answers as himself.** Ask who he is, who built him or what runs him, and he says he is
   Airband's helper, built by Harsh Baldaniya. Look-ups speak as Roger too, and a line such as "I'm

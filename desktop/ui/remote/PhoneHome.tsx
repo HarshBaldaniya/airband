@@ -32,20 +32,34 @@ function Hero({ state, up, mood, name, design }: { state: StationState; up: bool
 }
 
 /** What finished today: from the computer's "finished" list, and the chats that ended today. */
-function finishedToday(state: StationState): { id: string; title: string; project: string; agent: string; did?: string; at: number }[] {
+interface DoneEntry {
+  id: string;
+  title: string;
+  project: string;
+  agent: string;
+  /** Its summary: the outcome, then key points, one per line. */
+  did?: string;
+  /** It left the next step to you. */
+  yours?: boolean;
+  at: number;
+}
+
+function finishedToday(state: StationState): DoneEntry[] {
   const start = new Date(state.now);
   start.setHours(0, 0, 0, 0);
   const seen = new Set<string>();
-  const out: { id: string; title: string; project: string; agent: string; did?: string; at: number }[] = [];
+  const out: DoneEntry[] = [];
   for (const f of state.finished as FinishedView[]) {
     if (f.at < start.getTime() || seen.has(f.chatId)) continue;
     seen.add(f.chatId);
-    out.push({ id: f.chatId, title: f.title, project: f.project, agent: f.agent, ...(f.did ? { did: f.did } : {}), at: f.at });
+    const did = f.brief ?? f.did;
+    out.push({ id: f.chatId, title: f.title, project: f.project, agent: f.agent, ...(did ? { did } : {}), ...(f.yours ? { yours: true } : {}), at: f.at });
   }
   for (const c of state.chats as LiveChat[]) {
     if (c.status !== "done" || c.since < start.getTime() || seen.has(c.id)) continue;
     seen.add(c.id);
-    out.push({ id: c.id, title: c.title, project: c.project, agent: c.agent, ...(c.lastDid ? { did: c.lastDid } : {}), at: c.since });
+    const did = c.lastBrief ?? c.lastDid;
+    out.push({ id: c.id, title: c.title, project: c.project, agent: c.agent, ...(did ? { did } : {}), ...(c.yours ? { yours: true } : {}), at: c.since });
   }
   return out.sort((a, b) => b.at - a.at);
 }
@@ -62,7 +76,7 @@ function Section({ title, count, children }: { title: string; count?: number; ch
   );
 }
 
-function DoneItem({ item }: { item: ReturnType<typeof finishedToday>[number] }) {
+function DoneItem({ item }: { item: DoneEntry }) {
   const [open, setOpen] = useState(false);
   return (
     <li className="pitem done" onClick={() => setOpen(!open)}>
@@ -74,7 +88,12 @@ function DoneItem({ item }: { item: ReturnType<typeof finishedToday>[number] }) 
           <b className="ellipsis">{item.title}</b>
           <span className="muted">{ago(item.at)}</span>
         </span>
-        {item.project !== item.title && <span className="muted pproj">{item.project}</span>}
+        {(item.project !== item.title || item.yours) && (
+          <span className="pproj">
+            {item.yours && <span className="yourturn">Your turn</span>}
+            {item.project !== item.title && <span className="muted">{item.project}</span>}
+          </span>
+        )}
         {item.did ? <span className={`psum${open ? " open" : ""}`}>{item.did}</span> : <span className="psum muted">Finished.</span>}
       </span>
     </li>

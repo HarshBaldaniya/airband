@@ -22,6 +22,9 @@ export interface LiveChat {
   /** The person's latest ask, and what came of it. */
   lastAsk?: string;
   lastDid?: string;
+  /** The latest reply's notification summary (see briefOf), and whether it left the next step to you. */
+  lastBrief?: string;
+  yours?: boolean;
   /** A question or "Next:" the latest reply ended on. */
   open?: string;
   updatedAt: number;
@@ -169,6 +172,8 @@ export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60):
       ...(r.line ? { line: short(r.line, 200) } : {}),
       ...(ask ? { lastAsk: short(ask.ask, 200), lastDid: short(ask.did, 280) } : {}),
       ...(ask?.open ? { open: short(ask.open, 200) } : {}),
+      ...(ask?.brief ? { lastBrief: ask.brief } : {}),
+      ...(ask?.yours ? { yours: true } : {}),
       updatedAt: last,
       since: hook?.at ?? last,
     });

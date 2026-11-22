@@ -51,8 +51,11 @@
 /* A point to grow from: the antenna's light, and where the "z"s start. */
 .fx-antenna, .fx-zzz { width: 0; height: 0; }
 
-/* Working: the antenna is on air: in each scene its light glows and two radio waves ripple out. */
-.companion-figure.mood-working.scene .fx-antenna { display: block; }
+/* Working: the antenna is on air the whole time: a soft glow that holds still (it costs nothing to
+   show). In each scene the glow pulses and two radio waves ripple out. */
+.companion-figure.mood-working .fx-antenna { display: block; }
+.companion-figure.mood-working:not(.scene) .fx-antenna i { display: none; }
+.companion-figure.mood-working:not(.scene) .fx-antenna b { animation: none; opacity: 0.75; }
 .fx-antenna b, .fx-antenna i { position: absolute; border-radius: 50%; will-change: transform, opacity; }
 .fx-antenna b { width: 2em; height: 2em; margin: -1em 0 0 -1em; background: radial-gradient(closest-side, rgba(110, 175, 255, 0.95), rgba(110, 175, 255, 0)); animation: fx-glow 2s ease-in-out 2 both; }
 .fx-antenna i { width: 1.4em; height: 1.4em; margin: -0.7em 0 0 -0.7em; border: 0.14em solid rgba(110, 175, 255, 0.8); animation: fx-wave 2.4s ease-out 1 both; }
