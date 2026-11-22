@@ -50,6 +50,9 @@ when `AIRBAND_TEST_DIR` names a folder that has some; otherwise they are skipped
 | `npm/` | The npm package's README |
 | `scripts/` | Build, packaging and release scripts |
 | `test/` | Tests (`node --test`) |
+| `bin/mcp.cjs` | Starts Airband's tools for the Claude Code plugin and the Gemini CLI extension |
+| `.claude-plugin/`, `gemini-extension.json` | The Claude Code plugin and the Gemini CLI extension |
+| `.vscode/` | **Run Airband** (F5) and its build task, for working on the extension |
 
 ## Releasing
 
