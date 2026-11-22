@@ -42,6 +42,14 @@ Airband was called Crosstalk. `npx airband` moves a Crosstalk setup over by itse
 agent's tools, hooks, skills and commands, Tab completion, and the old `crosstalk` command.
 </details>
 
+<details>
+<summary><strong>macOS says Airband "is damaged and can't be opened"</strong></summary>
+
+Downloads before the signed 0.1.1 build were not signed as a whole, and macOS calls such an app
+damaged. Download it again from the [website](https://airband.harshbaldaniya.com/download/), or run
+`xattr -cr /Applications/Airband.app` once in Terminal and open it.
+</details>
+
 ## FAQ
 
 **Does it cost tokens?** Notes between chats are short (Ping is one line per ask) and travel with

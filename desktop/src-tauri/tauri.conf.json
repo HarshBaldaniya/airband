@@ -30,7 +30,8 @@
     "category": "DeveloperTool",
     "shortDescription": "Roger on your desktop: your AI chats, one place to answer them.",
     "macOS": {
-      "minimumSystemVersion": "11.0"
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-"
     },
     "windows": {
       "webviewInstallMode": {

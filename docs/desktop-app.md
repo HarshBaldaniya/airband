@@ -21,6 +21,10 @@ The app isn't signed yet, so the first start shows a warning. On a Mac, open it 
 **Open Anyway** in System Settings → Privacy & Security. On Windows, choose **More info**, then
 **Run anyway**. The Windows installer installs for the current user and needs no admin rights.
 
+If an older download says **"Airband" is damaged and can't be opened**, download it again: releases
+from 0.1.1 on are signed so macOS offers Open Anyway instead. To open the copy you have, run
+`xattr -cr /Applications/Airband.app` once in Terminal, then open it.
+
 ## First start
 
 A short tour sets everything up:
