@@ -75,6 +75,7 @@ export function findCommand(name: string, platform: NodeJS.Platform = process.pl
       ? [
           path.join(process.env.APPDATA ?? path.join(home, "AppData", "Roaming"), "npm", `${name}.cmd`),
           path.join(home, ".local", "bin", `${name}.exe`),
+          path.join(process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local"), "Microsoft", "WinGet", "Links", `${name}.exe`),
           path.join(process.env.ProgramFiles ?? "C:\\Program Files", "nodejs", `${name}.exe`),
         ]
       : [path.join(home, ".local", "bin", name), `/opt/homebrew/bin/${name}`, `/usr/local/bin/${name}`, `/usr/bin/${name}`];

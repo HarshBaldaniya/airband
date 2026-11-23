@@ -45,7 +45,8 @@ from 0.1.1 on are signed so macOS offers Open Anyway instead. To open the copy y
 
 A short tour sets everything up:
 
-1. It finds the AI coding tools on your computer.
+1. It finds the AI coding tools on your computer. With none yet, it shows Claude Code, Codex and
+   Gemini CLI, each linked to its official website, and finds one as soon as it is installed.
 2. It checks Node.js. Airband needs version 20 or newer. If yours is missing or older, the tour can
    fetch its own copy from nodejs.org, which leaves yours as it is.
 3. It fetches Airband's engine (the `airband` npm package).

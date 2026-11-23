@@ -98,8 +98,8 @@ pub fn look() -> Scan {
         engine: engine_version(),
         agents: vec![
             agent("Claude Code", "claude", "https://claude.com/product/claude-code"),
-            agent("Codex", "codex", "https://github.com/openai/codex"),
-            agent("Gemini CLI", "gemini", "https://github.com/google-gemini/gemini-cli"),
+            agent("Codex", "codex", "https://developers.openai.com/codex/cli"),
+            agent("Gemini CLI", "gemini", "https://geminicli.com"),
         ],
         editors: vec![
             Found { name: "VS Code", found: app_exists("/Applications/Visual Studio Code.app", &["Programs\\Microsoft VS Code", "Microsoft VS Code"]), detail: None, link: "https://code.visualstudio.com" },

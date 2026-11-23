@@ -6,6 +6,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Companion } from "../../companion/figure/Companion";
+import claude from "../../site/public/brand/agents/claudecode.svg";
+import codex from "../../site/public/brand/agents/codex.svg";
+import gemini from "../../site/public/brand/agents/gemini.svg";
 import "./setup.css";
 
 interface Found { name: string; found: boolean; detail?: string | null; link: string }
@@ -84,7 +87,7 @@ function Setup({ onDone }: { onDone: (r: Result) => void }) {
     const [s] = await Promise.all([call<Scan>("scan"), wait(700)]);
     setScan(s);
     const found = s.agents.filter((a) => a.found).map((a) => a.name);
-    set("computer", found.length ? { state: "done", note: `${list(found)} found` } : { state: "needs", note: "No AI coding tool yet" });
+    set("computer", found.length ? { state: "done", note: `${list(found)} found` } : { state: "needs", note: "None yet" });
     set("node", s.node_ok ? { state: "done", note: s.node! } : { state: "needs", note: s.node ? `${s.node} is too old` : "Not installed" });
     // The engine downloads without Node; only running it needs Node.
     let engine = s.engine;
@@ -117,6 +120,25 @@ function Setup({ onDone }: { onDone: (r: Result) => void }) {
 
   useEffect(() => void run(), [run]);
 
+  // With no AI tool yet, it is looked for again every few seconds: one installed while this window
+  // is open shows up by itself, and the rest of the setup carries on.
+  const lacking = items.computer.state === "needs" && !running;
+  useEffect(() => {
+    if (!lacking) return;
+    let busy = false;
+    const id = setInterval(async () => {
+      if (busy) return;
+      busy = true;
+      const s = await call<Scan>("scan").catch(() => undefined);
+      busy = false;
+      if (s?.agents.some((a) => a.found)) {
+        clearInterval(id);
+        void run();
+      }
+    }, 4000);
+    return () => clearInterval(id);
+  }, [lacking, run]);
+
   const installNode = async () => {
     setRunning(true);
     set("node", { state: "working", note: "Downloading…" });
@@ -138,8 +160,8 @@ function Setup({ onDone }: { onDone: (r: Result) => void }) {
         <h1>Setting up</h1>
         <p className="lede">Everything comes from its official source and is checked before it runs.</p>
         <ul className="lines">
-          <Line label="Your computer" item={items.computer}>
-            {items.computer.state === "needs" && scan && <Tools scan={scan} />}
+          <Line label="AI coding tool" item={items.computer}>
+            {items.computer.state === "needs" && scan && <Tools scan={scan} watching />}
           </Line>
           <Line label="Node.js" item={items.node}>
             {items.node.state === "needs" && scan && (
@@ -177,20 +199,33 @@ function Setup({ onDone }: { onDone: (r: Result) => void }) {
   );
 }
 
-/** "Airband works with Claude Code, Codex or Gemini CLI", each a link to where it comes from. */
-function Tools({ scan }: { scan: Scan }) {
+/** Each AI tool Airband works with: its own logo, who makes it, and its official website. */
+const TOOL: Record<string, { logo: string; by: string }> = {
+  "Claude Code": { logo: claude, by: "Anthropic" },
+  Codex: { logo: codex, by: "OpenAI" },
+  "Gemini CLI": { logo: gemini, by: "Google" },
+};
+
+/** The AI tools to choose from, one tile each. A tile opens that tool's website. */
+function Tools({ scan, watching }: { scan: Scan; watching?: boolean }) {
   return (
-    <p className="say">
-      Airband works with{" "}
-      {scan.agents.map((a, i) => (
-        <span key={a.name}>
-          <button className="link" onClick={() => open(a.link)}>
-            {a.name}
+    <>
+      <div className="tools">
+        {scan.agents.map((a) => (
+          <button key={a.name} className="tool" title={a.link} onClick={() => open(a.link)}>
+            <span className="logo" dangerouslySetInnerHTML={{ __html: TOOL[a.name]?.logo ?? "" }} />
+            <b>{a.name}</b>
+            <span className="by">{TOOL[a.name]?.by}</span>
+            <span className="go" aria-hidden>↗</span>
           </button>
-          {i < scan.agents.length - 2 ? ", " : i === scan.agents.length - 2 ? " or " : "."}
-        </span>
-      ))}
-    </p>
+        ))}
+      </div>
+      {watching && (
+        <p className="hint">
+          <i aria-hidden /> Install one. I'll notice it here.
+        </p>
+      )}
+    </>
   );
 }
 

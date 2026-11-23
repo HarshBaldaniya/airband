@@ -37,7 +37,14 @@ pub fn system_node() -> Option<PathBuf> {
     find_command("node")
 }
 
+/// A command's full path: on the PATH, or where its installer usually puts it (the engine's
+/// `findCommand` looks in the same places, so the setup tour and Roger agree).
 pub fn find_command(name: &str) -> Option<PathBuf> {
+    refresh_path();
+    on_path(name).or_else(|| usual_places(name).into_iter().find(|p| p.is_file()))
+}
+
+fn on_path(name: &str) -> Option<PathBuf> {
     let out = if cfg!(windows) {
         let mut c = Command::new("where");
         c.arg(name);
@@ -48,9 +55,103 @@ pub fn find_command(name: &str) -> Option<PathBuf> {
         Command::new(shell).args(["-lc", &format!("command -v {name}")]).output().ok()?
     };
     let text = String::from_utf8_lossy(&out.stdout);
-    let line = text.lines().map(str::trim).find(|l| !l.is_empty() && (cfg!(not(windows)) || l.ends_with(".exe") || l.ends_with(".cmd")))?;
+    let runs = |l: &str| {
+        let l = l.to_ascii_lowercase();
+        cfg!(not(windows)) || l.ends_with(".exe") || l.ends_with(".cmd")
+    };
+    let line = text.lines().map(str::trim).find(|l| !l.is_empty() && runs(l))?;
     let p = PathBuf::from(line);
     p.exists().then_some(p)
+}
+
+fn usual_places(name: &str) -> Vec<PathBuf> {
+    let home = PathBuf::from(std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default());
+    if cfg!(windows) {
+        let env = |k: &str, or: PathBuf| std::env::var(k).map(PathBuf::from).unwrap_or(or);
+        let roaming = env("APPDATA", home.join("AppData").join("Roaming"));
+        let local = env("LOCALAPPDATA", home.join("AppData").join("Local"));
+        let programs = env("ProgramFiles", PathBuf::from("C:\\Program Files"));
+        vec![
+            roaming.join("npm").join(format!("{name}.cmd")),
+            home.join(".local").join("bin").join(format!("{name}.exe")),
+            local.join("Microsoft").join("WinGet").join("Links").join(format!("{name}.exe")),
+            programs.join("nodejs").join(format!("{name}.exe")),
+        ]
+    } else {
+        vec![home.join(".local").join("bin").join(name), PathBuf::from(format!("/opt/homebrew/bin/{name}")), PathBuf::from(format!("/usr/local/bin/{name}")), PathBuf::from(format!("/usr/bin/{name}"))]
+    }
+}
+
+/// Windows gives a program the PATH of the moment it started. A tool installed since then (Claude
+/// Code's installer adds %USERPROFILE%\.local\bin, npm adds its own folder) is only in the
+/// registry, so "Check again" never found it. The PATH is read again from there, and each new
+/// folder is added after what the app already had. The engine and the terminals Roger opens get it too.
+pub fn refresh_path() {
+    #[cfg(windows)]
+    {
+        let read = |key: &str| -> Option<String> {
+            let mut c = Command::new("reg");
+            c.args(["query", key, "/v", "Path"]);
+            hide_window(&mut c);
+            let out = c.output().ok()?;
+            let text = String::from_utf8_lossy(&out.stdout).to_string();
+            let line = text.lines().find(|l| l.contains("REG_"))?;
+            let value = line[line.find("REG_")?..].split_once(char::is_whitespace)?.1.trim().to_string();
+            Some(expand(&value, |k| std::env::var(k).ok()))
+        };
+        let now = std::env::var("PATH").unwrap_or_default();
+        let saved = [r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", r"HKCU\Environment"].iter().filter_map(|k| read(k)).collect::<Vec<_>>().join(";");
+        let merged = merge_path(&now, &saved);
+        if merged != now {
+            std::env::set_var("PATH", merged);
+        }
+    }
+}
+
+/// `%NAME%` replaced by its value. An unknown one is left as it is.
+#[cfg_attr(not(any(windows, test)), allow(dead_code))]
+pub fn expand(value: &str, var: impl Fn(&str) -> Option<String>) -> String {
+    let mut out = String::new();
+    let mut rest = value;
+    while let Some(a) = rest.find('%') {
+        out.push_str(&rest[..a]);
+        let after = &rest[a + 1..];
+        match after.find('%') {
+            Some(b) => {
+                let name = &after[..b];
+                match (!name.is_empty()).then(|| var(name)).flatten() {
+                    Some(v) => out.push_str(&v),
+                    None => out.push_str(&format!("%{name}%")),
+                }
+                rest = &after[b + 1..];
+            }
+            None => {
+                out.push('%');
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The PATH the app has, then each folder of `saved` it lacks. Folders compare as Windows compares
+/// them: case and a last backslash do not count.
+#[cfg_attr(not(any(windows, test)), allow(dead_code))]
+pub fn merge_path(now: &str, saved: &str) -> String {
+    let key = |d: &str| d.trim().trim_end_matches(['\\', '/']).to_ascii_lowercase();
+    let mut seen: Vec<String> = now.split(';').map(key).filter(|d| !d.is_empty()).collect();
+    let mut out = now.trim_end_matches(';').to_string();
+    for d in saved.split(';').map(str::trim).filter(|d| !d.is_empty()) {
+        if !seen.contains(&key(d)) {
+            seen.push(key(d));
+            if !out.is_empty() {
+                out.push(';');
+            }
+            out.push_str(d);
+        }
+    }
+    out
 }
 
 /// The oldest Node.js the engine runs on (its package.json "engines").
@@ -236,5 +337,22 @@ pub fn stop(_app: &AppHandle) {
     if let Some(mut c) = CHILD.lock().unwrap().take() {
         let _ = c.kill();
         let _ = c.wait();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expands_variables() {
+        let var = |k: &str| (k == "USERPROFILE").then(|| "C:\\Users\\me".to_string());
+        assert_eq!(expand("%USERPROFILE%\\.local\\bin;%NOPE%\\x;50%", var), "C:\\Users\\me\\.local\\bin;%NOPE%\\x;50%");
+    }
+
+    #[test]
+    fn adds_only_new_folders() {
+        assert_eq!(merge_path(r"C:\Windows;C:\npm\", r"c:\windows\;C:\npm;C:\Users\me\.local\bin;"), r"C:\Windows;C:\npm\;C:\Users\me\.local\bin");
+        assert_eq!(merge_path("", "C:\\a"), "C:\\a");
     }
 }

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+- **Setup finds an AI tool installed after Airband started (Windows).** Windows keeps a program's
+  PATH from when it started, so a newly installed Claude Code stayed "not installed", even after
+  **Check again**. Setup now reads the PATH again and also looks where each tool's installer puts
+  it, the same places Roger looks.
+- **A clearer choice of AI tool in setup.** With none installed, setup shows Claude Code, Codex and
+  Gemini CLI as three tiles with their own logos. Each opens the tool's official website, not its
+  GitHub page. Setup looks again every few seconds and carries on once one is there.
+
 ## 0.1.4
 - **Open and Review go to the very chat, Terminal first.** For Claude Code, Codex and Gemini CLI:
   - A chat running in Terminal or iTerm: its own tab comes forward.
