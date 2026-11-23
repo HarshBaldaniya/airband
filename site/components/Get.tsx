@@ -46,7 +46,7 @@ function useChip() {
  *  it is starting, then where the file went. */
 type Started = { platform: Download["platform"]; step: "starting" | "started" };
 
-export function Get({ files }: { files: Download[] }) {
+export function Get({ files, version }: { files: Download[]; version: string }) {
   const [started, setStarted] = useState<Started>();
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -88,7 +88,12 @@ export function Get({ files }: { files: Download[] }) {
               <a key={pl} className={`btn block${s ? ` ${s}` : ""}`} href={f.url} onClick={() => start(pl)} aria-live="polite">
                 {s === "starting" ? <LoaderCircle className="spin" /> : s === "started" ? <Check /> : <ArrowDownToLine />}
                 {s === "starting" ? "Starting download…" : s === "started" ? "Check your downloads" : NAME[pl]}
-                {!s && <span className="size">{mb(f.size) || "about 3 MB"}</span>}
+                {!s && (
+                  <span className="size">
+                    {mb(f.size) || "about 3 MB"}
+                    {f.version !== version && ` · ${f.version}`}
+                  </span>
+                )}
               </a>
             );
           })}

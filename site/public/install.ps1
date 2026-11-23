@@ -2,7 +2,8 @@
 #
 #   irm https://airband.harshbaldaniya.com/install.ps1 | iex
 #
-# It fetches the installer from the latest GitHub release, checks it against the release's
+# It fetches the installer from the newest GitHub release that has one (while a new release is
+# still being built, that is the one before), checks it against the release's
 # fingerprint, installs for this account (no admin rights) and starts Airband. Each step shows as
 # one line: a spinner while it runs (with how much is downloaded), a tick after.
 & {
@@ -39,13 +40,20 @@
 
   Spin 'Looking' 'for the newest Airband'
   try {
-    $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/HarshBaldaniya/airband/releases/latest' -Headers @{ Accept = 'application/vnd.github+json' }
+    $releases = Invoke-RestMethod -Uri 'https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20' -Headers @{ Accept = 'application/vnd.github+json' }
   } catch {
     Fail "Couldn't reach GitHub. Try again, or download it from https://airband.harshbaldaniya.com/download/"
     return
   }
-  $file = $release.assets | Where-Object { $_.name -like 'Airband-Setup-*.exe' } | Select-Object -First 1
-  if (-not $file) { Fail 'The latest release has no Windows installer yet.'; return }
+  # Newest first: the first release with a Windows installer.
+  $release = $null
+  $file = $null
+  foreach ($r in $releases) {
+    if ($r.draft -or $r.prerelease) { continue }
+    $file = $r.assets | Where-Object { $_.name -like 'Airband-Setup-*.exe' } | Select-Object -First 1
+    if ($file) { $release = $r; break }
+  }
+  if (-not $file) { Fail 'No release has a Windows installer yet.'; return }
   $version = $release.tag_name.TrimStart('v')
   Done 'Found' "Airband $version for Windows"
 

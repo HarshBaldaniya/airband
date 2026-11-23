@@ -26,7 +26,7 @@ export default async function DownloadPage() {
           <p>Version {VERSION}. About 3 MB, and Roger sets up the rest.</p>
         </Reveal>
         <Reveal delay={0.05}>
-          <Get files={files} />
+          <Get files={files} version={VERSION} />
         </Reveal>
         <Reveal delay={0.15}>
           <div className="then" id="first">

@@ -1,7 +1,8 @@
 // What the site says about releases comes from the repository and GitHub at build time, never
 // typed in: the version (package.json), the notes (CHANGELOG.md) and each download's size and
-// fingerprint (the release on GitHub). If GitHub can't be reached, the links still follow the
-// version, without sizes.
+// fingerprint (the release on GitHub). Each button gets the newest release that has its file: while
+// a new release is still being built (or one system's build failed), that system's button stays on
+// the version before. If GitHub can't be reached, the links follow the version, without sizes.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SITE } from "./site";
@@ -14,11 +15,19 @@ const repo = join(process.cwd(), "..");
 
 export const VERSION: string = JSON.parse(readFileSync(join(repo, "package.json"), "utf8")).version;
 
-const FILES: Omit<Download, "url">[] = [
-  { platform: "mac-arm", label: "Mac with Apple silicon", detail: "M1 or later", file: `Airband-${VERSION}-Apple-Silicon.dmg` },
-  { platform: "mac-intel", label: "Mac with Intel", detail: "macOS 11 or later", file: `Airband-${VERSION}-Intel.dmg` },
-  { platform: "windows", label: "Windows", detail: "Windows 10 or 11, 64-bit", file: `Airband-Setup-${VERSION}.exe` },
+/** Each download, and its file's name in a release of version `v`. */
+const FILES: (Omit<Download, "url" | "file" | "version"> & { name: (v: string) => string })[] = [
+  { platform: "mac-arm", label: "Mac with Apple silicon", detail: "M1 or later", name: (v) => `Airband-${v}-Apple-Silicon.dmg` },
+  { platform: "mac-intel", label: "Mac with Intel", detail: "macOS 11 or later", name: (v) => `Airband-${v}-Intel.dmg` },
+  { platform: "windows", label: "Windows", detail: "Windows 10 or 11, 64-bit", name: (v) => `Airband-Setup-${v}.exe` },
 ];
+
+interface GitHubRelease {
+  tag_name: string;
+  draft: boolean;
+  prerelease: boolean;
+  assets: { name: string; size: number; digest?: string; browser_download_url: string }[];
+}
 
 /** When this version was published on GitHub, if GitHub answers. */
 export async function publishedAt(): Promise<string | undefined> {
@@ -43,17 +52,21 @@ export async function releaseDates(): Promise<Record<string, string>> {
 }
 
 export async function downloads(): Promise<Download[]> {
-  const base = `${SITE.repo}/releases/download/v${VERSION}`;
-  let assets: { name: string; size: number; digest?: string }[] = [];
+  let releases: GitHubRelease[] = [];
   try {
-    const r = await fetch(`https://api.github.com/repos/HarshBaldaniya/airband/releases/tags/v${VERSION}`, { headers: { accept: "application/vnd.github+json" } });
-    if (r.ok) assets = (await r.json()).assets ?? [];
+    const r = await fetch("https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20", { headers: { accept: "application/vnd.github+json" } });
+    if (r.ok) releases = ((await r.json()) as GitHubRelease[]).filter((x) => !x.draft && !x.prerelease);
   } catch {
-    // Offline build: links without sizes.
+    // Offline build: links to this version, without sizes.
   }
-  return FILES.map((f) => {
-    const a = assets.find((x) => x.name === f.file);
-    return { ...f, url: `${base}/${f.file}`, size: a?.size, digest: a?.digest };
+  return FILES.map(({ name, ...f }) => {
+    // GitHub lists the newest first.
+    for (const rel of releases) {
+      const v = rel.tag_name.replace(/^v/, "");
+      const a = rel.assets.find((x) => x.name === name(v));
+      if (a) return { ...f, file: a.name, version: v, url: a.browser_download_url, size: a.size, digest: a.digest };
+    }
+    return { ...f, file: name(VERSION), version: VERSION, url: `${SITE.repo}/releases/download/v${VERSION}/${name(VERSION)}` };
   });
 }
 

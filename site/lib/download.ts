@@ -6,6 +6,8 @@ export interface Download {
   label: string;
   detail: string;
   file: string;
+  /** The version this file is: the newest release that has it. */
+  version: string;
   url: string;
   /** Bytes, when GitHub answered. */
   size?: number;

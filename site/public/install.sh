@@ -3,7 +3,8 @@
 #
 #   curl -fsSL https://airband.harshbaldaniya.com/install.sh | sh
 #
-# It picks the file for this Mac (Apple silicon or Intel) from the latest GitHub release, checks it
+# It picks the file for this Mac (Apple silicon or Intel) from the newest GitHub release that has
+# one (while a new release is still being built, that is the one before), checks it
 # against the release's fingerprint, copies Airband to Applications and starts it. A file fetched
 # this way isn't marked as downloaded by a browser, so the app opens without a second click.
 # Each step shows as one line: a spinner while it runs (with how much is downloaded), a tick after.
@@ -57,20 +58,24 @@ main() {
   printf "    Installing Roger, who keeps an ear on your AI coding chats.\n\n"
 
   spin "Looking" "for the newest Airband" curl -fsSL -H "Accept: application/vnd.github+json" \
-    https://api.github.com/repos/HarshBaldaniya/airband/releases/latest -o "$tmp/release.json" \
+    "https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20" -o "$tmp/release.json" \
     || fail "Couldn't reach GitHub. Try again, or download it from https://airband.harshbaldaniya.com/download/"
 
   # tag, file URL, size and fingerprint of this Mac's file, read with the JavaScript every Mac has.
   found=$(osascript -l JavaScript - "$tmp/release.json" "$kind" <<'JS'
 function run(argv) {
   const text = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js;
-  const release = JSON.parse(text);
-  const file = (release.assets || []).find((a) => a.name.endsWith(`-${argv[1]}.dmg`));
-  return file ? [release.tag_name, file.browser_download_url, file.size || 0, file.digest || ""].join(" ") : "";
+  // Newest first: the first release with a file for this Mac.
+  for (const release of JSON.parse(text)) {
+    if (release.draft || release.prerelease) continue;
+    const file = (release.assets || []).find((a) => a.name.endsWith(`-${argv[1]}.dmg`));
+    if (file) return [release.tag_name, file.browser_download_url, file.size || 0, file.digest || ""].join(" ");
+  }
+  return "";
 }
 JS
   )
-  [ -n "$found" ] || fail "The latest release has no file for this Mac yet."
+  [ -n "$found" ] || fail "No release has a file for this Mac yet."
   set -- $found
   tag=$1 url=$2 size=${3:-0} digest=${4:-}
   done_line "Found" "Airband ${tag#v} for $chip Macs"
