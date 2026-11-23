@@ -40,6 +40,7 @@ pub fn home() -> PathBuf {
 pub fn log(line: &str) {
     use std::io::Write;
     let f = home().join("app.log");
+    let _ = fs::create_dir_all(home());
     if fs::metadata(&f).map(|m| m.len() > 200_000).unwrap_or(false) {
         let _ = fs::remove_file(&f);
     }
@@ -152,6 +153,7 @@ const BRIDGE: &str = r#"
     dragEnd: () => {},
     onPlace: (cb) => on("place", cb),
     onCursor: (cb) => on("cursor", cb),
+    onPointer: (cb) => on("pointer", cb),
     onCommand: (cb) => on("command", cb),
     onPrefs: (cb) => on("prefs", cb),
     qr: async () => undefined,
@@ -248,6 +250,10 @@ pub fn open_corner(app: &AppHandle, url: &str) {
         .skip_taskbar(true)
         .visible_on_all_workspaces(true)
         .accept_first_mouse(true)
+        // Hidden, a page is suspended after about five minutes, so Roger never heard that a chat
+        // finished or needed you, and never came back. It is light while hidden (asleep, it draws
+        // nothing), so it keeps running.
+        .background_throttling(tauri::utils::config::BackgroundThrottlingPolicy::Disabled)
         .visible(false)
         .initialization_script(BRIDGE)
         .on_page_load(move |w, payload| {
@@ -258,6 +264,10 @@ pub fn open_corner(app: &AppHandle, url: &str) {
                 if !p.hidden {
                     let _ = w.show();
                 }
+                // The menu was made while the window was still hidden (it shows only once its
+                // page loads), so it said "Show Roger" with Roger on screen.
+                let a = w.app_handle().clone();
+                let _ = w.app_handle().run_on_main_thread(move || refresh_menu(&a));
             }
         })
         .build()
@@ -294,6 +304,10 @@ fn watch_pointer(app: AppHandle, state: State) {
     std::thread::spawn(move || {
         let mut eased = (0.0f64, 0.0f64);
         let mut last = String::new();
+        // Where the pointer is over Roger, for the page's own hover: a window that is not in
+        // front gets no mouse-moved events, so after a click that opened another app, :hover
+        // would stay on the row that was clicked.
+        let mut last_point = String::new();
         loop {
             let asleep = state.lock().unwrap().asleep;
             std::thread::sleep(Duration::from_millis(if asleep { 400 } else { 60 }));
@@ -311,6 +325,11 @@ fn watch_pointer(app: AppHandle, state: State) {
                 let _ = w.set_ignore_cursor_events(!over);
                 state.lock().unwrap().passing = !over;
                 log(&format!("pointer: {} at {cx:.0},{cy:.0}", if over { "over Roger: takes clicks" } else { "away: clicks pass through" }));
+            }
+            let point = if over { format!("{cx:.0},{cy:.0}") } else { String::new() };
+            if point != last_point {
+                last_point = point;
+                let _ = w.emit("pointer", if over { serde_json::json!({ "x": cx, "y": cy }) } else { serde_json::Value::Null });
             }
             if asleep {
                 continue;
@@ -551,6 +570,7 @@ fn come_back(app: AppHandle) {
     }
     let visible = app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false);
     if !visible || p.hidden {
+        log("corner: a chat finished or needs you: coming back");
         show(&app, false);
     }
     if p.tucked {
@@ -586,7 +606,38 @@ fn self_check() -> Option<i32> {
     })
 }
 
+/// The app's own environment, before anything reads it. macOS can hand an app the environment of an
+/// earlier start (one from a test, or from inside an AI agent's terminal), and the engine inherits it.
+/// Two kinds of variable are dropped: Airband's and the agents' folders when they point into a
+/// temporary folder (only a test puts them there), and the variables of the AI agent session that
+/// started the app, which belong to that session, not to Roger.
+fn clean_environment() {
+    let temporary = |v: &str| ["/tmp/", "/private/tmp/", "/var/folders/", "/private/var/folders/"].iter().any(|t| v.starts_with(t));
+    let mut dropped = vec![];
+    for key in ["AIRBAND_HOME", "AIRBAND_DEBUG_DIR", "AIRBAND_ENGINE_DIR", "CLAUDE_CONFIG_DIR", "CODEX_HOME", "GEMINI_CLI_HOME"] {
+        if std::env::var(key).is_ok_and(|v| temporary(&v)) {
+            std::env::remove_var(key);
+            dropped.push(key.to_string());
+        }
+    }
+    // A test's switch, never wanted by a person who opened the app.
+    if !cfg!(debug_assertions) && std::env::var("AIRBAND_SKIP_SETUP").is_ok() {
+        std::env::remove_var("AIRBAND_SKIP_SETUP");
+        dropped.push("AIRBAND_SKIP_SETUP".into());
+    }
+    for (key, _) in std::env::vars() {
+        if key == "CLAUDECODE" || key.starts_with("CLAUDE_CODE_") || key == "CLAUDE_PID" || key == "CLAUDE_AGENT_SDK_VERSION" {
+            std::env::remove_var(&key);
+            dropped.push(key);
+        }
+    }
+    if !dropped.is_empty() {
+        log(&format!("start: left out {} inherited from where the app was started", dropped.join(", ")));
+    }
+}
+
 fn main() {
+    clean_environment();
     if let Some(code) = self_check() {
         std::process::exit(code);
     }

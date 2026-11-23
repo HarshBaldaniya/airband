@@ -22,7 +22,7 @@ function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) => void }
     if (!text.trim()) return;
     try {
       const r = await api.tell(c.id, text.trim());
-      onSay(`Sent to "${r.title}". It gets your message with its next turn.`);
+      onSay(`Sent to "${r.title}". ${r.when ?? "It gets your message with its next turn."}`);
       setText("");
       setWriting(false);
     } catch (e) {
@@ -43,7 +43,9 @@ function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) => void }
           <span className={`chatmeta ellipsis${waiting ? " waiting" : ""}`}>{waiting ? c.line : `${c.project} · ${ago(c.since)}`}</span>
         </span>
         <span className="rowactions">
-          {TYPING && (
+          {/* Only a working chat takes a message straight away (its hook hands it over after the next
+              step, or as it stops); any other would hold it until someone types there. */}
+          {TYPING && c.status === "working" && (
             <button className="iconbtn" onClick={() => setWriting(!writing)} aria-label={`Message ${c.title}`} title="Message this chat">
               <MessageSquare size={14} />
             </button>
@@ -53,7 +55,7 @@ function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) => void }
           </button>
         </span>
       </div>
-      {TYPING && writing && (
+      {TYPING && writing && c.status === "working" && (
         <form
           className="tell"
           onSubmit={(e) => {
@@ -318,6 +320,10 @@ function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: D
 }
 
 type Tab = "waiting" | "working" | "done";
+
+/** A tab's chats in title order, so rows stay put as they update (numbers in order: 2 before 10). */
+const byTitle = <T extends { title: string; id: string }>(chats: T[]) =>
+  [...chats].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base", numeric: true }) || a.id.localeCompare(b.id));
 const TABS: { id: Tab; title: string }[] = [
   { id: "waiting", title: "Needs you" },
   { id: "working", title: "Working" },
@@ -370,9 +376,9 @@ export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onEr
   // A chat whose request is on a card is not listed again.
   const carded = new Set(state.pending.map((p) => p.chatId).filter(Boolean));
   const lists: Record<Tab, LiveChat[]> = {
-    waiting: state.chats.filter((c) => c.status === "waiting" && !carded.has(c.id)),
-    working: state.chats.filter((c) => c.status === "working"),
-    done: state.chats.filter((c) => c.status === "done" && c.since >= start.getTime()),
+    waiting: byTitle(state.chats.filter((c) => c.status === "waiting" && !carded.has(c.id))),
+    working: byTitle(state.chats.filter((c) => c.status === "working")),
+    done: byTitle(state.chats.filter((c) => c.status === "done" && c.since >= start.getTime())),
   };
   const first = (TABS.find((t) => lists[t.id].length)?.id ?? "working") as Tab;
   const [tab, setTab] = useState<Tab>(first);

@@ -35,7 +35,7 @@ export function statusDir(): string {
   return airbandFile("status");
 }
 
-function claudeHome(): string {
+export function claudeHome(): string {
   return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
 }
 

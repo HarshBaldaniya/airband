@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { airbandHome } from "../core/paths";
 import { listHeads, readAsks, setRecordTitle, type RecordHead, type RecordTool } from "../core/record";
+import { agentSummary } from "../core/setup";
 import { readHookStatus, resolveStatus } from "../core/status";
 import type { Status } from "../core/types";
 
@@ -153,20 +154,48 @@ function liveName(h: RecordHead): string | undefined {
 }
 
 /** Chats that moved in the last `windowMs`, the ones that need you first. */
+/** A chat's project as people name it: its folder, or for a git worktree (an agent's own, in
+ *  <repo>/.claude/worktrees/<name>, or any linked worktree beside it) the repository it belongs to. */
+export function projectOf(cwd: string | undefined): string {
+  if (!cwd) return "no folder";
+  const m = /^(.*?)[\\/]\.(?:claude|codex|gemini)[\\/]worktrees[\\/][^\\/]+/.exec(cwd);
+  // The last part of the path, with either separator (a Windows path read on any computer).
+  return (m ? m[1] : cwd).split(/[\\/]+/).filter(Boolean).pop() ?? cwd;
+}
+
+/** The agents whose chats tell Airband what they do (its hook is on), looked at once a minute. */
+let hooked: { at: number; tools: Set<string> } | undefined;
+function hookedTools(now: number): Set<string> {
+  if (!hooked || now - hooked.at > 60_000) {
+    let tools = new Set<string>();
+    try {
+      tools = new Set(agentSummary().filter((a) => a.sharing).map((a) => a.id));
+    } catch {
+      // Unknown: every chat falls back to its file's activity.
+    }
+    hooked = { at: now, tools };
+  }
+  return hooked.tools;
+}
+
 export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60): LiveChat[] {
   const out: LiveChat[] = [];
+  const told = hookedTools(now);
   for (const h of cachedHeads(now)) {
     const hook = readHookStatus(h.id);
     const last = Math.max(h.updatedAt, hook?.at ?? 0);
     if (now - last > windowMs) continue;
-    const r = resolveStatus(mtime(h.file) ?? h.updatedAt, hook, now);
+    // With the hook on, a chat that works says so: its file being touched (an agent writes a title
+    // or a note into an old chat now and then) is not work. Without it, the file is all there is.
+    const activity = !hook && told.has(h.tool) ? h.updatedAt : (mtime(h.file) ?? h.updatedAt);
+    const r = resolveStatus(activity, hook, now);
     const ask = cachedLastAsk(h);
     const renamed = liveName(h);
     out.push({
       id: h.id,
       agent: h.tool,
       title: renamed ? short(renamed, 70)! : titleOf(h),
-      project: h.cwd ? path.basename(h.cwd) : "no folder",
+      project: projectOf(h.cwd),
       ...(h.cwd ? { cwd: h.cwd } : {}),
       status: r.status,
       ...(r.line ? { line: short(r.line, 200) } : {}),

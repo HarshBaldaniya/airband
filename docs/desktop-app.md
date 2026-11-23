@@ -61,6 +61,15 @@ the tour: each step says what it needs, and **Continue anyway** still works. Fin
   or pick an answer to the chat's question. The chat carries on.
 - **A chat is done:** he says what it did, and **Review** opens the chat. A turn that hands you the
   next step says "your turn", with what to do.
+- **Open a chat** from his panel (or **Review** on a finished one). Terminal comes first:
+  - Running in Terminal or iTerm: its own tab comes forward.
+  - Running in VS Code: its window, with that exact Claude Code chat.
+  - A Claude Code chat that isn't running, with its folder open in VS Code: that same window.
+  - Anything else: it is resumed in a new Terminal window.
+  He never opens a second VS Code window, or another editor. The first time he brings a Terminal tab
+  forward, macOS asks to let Airband control Terminal. Choose **Allow**.
+- **Message a chat** that is working: the message goes in after its next step (Claude Code, Gemini
+  CLI) or before it stops (Codex). The Message button shows only on working chats.
 - **Ask him:** "what's happening?", "what did I do today?", "open the billing chat", "tell the API
   chat that the route changed". If he isn't sure which chat you mean, he asks.
 - **Move him** by dragging; he settles against the nearest edge. The **–** button tucks him away.
@@ -90,7 +99,7 @@ Click Airband's icon in the menu bar (Mac) or the tray (Windows), or right-click
 | Tuck Roger away | Small, out of the way |
 | Settings… | His name and look, your phone, sounds |
 | Sounds | Short sounds for requests and finished chats |
-| Roger comes back when a chat needs you | Even when hidden |
+| Roger comes back when a chat needs you | When a chat needs you or finishes, even when hidden |
 | Start at login | On by default |
 | Run the setup tour again… | After installing a new AI tool, say |
 

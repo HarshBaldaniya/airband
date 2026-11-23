@@ -30,7 +30,7 @@ const post = <T,>(route: string, body: unknown) => transport.post<T>(route, body
 export const api = {
   decide: (id: string, answer: Answer) => post<{ ok?: boolean }>("/api/decide", { id, ...answer }),
   ask: (text: string) => post<CompanionAnswer>("/api/ask", { text }),
-  tell: (chatId: string, text: string) => post<{ title: string }>("/api/tell", { chatId, text }),
+  tell: (chatId: string, text: string) => post<{ title: string; when?: string }>("/api/tell", { chatId, text }),
   open: (chatId: string) => post<{ text: string }>("/api/open", { chatId }),
   dismiss: (chatId: string) => post<{ ok: boolean }>("/api/dismiss", { chatId }),
   settings: (patch: Partial<Omit<StationSettings, "companion">> & { companionName?: string; companionDesign?: string }) => post<StationSettings>("/api/settings", patch),
@@ -95,6 +95,9 @@ export interface DesktopBridge {
   /** Which way the cards open: towards the middle of the screen. */
   onPlace(cb: (p: { side: "left" | "right"; vertical: "top" | "bottom" }) => void): void;
   onCursor(cb: (p: { dx: number; dy: number }) => void): void;
+  /** Where the pointer is over the window (null once it leaves), sent even while the window is
+   *  not in front, when the page itself gets no mouse moves. Absent in apps before 0.1.4. */
+  onPointer?(cb: (p: { x: number; y: number } | null) => void): void;
   onCommand(cb: (c: string) => void): void;
   onPrefs(cb: (p: DesktopPrefs) => void): void;
   qr(text: string): Promise<string>;

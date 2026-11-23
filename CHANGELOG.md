@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased
+- **Open and Review go to the very chat, Terminal first.** For Claude Code, Codex and Gemini CLI:
+  - A chat running in Terminal or iTerm: its own tab comes forward.
+  - A chat running in VS Code: its window comes forward, with that exact Claude Code chat in it.
+  - A Claude Code chat that isn't running, with its folder open in a VS Code window: it opens in
+    that same window (its repository's, for a git worktree).
+  - Anything else: it is resumed in a new Terminal window.
+  Roger never opens a second VS Code window, and never opens Cursor or another editor for a chat.
+- **Hover works straight after a click.** Rows and buttons light up under the pointer even while
+  another app is in front. Before, the row you clicked stayed lit until you clicked Roger again.
+- **Message only where it arrives.** The Message button shows only on a chat that is working, the
+  one time every agent takes it in straight away.
+- **Each tab lists its chats by name,** so rows stay put as they update.
+- **The menu bar says Hide Roger when Roger is on screen.** After the app started, it said Show Roger.
+- **Hidden Roger comes back when a chat finishes or needs you,** however long it was hidden. macOS
+  paused a hidden Roger after about five minutes, so it missed them. It now keeps watching.
+- **Every part of Roger's panel takes clicks.** Its clickable parts are measured again whenever the
+  panel changes size, so a row, a tab or a button never lets a click through to the window behind.
+- **A message to a running chat reaches it now.** Sent from Roger to a chat that is working, it goes
+  in after the chat's next step (Claude Code, Gemini CLI) or before it stops (Codex), and the chat
+  acts on it. Roger says when it will arrive.
+- **Roger sees every running chat, in every folder.** Chats too big for the hook to read as a reply
+  ends (ones started before Airband, say) used to wait for the VS Code extension. The app now reads
+  them itself in the background, a slice at a time, so chats in any folder or git worktree show up
+  within a minute, with no extension. Worktree chats show their repository's name.
+- **Only real work counts as working.** With the hook on, a chat's file being touched (an agent
+  writes a title into an old chat now and then) no longer puts it under Working.
+- **A long list scrolls inside Roger's panel,** its last row fading so it is clear there is more.
+- **The app keeps to its own folder.** Opened with a test's or an AI agent session's settings (macOS can pass
+  on the environment of an earlier start), it now leaves them out, so Roger always watches your real
+  chats and your agents stay connected to `~/.airband`.
+
 ## 0.1.3
 - **The `airband` command follows the app.** When the app updates its engine, an older `airband`
   command is updated to the same version.

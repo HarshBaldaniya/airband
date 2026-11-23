@@ -30,6 +30,7 @@ import {
   readConnections,
   removePending,
   setCursor,
+  readInbox,
   setSentReply,
   takeInbox,
 } from "../core/store";
@@ -257,6 +258,19 @@ export function deliver(input: HookInput, now = Date.now()): { text: string; ite
   return { text, items };
 }
 
+/** Who a message from the person comes from: they sent it through the app (Roger). */
+export const FROM_PERSON = "airband-app";
+
+/** Said with the person's own message when it reaches a chat that is working, or about to stop. */
+export const PERSON_ASK = "The person sent this while you were working. Act on it now: answer it or change course as it asks, then carry on with the task.";
+
+/** The person sent this chat something through the app, and it hasn't reached it yet. Unlike a
+ *  linked chat's update, which waits for the next message, it goes in as soon as the chat can take
+ *  it: after its next tool step, or before it stops. */
+export function personWaiting(id: string | undefined): boolean {
+  return !!id && readInbox(id).some((i) => i.from.id === FROM_PERSON);
+}
+
 /** The hook's answer in the shape the tool expects: context for the model, and a line for the person
  *  (systemMessage, which the model never sees). Codex can't show a line, so it gets none. */
 function out(tool: HookTool, event: "UserPromptSubmit" | "SessionStart", context: string | undefined, notice: string | undefined): string | undefined {
@@ -273,6 +287,19 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
   record(input, now);
   switch (input.hook_event_name) {
     case "Stop": {
+      // The person's own message, sent through the app while the chat worked: it goes in before
+      // the chat stops, so the turn carries on with it (in every agent, the hook's "block").
+      if (personWaiting(input.session_id)) {
+        if (!input.stop_hook_active) {
+          keepRecord(input, tool);
+          sendUpdates(input, now, tool);
+        }
+        const d = deliver(input, now);
+        if (d) {
+          const notice = tool === "claude" && noticesOn() ? deliveryNotice(d.items) : undefined;
+          return JSON.stringify({ decision: "block", reason: `${d.text}\n\n${PERSON_ASK}`, ...(notice ? { systemMessage: notice } : {}) });
+        }
+      }
       if (input.stop_hook_active) {
         // This turn only acknowledged delivered updates: skip it, so linked chats never ping-pong.
         if (input.session_id && input.transcript_path) {
@@ -315,6 +342,17 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
       return sendCheck(input, tool);
     case "PostToolUse": {
       const doc = docCheck(input, tool);
+      // The person's own message reaches a working chat after its next tool step, as context the
+      // model reads straight away (Claude Code and Gemini CLI; Codex takes it as it stops).
+      if (tool !== "codex" && personWaiting(input.session_id)) {
+        const d = deliver(input, now);
+        if (d) {
+          const docText = doc ? (JSON.parse(doc) as { hookSpecificOutput?: { additionalContext?: string } }).hookSpecificOutput?.additionalContext : undefined;
+          const o: Record<string, unknown> = { hookSpecificOutput: { hookEventName: tool === "gemini" ? "AfterTool" : "PostToolUse", additionalContext: [d.text, PERSON_ASK, docText].filter(Boolean).join("\n\n") } };
+          if (tool === "claude" && noticesOn()) o.systemMessage = deliveryNotice(d.items);
+          return JSON.stringify(o);
+        }
+      }
       if (doc) return doc;
       // After an Airband tool, one line for the person: what it found and the tokens it saved.
       // Claude Code shows it; the others have no place for a line here.

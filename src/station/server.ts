@@ -14,7 +14,8 @@ import { readHead } from "../core/record";
 import { appendInbox } from "../core/store";
 import type { Status } from "../core/types";
 import { VERSION } from "../core/setup";
-import { AGENT_NAME, liveChats, titleOf, type Agent, type LiveChat } from "./chats";
+import { AGENT_NAME, forgetReads, liveChats, titleOf, type Agent, type LiveChat } from "./chats";
+import { CatchUp } from "./catchup";
 import { DECISION_MS, readStationInfo, stationFile, type StationInfo } from "./client";
 import { PHONE_LINK } from "./phone";
 import { PhoneLink, type LinkStatus, type PhoneLinkOptions } from "./link";
@@ -100,6 +101,8 @@ export interface StationOptions {
   now?: () => number;
   /** The phone link through the relay; false leaves it out (tests). */
   link?: PhoneLinkOptions | false;
+  /** How often the records of big or quiet chats are caught up (0: never, for tests). */
+  catchUpMs?: number;
 }
 
 interface Waiting extends PendingView {
@@ -198,6 +201,19 @@ export class Station extends EventEmitter {
     this.writeInfo();
     this.refresh(true);
     this.timers.push(setInterval(() => this.refresh(), this.o.pollMs ?? 4000));
+    // Chats the hook leaves alone (big ones, quiet ones with no record yet), in every folder.
+    const every = this.o.catchUpMs ?? 30_000;
+    if (every > 0) {
+      const catchUp = new CatchUp();
+      const run = () =>
+        void catchUp.sweep().then((n) => {
+          if (!n) return;
+          forgetReads();
+          this.refresh(true);
+        });
+      this.timers.push(setTimeout(run, 3000));
+      this.timers.push(setInterval(run, every));
+    }
     await this.link?.start();
     this.timers.push(setInterval(() => this.sse.forEach((r) => r.write(": ping\n\n")), 20_000));
     try {
@@ -445,6 +461,14 @@ export class Station extends EventEmitter {
     return title;
   }
 
+  /** When a message sent now reaches the chat, in words: at once while it works, else on its next turn. */
+  tellWhen(chatId: string): string {
+    const chat = this.chats.find((c) => c.id === chatId);
+    if (chat?.status === "working") return chat.agent === "codex" ? "It gets it as this reply ends, and carries on with it." : "It gets it within seconds, while it works.";
+    if (chat?.status === "waiting") return "It gets it once you answer what it is waiting for.";
+    return "It gets it the next time it runs. Open it to send it on now.";
+  }
+
   open(chatId: string): string {
     const chat = this.chats.find((c) => c.id === chatId);
     if (!chat) {
@@ -546,7 +570,10 @@ export class Station extends EventEmitter {
           return send(res, 200, await this.ask(String(body.text ?? "")));
         case "/api/tell":
           if (who !== "local") return send(res, 403, { error: "Message a chat from the computer." });
-          return send(res, 200, { title: this.tell(String(body.chatId ?? ""), String(body.text ?? "")) });
+          {
+            const id = String(body.chatId ?? "");
+            return send(res, 200, { title: this.tell(id, String(body.text ?? "")), when: this.tellWhen(id) });
+          }
         case "/api/open":
           return send(res, 200, { text: this.open(String(body.chatId ?? "")) });
         case "/api/dismiss":

@@ -16,6 +16,8 @@ import { useStation } from "./useStation";
 
 type PanelState = "closed" | "open" | "closing";
 const CLOSE_MS = 160;
+/** What lights up under the pointer (see the pointer hover below). */
+const HOVERABLE = ".chat, .btn, .choice, .iconbtn, .chip";
 /** How long a finished chat's toast stays by the companion (the panel keeps the chat). */
 const TOAST_MS = 12_000;
 
@@ -110,6 +112,24 @@ export function DesktopView() {
     const enter = setTimeout(() => setEntering(false), 1400);
     bridge.onPlace(setPlace);
     bridge.onCursor(setLook);
+    // Hover from the app's pointer, not the page's: a window that is not in front gets no mouse
+    // moves, so after a click opened another app the row clicked stayed lit and no other lit up.
+    let hoverTimer: ReturnType<typeof setInterval> | undefined;
+    if (bridge.onPointer) {
+      document.documentElement.classList.add("vhover");
+      let lit: Element[] = [];
+      let at: { x: number; y: number } | null = null;
+      const light = () => {
+        const now: Element[] = [];
+        for (let el = at ? document.elementFromPoint(at.x, at.y) : null; el; el = el.parentElement) if (el.matches(HOVERABLE)) now.push(el);
+        for (const el of lit) if (!now.includes(el)) el.classList.remove("vh");
+        for (const el of now) el.classList.add("vh");
+        lit = now;
+      };
+      bridge.onPointer((p) => ((at = p), light()));
+      // A row drawn again (the list refreshes) loses the class; the pointer may not have moved.
+      hoverTimer = setInterval(light, 250);
+    }
     bridge.onCommand((cmd) => {
       if (cmd === "open") openPanel();
       if (cmd === "toggle") togglePanelRef.current();
@@ -143,6 +163,7 @@ export function DesktopView() {
       document.removeEventListener("mouseleave", onLeave);
       window.removeEventListener("keydown", onKey);
       clearTimeout(enter);
+      clearInterval(hoverTimer);
     };
     // Set up once; the toggle reads the latest panel state through a ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -206,22 +227,48 @@ export function DesktopView() {
   // After anything changes on screen, the spot under a still pointer is checked again. The lighter
   // app instead gets where the clickable parts are, whenever they change.
   const areas = useRef("");
+  const sendAreas = useRef(() => {});
+  sendAreas.current = () => {
+    if (!bridge.setHitAreas) return;
+    const rects = [...document.querySelectorAll("[data-hit]")].map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
+    }).filter((r) => r.width > 0 && r.height > 0);
+    const key = JSON.stringify(rects);
+    if (key !== areas.current) {
+      areas.current = key;
+      bridge.setHitAreas(rects);
+    }
+  };
   useEffect(() => {
     const t = requestAnimationFrame(() => {
       checkHit();
-      if (!bridge.setHitAreas) return;
-      const rects = [...document.querySelectorAll("[data-hit]")].map((el) => {
-        const r = el.getBoundingClientRect();
-        return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
-      }).filter((r) => r.width > 0 && r.height > 0);
-      const key = JSON.stringify(rects);
-      if (key !== areas.current) {
-        areas.current = key;
-        bridge.setHitAreas(rects);
-      }
+      sendAreas.current();
     });
     return () => cancelAnimationFrame(t);
   });
+  // The panel changes size by itself too (a tab, a row's message box, its opening animation, a list
+  // that grows): the parts are measured again as soon as one resizes, and a few times a second
+  // anyway, so a click on the panel never falls through to the window behind.
+  useEffect(() => {
+    if (!bridge.setHitAreas) return;
+    const ro = new ResizeObserver(() => sendAreas.current());
+    const watch = () => document.querySelectorAll("[data-hit]").forEach((el) => ro.observe(el));
+    watch();
+    const mo = new MutationObserver(() => (watch(), sendAreas.current()));
+    mo.observe(document.body, { childList: true, subtree: true });
+    const end = () => sendAreas.current();
+    document.addEventListener("animationend", end, true);
+    document.addEventListener("transitionend", end, true);
+    const iv = setInterval(end, 250);
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      document.removeEventListener("animationend", end, true);
+      document.removeEventListener("transitionend", end, true);
+      clearInterval(iv);
+    };
+  }, []);
 
   // A new request or a finished chat while hidden or tucked away: the lighter app brings it back.
   const seenKey = useRef<string | undefined>(undefined);

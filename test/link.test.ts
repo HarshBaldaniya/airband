@@ -281,7 +281,7 @@ function newStation(relay: Relay, pushes: { body: Buffer }[], opts: { away?: () 
     pushes.push({ body: Buffer.from(init?.body as Uint8Array) });
     return new Response(null, { status: 201 });
   }) as typeof fetch;
-  return new Station({ port: 0, claude: null, pollMs: 60_000, link: { relay: "https://relay.test", WebSocket: class extends FakeSocket { constructor(url: string) { super(url, relay); } } as unknown as typeof WebSocket, fetch: fakeFetch, away: opts.away ?? (() => true), nudgeMs: 30, handoverMs: 20, ...(opts.now ? { now: opts.now } : {}) } });
+  return new Station({ port: 0, claude: null, pollMs: 60_000, catchUpMs: 0, link: { relay: "https://relay.test", WebSocket: class extends FakeSocket { constructor(url: string) { super(url, relay); } } as unknown as typeof WebSocket, fetch: fakeFetch, away: opts.away ?? (() => true), nudgeMs: 30, handoverMs: 20, ...(opts.now ? { now: opts.now } : {}) } });
 }
 
 /** Link, scan, claim: the iPhone's own room, joined and hearing the state. */
