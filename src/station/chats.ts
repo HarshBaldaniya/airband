@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { airbandHome } from "../core/paths";
 import { listHeads, readAsks, setRecordTitle, type RecordHead, type RecordTool } from "../core/record";
+import { chatApp, type ChatApp } from "../core/apps";
 import { agentSummary } from "../core/setup";
 import { readHookStatus, resolveStatus } from "../core/status";
 import type { Status } from "../core/types";
@@ -17,6 +18,8 @@ export interface LiveChat {
   title: string;
   project: string;
   cwd?: string;
+  /** Where it runs: a terminal, VS Code, the Claude app or the Codex app (when its file says). */
+  app?: ChatApp;
   status: Status;
   /** What it waits for, when it waits. */
   line?: string;
@@ -191,12 +194,14 @@ export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60):
     const r = resolveStatus(activity, hook, now);
     const ask = cachedLastAsk(h);
     const renamed = liveName(h);
+    const app = chatApp(h.tool, h.file);
     out.push({
       id: h.id,
       agent: h.tool,
       title: renamed ? short(renamed, 70)! : titleOf(h),
       project: projectOf(h.cwd),
       ...(h.cwd ? { cwd: h.cwd } : {}),
+      ...(app ? { app } : {}),
       status: r.status,
       ...(r.line ? { line: short(r.line, 200) } : {}),
       ...(ask ? { lastAsk: short(ask.ask, 200), lastDid: short(ask.did, 280) } : {}),

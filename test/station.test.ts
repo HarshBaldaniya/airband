@@ -34,7 +34,7 @@ afterEach(async () => {
 });
 
 const start = async () => {
-  station = new Station({ port: 0, claude: null, pollMs: 60_000, catchUpMs: 0, open: (c) => `opened ${c.id}` });
+  station = new Station({ port: 0, claude: null, pollMs: 60_000, catchUpMs: 0, watchMs: 0, open: (c) => `opened ${c.id}` });
   await station.start();
   return station;
 };
@@ -260,7 +260,7 @@ test("the companion's name and look are settings, cleaned and defaulted", async 
   assert.equal(s.snapshot().settings.lookups, true, "look-ups start on, with Airband's records only")
   await s.setSettings({ companion: { name: cleanName("Pip"), design: "headset" } });
   await s.stop();
-  station = new Station({ port: 0, claude: null, pollMs: 60_000, catchUpMs: 0 });
+  station = new Station({ port: 0, claude: null, pollMs: 60_000, catchUpMs: 0, watchMs: 0 });
   await station.start();
   assert.equal(station.snapshot().settings.companion.name, "Pip", "kept across restarts");
 });

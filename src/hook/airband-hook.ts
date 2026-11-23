@@ -225,6 +225,9 @@ export function withLatestReply(id: string, messages: ChatMessage[], input: Hook
     }
   }
   const reply = cleanText(input.last_assistant_message ?? input.prompt_response ?? "");
+  // Nothing new in the file, and the reply is the one already sent (from the file, or held from
+  // last time): an agent that signals a reply's end twice. Sent once is enough.
+  if (!messages.length && (!before || reply === before)) return;
   const last = messages[messages.length - 1];
   if (!reply || (last?.who === "ai" && last.text.endsWith(reply))) {
     setSentReply(id, undefined);

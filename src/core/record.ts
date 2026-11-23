@@ -530,12 +530,14 @@ export function recordBehind(id: string, tool: RecordTool, file: string): number
 }
 
 /** Reads a big chat's file into its record a slice at a time, letting everything else run between slices. */
-export async function catchUpRecord(id: string, tool: RecordTool, file: string, opts: { cwd?: string; title?: string; slice?: number } = {}): Promise<void> {
+export async function catchUpRecord(id: string, tool: RecordTool, file: string, opts: { cwd?: string; title?: string; slice?: number; quietMs?: number } = {}): Promise<void> {
   const slice = opts.slice ?? 8 * 1024 * 1024;
   for (let i = 0; i < 100_000 && recordBehind(id, tool, file) > 0; i++) {
     const before = readHead(id)?.cursor;
     // A file written to in the last 2 minutes belongs to a chat still working: its newest ask waits.
-    const working = Date.now() - (fs.statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0) < 120_000;
+    // (The chat watcher knows a turn ended from the file itself, and says so with quietMs 0.)
+    const quiet = opts.quietMs ?? 120_000;
+    const working = quiet > 0 && Date.now() - (fs.statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0) < quiet;
     updateRecord(id, tool, file, { cwd: opts.cwd, title: opts.title, maxBytes: slice, startMax: Infinity, holdOpen: working });
     if (readHead(id)?.cursor === before) break; // nothing more can be read (a line still being written)
     await new Promise((r) => setImmediate(r));

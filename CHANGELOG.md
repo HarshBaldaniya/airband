@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+- **Open shows a chat in the app it lives in.** A chat in the Claude app's Code tab opens there,
+  at that exact chat, and so does a Claude Code chat the Claude app lists, instead of a new
+  Terminal window. A Codex app chat opens in the Codex app. Terminal tabs and VS Code windows still
+  come first when the chat runs in them.
+- **Roger hears chats whose hooks don't run.** He also reads the chat folders of Claude Code and
+  Codex as they change. A chat with no hook (an app that skips hooks, or a hook that broke) still
+  shows as working, then done, with what it did.
+- **Linked chats never get the same reply twice.** When an agent signalled the end of a reply twice
+  with nothing new in between, a link that shares the words themselves sent the reply again. Every
+  pair of agents (Claude Code, Codex, Gemini CLI, both ways and with themselves) is now tested at
+  every sharing level.
+
 ## 0.1.5
 - **Setup finds an AI tool installed after Airband started (Windows).** Windows keeps a program's
   PATH from when it started, so a newly installed Claude Code stayed "not installed", even after

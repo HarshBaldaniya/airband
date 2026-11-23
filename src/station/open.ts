@@ -1,16 +1,21 @@
-// "Open chat" (and Review) from Roger or the phone. Terminal first: most people run their agents
-// there, and a terminal costs far less than an editor. VS Code only when the chat's folder is already
-// open in a VS Code window; no other editor is ever opened for a chat, and no new window either.
+// "Open chat" (and Review) from Roger or the phone. Where the chat lives first, then a terminal: most
+// people run their agents there, and a terminal costs far less than an editor. VS Code only when the
+// chat's folder is already open in a VS Code window; no other editor is ever opened for a chat, and
+// no new window either.
 //   1. The chat runs now in a terminal: that very tab comes forward (Terminal, iTerm), no second copy.
 //   2. It runs now in VS Code (Claude's panel, or its terminal): that window; Claude Code's own link
 //      shows the very chat. An editor it already runs in (Cursor, say) only comes forward: a second
 //      copy in Terminal would fight over the same chat.
-//   3. It is not running, its folder is open in VS Code, and it is a Claude Code chat: that same
+//   3. It runs now in the Claude app or the Codex app, or was last used there: that app shows the
+//      very chat, through the app's own link.
+//   4. It is not running, its folder is open in VS Code, and it is a Claude Code chat: that same
 //      window, and the link shows the chat there. (Codex and Gemini have no VS Code panel to show.)
-//   4. Otherwise it is resumed in a new Terminal window.
+//   5. The Claude app lists the chat in its Code tab: the app shows it.
+//   6. Otherwise it is resumed in a new Terminal window.
 import { execFileSync, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { claudeAppChats, claudeAppLink, codexAppLink } from "../core/apps";
 import { addOpenRequest, windowFor } from "../core/folders";
 import { findCommand } from "../core/hooks";
 import { claudeHome } from "../core/paths";
@@ -89,7 +94,9 @@ export function runningIn(chat: Pick<LiveChat, "id" | "agent" | "cwd">, procs = 
     const p = procs.get(at);
     if (!p) break;
     const app = /^(.*?\.app)\/Contents\/MacOS\//.exec(p.comm)?.[1] ?? /^(.*?\.app)\/Contents\/MacOS\//.exec(p.args)?.[1];
-    if (app && !/Helper/.test(path.basename(app))) return { app, vscode: /Visual Studio Code|VSCodium|Cursor|Windsurf/.test(app), ...(tty ? { tty } : {}) };
+    // Not a helper, and not an agent's own small bundle inside an app's support folder (the Claude
+    // app runs Claude Code from …/Application Support/Claude/claude-code/<version>/…/claude.app).
+    if (app && !/Helper/.test(path.basename(app)) && !/[\\/]Application Support[\\/]/.test(app)) return { app, vscode: /Visual Studio Code|VSCodium|Cursor|Windsurf/.test(app), ...(tty ? { tty } : {}) };
     at = p.ppid;
   }
   return undefined;
@@ -218,7 +225,40 @@ export function windowsResumeLine(cwd: string | undefined, resume: string): stri
 export const editorCommand = (app: string | undefined) => (/cursor/i.test(app ?? "") ? "cursor" : "code");
 
 /** Opens the chat where it lives; says where, in a few words. */
-export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title">, now = Date.now()): string {
+/** Opens an app's own link (claude://, codex://). False when no app on this computer takes it. */
+function openLink(url: string): boolean {
+  try {
+    if (process.platform === "darwin") {
+      // `open` fails when no app takes the link, so the next way gets its turn.
+      execFileSync("open", [url], { stdio: "ignore", timeout: 5000 });
+      return true;
+    }
+    if (process.platform === "win32") {
+      const scheme = url.slice(0, url.indexOf(":"));
+      execFileSync("reg", ["query", `HKCR\\${scheme}`], { stdio: "ignore", timeout: 3000 });
+      return run("rundll32", ["url.dll,FileProtocolHandler", url]);
+    }
+    return run("xdg-open", [url]);
+  } catch {
+    return false;
+  }
+}
+
+/** Shows the chat in the app it lives in, when it is the Claude app or the Codex app. */
+function openInApp(chat: Pick<LiveChat, "id" | "agent">, app: "claude-app" | "codex-app"): string | undefined {
+  if (app === "codex-app") return chat.agent === "codex" && openLink(codexAppLink(chat.id)) ? "Showing it in the Codex app." : undefined;
+  if (chat.agent !== "claude") return undefined;
+  const local = claudeAppChats().get(chat.id);
+  return local && openLink(claudeAppLink(local)) ? "Showing it in the Claude app." : undefined;
+}
+
+/** The desktop app a running chat sits in, by the app's name. */
+const desktopApp = (app: string | undefined): "claude-app" | "codex-app" | undefined => {
+  const name = path.basename(app ?? "", ".app");
+  return name === "Claude" ? "claude-app" : name === "Codex" || name === "ChatGPT" ? "codex-app" : undefined;
+};
+
+export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" | "app">, now = Date.now()): string {
   const procs = process.platform === "darwin" ? processes() : new Map<number, Proc>();
   const live = runningIn(chat, procs);
   const showIn = (app: string, folder: string, withLink = true) => {
@@ -228,6 +268,13 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title">,
     const link = withLink && chat.agent === "claude" ? claudeChatLink(app, chat.id) : undefined;
     return link ? run("sh", ["-c", 'open -a "$1" "$2" && sleep 0.4 && open "$3"', "airband-open", app, folder, link]) : run("open", ["-a", app, folder]);
   };
+  // 3 first when it runs in the Claude app or the Codex app now: bringing the app forward alone
+  // would leave the person looking for the chat in it.
+  const inApp = desktopApp(live?.app) ?? (!live && (chat.app === "claude-app" || chat.app === "codex-app") ? chat.app : undefined);
+  if (inApp) {
+    const said = openInApp(chat, inApp);
+    if (said) return said;
+  }
   // 1. It runs now in a terminal: that very tab.
   if (live && !live.vscode) {
     const script = live.tty ? tabScript(live.app) : undefined;
@@ -241,7 +288,7 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title">,
     // would start a second copy of the chat beside it.
     if (showIn(live.app, folder, !live.tty)) return `Showing it in ${appName(live.app)}.`;
   }
-  // 3. Not running, a Claude Code chat, and its folder is open in VS Code: that same window.
+  // 4. Not running, a Claude Code chat, and its folder is open in VS Code: that same window.
   if (!live && chat.cwd && chat.agent === "claude") {
     if (process.platform === "darwin") {
       const win = windowFor(chat.cwd, now);
@@ -259,7 +306,12 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title">,
       }
     }
   }
-  // 4. Resume it in a new terminal window: the lightest way to see it.
+  // 5. The Claude app lists it in its Code tab: the app shows it, with its own copy of the chat.
+  if (!live && chat.agent === "claude" && chat.app !== "terminal") {
+    const said = openInApp(chat, "claude-app");
+    if (said) return said;
+  }
+  // 6. Resume it in a new terminal window: the lightest way to see it.
   const resume = RESUME[chat.agent](chat.id);
   const line = chat.cwd ? `cd ${quote(chat.cwd)} && ${resume}` : resume;
   if (process.platform === "darwin") {

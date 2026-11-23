@@ -62,13 +62,20 @@ the tour: each step says what it needs, and **Continue anyway** still works. Fin
   or pick an answer to the chat's question. The chat carries on.
 - **A chat is done:** he says what it did, and **Review** opens the chat. A turn that hands you the
   next step says "your turn", with what to do.
-- **Open a chat** from his panel (or **Review** on a finished one). Terminal comes first:
+- **Open a chat** from his panel (or **Review** on a finished one). It opens where it lives:
   - Running in Terminal or iTerm: its own tab comes forward.
   - Running in VS Code: its window, with that exact Claude Code chat.
+  - Running in the Claude app's Code tab, or last used there: the Claude app, with that chat.
+  - A Codex chat from the Codex app: the Codex app, with that chat.
   - A Claude Code chat that isn't running, with its folder open in VS Code: that same window.
+  - A Claude Code chat the Claude app lists: the Claude app.
   - Anything else: it is resumed in a new Terminal window.
   He never opens a second VS Code window, or another editor. The first time he brings a Terminal tab
   forward, macOS asks to let Airband control Terminal. Choose **Allow**.
+- **Chats in the Claude app and the Codex app count too.** Roger hears about a chat from its hooks.
+  If a chat's hooks don't run, he reads its file as it changes. It still shows as working, then
+  done, and he says what it did. Chats in the Claude app's Chat tab are kept online, not on your
+  computer, so Roger can't see them.
 - **Message a chat** that is working: the message goes in after its next step (Claude Code, Gemini
   CLI) or before it stops (Codex). The Message button shows only on working chats.
 - **Ask him:** "what's happening?", "what did I do today?", "open the billing chat", "tell the API

@@ -16,12 +16,14 @@ import type { Status } from "../core/types";
 import { VERSION } from "../core/setup";
 import { AGENT_NAME, forgetReads, liveChats, titleOf, type Agent, type LiveChat } from "./chats";
 import { CatchUp } from "./catchup";
+import { ChatWatch } from "./watch";
 import { DECISION_MS, readStationInfo, stationFile, type StationInfo } from "./client";
 import { PHONE_LINK } from "./phone";
 import { PhoneLink, type LinkStatus, type PhoneLinkOptions } from "./link";
 import { cleanDesign, cleanName, DEFAULT_COMPANION, type CompanionSettings } from "./companion";
 import { ask, headline, tellText, type CompanionAnswer } from "./manager";
 import { openChat } from "./open";
+import { chatApp } from "../core/apps";
 import { describeRequest, questionsOf, ruleKey, type Answer, type Question } from "./reply";
 
 export const DEFAULT_PORT = 47821;
@@ -103,6 +105,8 @@ export interface StationOptions {
   link?: PhoneLinkOptions | false;
   /** How often the records of big or quiet chats are caught up (0: never, for tests). */
   catchUpMs?: number;
+  /** How often chat files whose hook doesn't run are looked at (0: never, for tests). */
+  watchMs?: number;
 }
 
 interface Waiting extends PendingView {
@@ -169,6 +173,7 @@ export class Station extends EventEmitter {
   private sse = new Set<http.ServerResponse>();
   private timers: NodeJS.Timeout[] = [];
   private watcher?: fs.FSWatcher;
+  private watch?: ChatWatch;
   private changeTimer?: NodeJS.Timeout;
   private lastSent = "";
   private readonly uiDir: string;
@@ -213,6 +218,16 @@ export class Station extends EventEmitter {
         });
       this.timers.push(setTimeout(run, 3000));
       this.timers.push(setInterval(run, every));
+    }
+    // Chats whose hook doesn't run (an app that skips hooks, a hook that broke): their files.
+    const watchEvery = this.o.watchMs ?? 2000;
+    if (watchEvery > 0) {
+      this.watch = new ChatWatch(() => {
+        forgetReads();
+        this.refresh();
+      });
+      this.watch.start();
+      this.timers.push(setInterval(() => void this.watch?.tick(), watchEvery));
     }
     await this.link?.start();
     this.timers.push(setInterval(() => this.sse.forEach((r) => r.write(": ping\n\n")), 20_000));
@@ -267,6 +282,7 @@ export class Station extends EventEmitter {
     this.timers.forEach(clearInterval);
     this.timers = [];
     this.watcher?.close();
+    this.watch?.stop();
     clearTimeout(this.changeTimer);
     for (const w of [...this.pending.values()]) w.reply(undefined);
     const old = this.server;
@@ -474,7 +490,7 @@ export class Station extends EventEmitter {
     if (!chat) {
       const head = safeId(chatId) ? readHead(chatId) : undefined;
       if (!head) return "That chat is gone.";
-      return (this.o.open ?? openChat)({ id: head.id, agent: head.tool, cwd: head.cwd, title: titleOf(head), project: "", status: "idle", updatedAt: head.updatedAt, since: head.updatedAt });
+      return (this.o.open ?? openChat)({ id: head.id, agent: head.tool, cwd: head.cwd, app: chatApp(head.tool, head.file), title: titleOf(head), project: "", status: "idle", updatedAt: head.updatedAt, since: head.updatedAt });
     }
     this.finished.delete(chatId);
     this.changed();
