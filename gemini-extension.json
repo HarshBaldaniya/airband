@@ -1,6 +1,6 @@
 {
   "name": "airband",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A map of your code, the records of your other AI chats, and skills that use them.",
   "mcpServers": {
     "airband": {

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.5
 - **Setup finds an AI tool installed after Airband started (Windows).** Windows keeps a program's
   PATH from when it started, so a newly installed Claude Code stayed "not installed", even after
   **Check again**. Setup now reads the PATH again and also looks where each tool's installer puts
