@@ -20,25 +20,32 @@ function heading(r: Release) {
 /** "**Title.** What it does." becomes a title and its line. A bold start that runs on into the
  *  sentence ("**Four new skills** agents use…") stays one line, its bold part the short label. */
 function item(text: string) {
-  const m = /^\*\*(.+?)\*\*\s*(.*)$/.exec(text);
+  const m = /^\*\*(.+?)\*\*\s*([\s\S]*)$/.exec(text);
   if (m && /[.!?]$/.test(m[1])) return { title: m[1].replace(/\.$/, ""), label: m[1].replace(/\.$/, ""), line: m[2] };
   const label = m ? m[1] : text.replace(/[`*]/g, "").split(/[.:(]/)[0];
   return { title: undefined, label: label.length > 70 ? `${label.slice(0, 68)}…` : label, line: text };
 }
 
-/** A line with its own points ("The new ones: - a - b") as the line and a list. */
+/** A line with its own points: the line, the points, and a line after them. Points come on their
+ *  own lines ("\n- a"), or, in older notes, run on in the line ("The new ones: - a - b"). */
 function Line({ text }: { text: string }) {
-  const at = text.indexOf(": - ");
-  if (at < 0) return <p>{inline(text)}</p>;
-  const [head, ...points] = text.slice(0, at + 1).concat(text.slice(at + 1)).split(/\s-\s/);
+  const parts = text.includes("\n- ") ? text.split("\n") : text.includes(": - ") ? text.replace(/\s-\s/g, "\n- ").split("\n") : [text];
+  const head = parts[0];
+  const points = parts.filter((x) => x.startsWith("- ")).map((x) => x.slice(2));
+  const after = parts.slice(1).filter((x) => !x.startsWith("- "));
   return (
     <>
       <p>{inline(head)}</p>
-      <ul className="pts">
-        {points.map((x, i) => (
-          <li key={i}>{inline(x)}</li>
-        ))}
-      </ul>
+      {points.length > 0 && (
+        <ul className="pts">
+          {points.map((x, i) => (
+            <li key={i}>{inline(x)}</li>
+          ))}
+        </ul>
+      )}
+      {after.map((x, i) => (
+        <p key={i}>{inline(x)}</p>
+      ))}
     </>
   );
 }

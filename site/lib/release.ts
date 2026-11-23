@@ -64,7 +64,9 @@ export interface Release {
   items: string[];
 }
 
-/** CHANGELOG.md as versions and their bullet points (each bullet one string, lines joined). */
+/** CHANGELOG.md as versions and their bullet points. Each bullet is one string, its wrapped lines
+ *  joined. A bullet with points of its own keeps them on their own lines ("\n- point"), and a line
+ *  after them on its own line too ("\nRoger never …"). */
 export function changelog(): Release[] {
   const text = readFileSync(join(repo, "CHANGELOG.md"), "utf8");
   const out: Release[] = [];
@@ -77,7 +79,15 @@ export function changelog(): Release[] {
     const cur = out.at(-1);
     if (!cur) continue;
     if (/^- /.test(line)) cur.items.push(line.slice(2).trim());
-    else if (/^\s+\S/.test(line) && cur.items.length) cur.items[cur.items.length - 1] += ` ${line.trim()}`;
+    else if (/^\s+\S/.test(line) && cur.items.length) {
+      const last = cur.items.length - 1;
+      const indent = /^\s*/.exec(line)![0].length;
+      const text = line.trim();
+      // "  - a point", "    its wrapped line", "  a line after the points"
+      if (indent < 4 && text.startsWith("- ")) cur.items[last] += `\n${text}`;
+      else if (indent < 4 && cur.items[last].includes("\n- ")) cur.items[last] += `\n${text}`;
+      else cur.items[last] += ` ${text}`;
+    }
   }
   return out.filter((r) => r.version !== "Unreleased" && r.items.length);
 }

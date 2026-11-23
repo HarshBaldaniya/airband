@@ -33,7 +33,7 @@ export function GET() {
     ...ANSWERS.flatMap((a) => [`### ${a.ask}`, "", a.say, ""]),
     latest ? `## What's new in ${latest.version}` : "",
     "",
-    ...(latest ? latest.items.map((i) => `- ${i.replace(/\*\*/g, "")}`) : []),
+    ...(latest ? latest.items.map((i) => `- ${i.replace(/\*\*/g, "").replace(/\n/g, "\n  ")}`) : []),
     "",
     "## Links",
     "",
