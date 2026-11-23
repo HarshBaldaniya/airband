@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.4
 - **Open and Review go to the very chat, Terminal first.** For Claude Code, Codex and Gemini CLI:
   - A chat running in Terminal or iTerm: its own tab comes forward.
   - A chat running in VS Code: its window comes forward, with that exact Claude Code chat in it.
