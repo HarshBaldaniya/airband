@@ -183,7 +183,7 @@ export function folderNames(status: string): string[] {
 /** The folder of a VS Code window that holds this chat's folder (its repository for a worktree),
  *  matched by name from the chat's folder up. */
 export function vscodeFolderFor(cwd: string, names: string[]): string | undefined {
-  for (let at = path.resolve(editorFolder(cwd)); at && at !== path.dirname(at); at = path.dirname(at)) if (names.includes(path.basename(at))) return at;
+  for (let at = editorFolder(cwd).replace(/[\\/]+$/, ""); at && at !== path.dirname(at); at = path.dirname(at)) if (names.includes(path.basename(at))) return at;
   return undefined;
 }
 
