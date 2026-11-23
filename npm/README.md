@@ -43,7 +43,8 @@ hook. Needs Node.js 20 or newer, on macOS, Windows or Linux.
 airband               # what each agent has; set up anything missing
 airband doctor        # check everything, with the exact fix for anything wrong
 airband update        # move to the newest version and refresh every agent
-airband remove        # take Airband out of every agent (--purge deletes its data)
+airband remove        # take Airband out of every agent (--purge deletes its data,
+                      #   --command uninstalls the airband command too)
 
 airband find "x"      # where something is in your code (also outline, graph)
 airband diff #128     # what a pull request changed, who calls it, which tests reach it
@@ -55,7 +56,15 @@ airband help          # every command
 ## Other ways in
 
 - **Desktop app** for Mac and Windows, about 3 MB: Roger, a companion that shows when a chat needs
-  you. [Download](https://airband.harshbaldaniya.com/download/)
+  you. One line installs it and opens it:
+
+  ```bash
+  curl -fsSL https://airband.harshbaldaniya.com/install.sh | sh     # Mac, in Terminal
+  irm https://airband.harshbaldaniya.com/install.ps1 | iex          # Windows, in PowerShell
+  ```
+
+  Or [download it](https://airband.harshbaldaniya.com/download/). To remove it, choose
+  **Uninstall Airband…** in its menu: that takes Airband out of every agent too.
 - **Claude Code plugin:** `/plugin install airband --marketplace HarshBaldaniya/airband`
 - **Gemini CLI extension:** `gemini extensions install https://github.com/HarshBaldaniya/airband`
 - **VS Code extension:** from the [latest release](https://github.com/HarshBaldaniya/airband/releases/latest)

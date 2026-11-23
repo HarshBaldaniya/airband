@@ -11,7 +11,7 @@ Everything Airband does can be run from a terminal, and its settings can be chan
 | `airband` | Show what each agent has, and set up anything missing |
 | `airband doctor` | Check that everything works, with the exact fix for anything that doesn't |
 | `airband update` | Move to the newest version and refresh every agent (`--check` only looks) |
-| `airband remove` | Take Airband out of every agent (`--purge` also deletes its data) |
+| `airband remove` | Take Airband out of every agent (`--purge` also deletes its data, `--command` uninstalls the `airband` command) |
 | `airband notices off` | Hide Airband's lines in your agent's window (`on` shows them again) |
 | `airband find "rate limiter"` | Where something is in your code; also `outline`, `graph`, `overview` |
 | `airband diff #128` | What a pull request or branch changed: functions, their callers, the tests |
