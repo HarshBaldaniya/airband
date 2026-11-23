@@ -122,12 +122,18 @@ export interface DesktopBridge {
   onUpdate?(cb: (u: AppUpdate) => void): void;
   /** Download the newer app, put it in place and start it. */
   installUpdate?(): void;
+  /** The version the app was just updated to, once after the restart that put it in place. */
+  justUpdated?(): Promise<string | null | undefined>;
 }
 
 /** A newer desktop app, as the app tells it. */
 export interface AppUpdate {
   version?: string | null;
   installing: boolean;
+  /** While installing: "downloading", "installing", then "restarting". */
+  step?: "downloading" | "installing" | "restarting" | null;
+  /** How much of the download is in, 0 to 100. */
+  progress?: number | null;
   error?: string | null;
 }
 

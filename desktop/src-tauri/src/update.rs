@@ -23,11 +23,15 @@ pub struct AppUpdate {
     /// The newer version, when there is one.
     pub version: Option<String>,
     pub installing: bool,
+    /// While installing: "downloading", "installing", then "restarting".
+    pub step: Option<&'static str>,
+    /// How much of the download is in, 0 to 100, when its size is known.
+    pub progress: Option<u8>,
     /// What went wrong the last time, in words for the person.
     pub error: Option<String>,
 }
 
-static NOW: Mutex<AppUpdate> = Mutex::new(AppUpdate { version: None, installing: false, error: None });
+static NOW: Mutex<AppUpdate> = Mutex::new(AppUpdate { version: None, installing: false, step: None, progress: None, error: None });
 
 pub fn current() -> AppUpdate {
     NOW.lock().unwrap().clone()
@@ -35,10 +39,33 @@ pub fn current() -> AppUpdate {
 
 /// The menu and Roger's panel show what changed.
 fn tell(app: &AppHandle) {
+    tell_panel(app);
+    refresh_menu(app);
+}
+
+fn tell_panel(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.emit("update", current());
     }
-    refresh_menu(app);
+}
+
+fn set_step(app: &AppHandle, step: &'static str) {
+    NOW.lock().unwrap().step = Some(step);
+    tell(app);
+}
+
+/// Written just before the new app goes in place, so the new app can say it is the new one.
+fn marker() -> std::path::PathBuf {
+    crate::home().join("updated.json")
+}
+
+/// The version this app was just updated to, once: Roger says so after the restart.
+pub fn just_updated(app: &AppHandle) -> Option<String> {
+    let f = marker();
+    let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&f).ok()?).ok()?;
+    let _ = std::fs::remove_file(&f);
+    let to = v["to"].as_str()?.to_string();
+    (to == app.package_info().version.to_string()).then_some(to)
 }
 
 /// "0.1.10" is newer than "0.1.9".
@@ -128,6 +155,8 @@ pub fn install(app: &AppHandle) {
             return;
         }
         now.installing = true;
+        now.step = Some("downloading");
+        now.progress = None;
         now.error = None;
     }
     tell(app);
@@ -136,6 +165,8 @@ pub fn install(app: &AppHandle) {
         match download_and_install(&app).await {
             Ok(v) => {
                 log(&format!("update: Airband {v} installed, starting it"));
+                set_step(&app, "restarting");
+                std::thread::sleep(Duration::from_millis(700));
                 engine::stop(&app);
                 app.restart();
             }
@@ -144,6 +175,8 @@ pub fn install(app: &AppHandle) {
                 {
                     let mut now = NOW.lock().unwrap();
                     now.installing = false;
+                    now.step = None;
+                    now.progress = None;
                     now.error = Some("The update didn't finish. Try again in a moment.".into());
                 }
                 tell(&app);
@@ -154,7 +187,31 @@ pub fn install(app: &AppHandle) {
 
 async fn download_and_install(app: &AppHandle) -> Result<String, String> {
     let u = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?.ok_or_else(|| "this is already the newest".to_string())?;
-    u.download_and_install(|_, _| {}, || {}).await.map_err(|e| e.to_string())?;
+    let mut got: u64 = 0;
+    let (a, b) = (app.clone(), app.clone());
+    let to = u.version.clone();
+    u.download_and_install(
+        move |chunk, total| {
+            got += chunk as u64;
+            let Some(total) = total.filter(|t| *t > 0) else { return };
+            let pct = ((got * 100) / total).min(100) as u8;
+            let was = NOW.lock().unwrap().progress.replace(pct);
+            if was != Some(pct) {
+                tell_panel(&a);
+                // The menu is built again only now and then.
+                if pct / 10 != was.unwrap_or(0) / 10 {
+                    refresh_menu(&a);
+                }
+            }
+        },
+        move || {
+            // On Windows the installer takes over from here and starts the new app itself.
+            let _ = std::fs::write(marker(), serde_json::json!({ "to": to }).to_string());
+            set_step(&b, "installing");
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     Ok(u.version)
 }
 

@@ -2,8 +2,8 @@
 // The download page's one panel: this computer's tab, the line that installs and opens Airband,
 // and the file for anyone who'd rather download it. The page is built ahead, so it starts on Mac
 // and moves to Windows once the browser says so. Chrome also says which Mac chip it runs on.
-import { ArrowDownToLine } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowDownToLine, Check, LoaderCircle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { mb, type Download } from "@/lib/download";
 import { Copy } from "./Copy";
 import { useOs } from "./DownloadButton";
@@ -42,7 +42,19 @@ function useChip() {
   return chip;
 }
 
+/** A file button after its click: GitHub takes a moment to start the download, so the button says
+ *  it is starting, then where the file went. */
+type Started = { platform: Download["platform"]; step: "starting" | "started" };
+
 export function Get({ files }: { files: Download[] }) {
+  const [started, setStarted] = useState<Started>();
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  const start = (platform: Download["platform"]) => {
+    timers.current.forEach(clearTimeout);
+    setStarted({ platform, step: "starting" });
+    timers.current = [setTimeout(() => setStarted({ platform, step: "started" }), 3500), setTimeout(() => setStarted(undefined), 9000)];
+  };
   const os = useOs();
   const chip = useChip();
   const [kind, setKind] = useState<Kind>("mac");
@@ -71,11 +83,12 @@ export function Get({ files }: { files: Download[] }) {
         <div className="get-files">
           {order.map((pl) => {
             const f = files.find((x) => x.platform === pl)!;
+            const s = started?.platform === pl ? started.step : undefined;
             return (
-              <a key={pl} className="btn block" href={f.url}>
-                <ArrowDownToLine />
-                {NAME[pl]}
-                <span className="size">{mb(f.size) || "about 3 MB"}</span>
+              <a key={pl} className={`btn block${s ? ` ${s}` : ""}`} href={f.url} onClick={() => start(pl)} aria-live="polite">
+                {s === "starting" ? <LoaderCircle className="spin" /> : s === "started" ? <Check /> : <ArrowDownToLine />}
+                {s === "starting" ? "Starting download…" : s === "started" ? "Check your downloads" : NAME[pl]}
+                {!s && <span className="size">{mb(f.size) || "about 3 MB"}</span>}
               </a>
             );
           })}

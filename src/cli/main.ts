@@ -205,9 +205,13 @@ export async function main(argv: string[]): Promise<number> {
     case "remove": {
       for (const l of await remove({ purge: argv.includes("--purge") })) out(`  ${l}`);
       if (turnCompletionOff()) out("  Tab completion removed.");
-      out("\n  Restart open agent chats to finish. If you also use the VS Code extension, uninstall it in VS Code.");
+      // --command (the desktop app's Uninstall) also takes out the `airband` command, with the
+      // package manager that installed it.
       const c = theCommand();
-      if (c) out(`  ${paint.dim(`The airband command stays until: ${uninstallLine(c)}`)}`);
+      const gone = !!c && argv.includes("--command") && retireCommand(c);
+      if (gone) out("  The airband command removed.");
+      out("\n  Restart open agent chats to finish. If you also use the VS Code extension, uninstall it in VS Code.");
+      if (c && !gone) out(`  ${paint.dim(`The airband command stays until: ${uninstallLine(c)}`)}`);
       out("");
       return 0;
     }
@@ -592,6 +596,13 @@ export async function main(argv: string[]): Promise<number> {
     const u = globalUninstall(old.by, old.pkg);
     const c = pmCommand(u.bin, u.args);
     return spawnSync(c.cmd, c.args, { encoding: "utf8", shell: c.shell, windowsHide: true, timeout: 120_000 }).status === 0;
+  }
+
+  /** Uninstalls the `airband` command with the package manager that installed it. */
+  function retireCommand(c: OurCommand): boolean {
+    const u = globalUninstall(c.by, c.pkg);
+    const r = pmCommand(u.bin, u.args);
+    return spawnSync(r.cmd, r.args, { encoding: "utf8", shell: r.shell, windowsHide: true, timeout: 120_000 }).status === 0;
   }
 
   function run(c: { cmd: string; args: string[]; shell: boolean }): number {

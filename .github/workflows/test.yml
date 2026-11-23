@@ -20,3 +20,19 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm test
+      # The one-line installs: a mistake in either breaks every new install on that system.
+      - name: The install scripts read
+        if: runner.os != 'Linux'
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD/site/public/install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Host $_ }; exit 1 }
+          if ($IsMacOS) { sh -n site/public/install.sh; if ($LASTEXITCODE) { exit 1 } }
+      - name: The install script reads in Windows PowerShell 5
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\site\public\install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Host $_ }; exit 1 }

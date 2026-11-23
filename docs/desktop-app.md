@@ -135,8 +135,19 @@ Node.js, if it fetched one).
 
 ## Uninstall
 
-1. Run `npx airband remove` to take Airband out of every agent (add `--purge` to delete its data).
-2. Quit the app from its menu, and turn off **Start at login** first.
-3. Mac: move Airband from Applications to the Bin. Windows: Settings → Apps → Airband → Uninstall.
+Choose **Uninstall Airband…** in the menu. It takes out everything Airband added:
+
+- its skills, hooks and tools in Claude Code, Codex and Gemini CLI
+- the `airband` command
+- Start at login, and the app itself (to the Bin on a Mac)
+
+**Keep my data** keeps your chat records and the map in `~/.airband`. **Remove everything** moves
+them to the Bin too.
+
+On Windows, **Settings → Apps → Airband → Uninstall** does the same. Tick **Delete the application
+data** to remove `~/.airband` too.
+
+Moving the app to the Bin by hand leaves Airband in every agent. To take it out then, run
+`npx airband remove --command` (add `--purge` to delete `~/.airband`).
 
 To build the app from source, see [desktop/README.md](../desktop/README.md).

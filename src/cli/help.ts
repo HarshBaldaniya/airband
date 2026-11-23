@@ -84,8 +84,11 @@ export const COMMANDS: CommandInfo[] = [
     group: "Get started",
     summary: "Take Airband out of every agent",
     about: "Takes out the tools, the skills and the hook. Your flightlogs, map and own commands stay unless you add --purge.",
-    options: [["--purge", "Also delete ~/.airband (flightlogs, the map, your own commands)"]],
-    examples: ["airband remove", "airband remove --purge"],
+    options: [
+      ["--purge", "Also delete ~/.airband (flightlogs, the map, your own commands)"],
+      ["--command", "Also uninstall the airband command"],
+    ],
+    examples: ["airband remove", "airband remove --purge", "airband remove --command"],
     aliases: ["uninstall"],
   },
   {

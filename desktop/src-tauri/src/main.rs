@@ -7,6 +7,7 @@
 mod engine;
 mod install;
 mod setup;
+mod uninstall;
 mod update;
 
 use serde::{Deserialize, Serialize};
@@ -35,10 +36,17 @@ pub fn home() -> PathBuf {
     PathBuf::from(base).join(".airband")
 }
 
+/// Set once Airband is being uninstalled.
+pub static LOG_OFF: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// A short log of what the app did (~/.airband/app.log), for when something goes wrong.
 /// Kept small: started again past 200 KB.
 pub fn log(line: &str) {
     use std::io::Write;
+    // Uninstalling: ~/.airband is going, and a log line would make it again.
+    if LOG_OFF.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
     let f = home().join("app.log");
     let _ = fs::create_dir_all(home());
     if fs::metadata(&f).map(|m| m.len() > 200_000).unwrap_or(false) {
@@ -166,6 +174,7 @@ const BRIDGE: &str = r#"
     update: () => invoke("update_info"),
     onUpdate: (cb) => on("update", cb),
     installUpdate: () => invoke("install_update"),
+    justUpdated: () => invoke("just_updated"),
   };
 })();
 "#;
@@ -443,7 +452,13 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let items = Menu::new(app)?;
     let newer = update::current();
     if let Some(v) = &newer.version {
-        let label = if newer.installing { format!("Updating to {v}…") } else { format!("Update to Airband {v}") };
+        let label = match (newer.installing, newer.step, newer.progress) {
+            (true, Some("downloading"), Some(p)) => format!("Downloading Airband {v} · {p}%"),
+            (true, Some("installing"), _) => format!("Installing Airband {v}…"),
+            (true, Some("restarting"), _) => "Starting again…".to_string(),
+            (true, _, _) => format!("Updating to {v}…"),
+            _ => format!("Update to Airband {v}"),
+        };
         items.append(&MenuItem::with_id(app, "update", label, !newer.installing, None::<&str>)?)?;
         items.append(&PredefinedMenuItem::separator(app)?)?;
     }
@@ -459,6 +474,10 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         items.append(&CheckMenuItem::with_id(app, "login", "Start at login", true, p.start_at_login, None::<&str>)?)?;
         items.append(&PredefinedMenuItem::separator(app)?)?;
         items.append(&MenuItem::with_id(app, "setup", "Run the setup tour again…", true, None::<&str>)?)?;
+    }
+    // Moving the app to the Bin would leave Airband in every agent: this takes it all out.
+    if cfg!(any(target_os = "macos", windows)) {
+        items.append(&MenuItem::with_id(app, "uninstall", "Uninstall Airband…", true, None::<&str>)?)?;
     }
     items.append(&MenuItem::with_id(app, "quit", "Quit Airband", true, None::<&str>)?)?;
     Ok(items)
@@ -493,6 +512,7 @@ fn menu_event(app: &AppHandle, id: &str) {
         "login" => set_pref_inner(app, "startAtLogin", !p.start_at_login),
         "setup" => setup::open(app),
         "update" => update::install(app),
+        "uninstall" => uninstall::start(app),
         "quit" => {
             engine::stop(app);
             app.exit(0);
@@ -562,6 +582,12 @@ fn install_update(app: AppHandle) {
     update::install(&app);
 }
 
+/// The version the app was just updated to, once, so Roger can say it after the restart.
+#[tauri::command]
+fn just_updated(app: AppHandle) -> Option<String> {
+    update::just_updated(&app)
+}
+
 #[tauri::command]
 fn come_back(app: AppHandle) {
     let p = app.state::<State>().lock().unwrap().prefs.clone();
@@ -582,6 +608,13 @@ fn come_back(app: AppHandle) {
 /// window. For testing on a computer, and in CI.
 fn self_check() -> Option<i32> {
     let args: Vec<String> = std::env::args().collect();
+    // The Windows uninstaller runs this first (windows/hooks.nsh): Airband comes out of every agent.
+    if args.iter().any(|a| a == "--uninstall") {
+        for l in uninstall::take_out(args.iter().any(|a| a == "--purge")) {
+            println!("{l}");
+        }
+        return Some(0);
+    }
     let what = args.iter().position(|a| a == "--check").and_then(|i| args.get(i + 1))?.clone();
     let print = |r: Result<serde_json::Value, String>| match r {
         Ok(v) => {
@@ -696,6 +729,7 @@ fn main() {
             setup::open_url,
             update_info,
             install_update,
+            just_updated,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();

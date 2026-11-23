@@ -84,6 +84,13 @@ button { font: inherit; color: inherit; }
 .btn.small { height: 28px; padding: 0 10px; font-size: 12.5px; }
 .updatebar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; padding: 7px 7px 7px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--brand) 45%, transparent); background: color-mix(in srgb, var(--brand) 12%, transparent); font-size: 12.5px; font-weight: 500; }
 .updatebar .btn { flex: none; }
+.updatebar { position: relative; overflow: hidden; }
+.updatebar > :not(.fill) { position: relative; }
+.updatebar.busy { padding-right: 12px; min-height: 36px; }
+.updatebar .fill { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--brand) 22%, transparent); transition: width 0.3s ease; }
+.updatebar .spin { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--brand) 30%, transparent); border-top-color: var(--brand); animation: upspin 0.8s linear infinite; }
+@keyframes upspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .updatebar .spin { animation: none; } .updatebar .fill { transition: none; } }
 @keyframes toastlife { 0% { opacity: 0; transform: translateY(8px); } 3% { opacity: 1; transform: none; } 92% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(4px); } }
 .more { align-self: stretch; height: 34px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--needs); cursor: pointer; font-weight: 600; }
 

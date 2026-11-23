@@ -6,48 +6,88 @@
 # It picks the file for this Mac (Apple silicon or Intel) from the latest GitHub release, checks it
 # against the release's fingerprint, copies Airband to Applications and starts it. A file fetched
 # this way isn't marked as downloaded by a browser, so the app opens without a second click.
+# Each step shows as one line: a spinner while it runs (with how much is downloaded), a tick after.
 set -eu
 
-say() { printf '  %s\n' "$*"; }
-fail() { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
+if [ -t 1 ]; then
+  tty=1 bold='\033[1m' dim='\033[2m' warm='\033[38;5;209m' ok='\033[32m' bad='\033[31m' off='\033[0m' clear='\r\033[K'
+else
+  tty=0 bold='' dim='' warm='' ok='' bad='' off='' clear=''
+fi
+
+done_line() { printf "${clear}  ${ok}✓${off} %-12s %s\n" "$1" "$2"; }
+fail() { printf "${clear}  ${bad}✗${off} %s\n\n" "$*" >&2; exit 1; }
+
+# Runs a command in the background while one line says what is happening. With $want (bytes) and
+# $into (a file) set, the line also says how much of the file is in.
+want='' into=''
+spin() {
+  label=$1 what=$2
+  shift 2
+  "$@" &
+  pid=$!
+  if [ "$tty" = 1 ]; then
+    i=0
+    while kill -0 "$pid" 2>/dev/null; do
+      case $i in 0) c=⠋ ;; 1) c=⠙ ;; 2) c=⠹ ;; 3) c=⠸ ;; 4) c=⠼ ;; 5) c=⠴ ;; 6) c=⠦ ;; 7) c=⠧ ;; 8) c=⠇ ;; *) c=⠏ ;; esac
+      i=$(((i + 1) % 10))
+      more=''
+      if [ -n "$want" ] && [ -f "$into" ]; then
+        got=$(wc -c <"$into" | tr -d ' ')
+        more=$(awk -v g="$got" -v w="$want" 'BEGIN { p = int(g * 100 / w); if (p > 99) p = 99; printf "  %.1f of %.1f MB · %d%%", g / 1048576, w / 1048576, p }')
+      fi
+      printf "${clear}  ${warm}%s${off} %-12s ${dim}%s%s${off}" "$c" "$label" "$what" "$more"
+      sleep 0.1
+    done
+  fi
+  wait "$pid"
+}
 
 main() {
   [ "$(uname -s)" = Darwin ] || fail "This installs the Mac app. On Windows: irm https://airband.harshbaldaniya.com/install.ps1 | iex · Anywhere: npx airband"
 
   # hw.optional.arm64 is 1 on Apple silicon, even in a terminal running under Rosetta.
   if [ "$(sysctl -in hw.optional.arm64 2>/dev/null)" = 1 ]; then kind=Apple-Silicon; else kind=Intel; fi
+  chip=$(echo "$kind" | tr '-' ' ')
 
   tmp=$(mktemp -d)
   trap 'hdiutil detach "$tmp/mnt" -quiet >/dev/null 2>&1 || true; rm -rf "$tmp"' EXIT
 
-  printf '\n  \033[1mAirband\033[0m  installing the desktop app\n\n'
+  printf "\n  ${warm}●${off} ${bold}Airband${off}\n"
+  printf "    Installing Roger, who keeps an ear on your AI coding chats.\n\n"
 
-  curl -fsSL -H "Accept: application/vnd.github+json" \
+  spin "Looking" "for the newest Airband" curl -fsSL -H "Accept: application/vnd.github+json" \
     https://api.github.com/repos/HarshBaldaniya/airband/releases/latest -o "$tmp/release.json" \
     || fail "Couldn't reach GitHub. Try again, or download it from https://airband.harshbaldaniya.com/download/"
 
-  # tag, file URL and fingerprint of this Mac's file, read with the JavaScript every Mac has.
+  # tag, file URL, size and fingerprint of this Mac's file, read with the JavaScript every Mac has.
   found=$(osascript -l JavaScript - "$tmp/release.json" "$kind" <<'JS'
 function run(argv) {
   const text = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js;
   const release = JSON.parse(text);
   const file = (release.assets || []).find((a) => a.name.endsWith(`-${argv[1]}.dmg`));
-  return file ? [release.tag_name, file.browser_download_url, file.digest || ""].join(" ") : "";
+  return file ? [release.tag_name, file.browser_download_url, file.size || 0, file.digest || ""].join(" ") : "";
 }
 JS
   )
   [ -n "$found" ] || fail "The latest release has no file for this Mac yet."
   set -- $found
-  tag=$1 url=$2 digest=${3:-}
+  tag=$1 url=$2 size=${3:-0} digest=${4:-}
+  done_line "Found" "Airband ${tag#v} for $chip Macs"
 
-  curl -fsSL "$url" -o "$tmp/Airband.dmg" || fail "The download stopped. Try again."
+  if [ "$size" -gt 0 ] 2>/dev/null; then want=$size; fi
+  into="$tmp/Airband.dmg"
+  spin "Downloading" "Airband ${tag#v}" curl -fsSL "$url" -o "$tmp/Airband.dmg" || fail "The download stopped. Try again."
+  want='' into=''
+  done_line "Downloaded" "$(awk -v b="$(wc -c <"$tmp/Airband.dmg" | tr -d ' ')" 'BEGIN { printf "%.1f MB", b / 1048576 }')"
+
   if [ -n "$digest" ]; then
     sum=$(shasum -a 256 "$tmp/Airband.dmg" | cut -d' ' -f1)
     [ "sha256:$sum" = "$digest" ] || fail "The download doesn't match the release's fingerprint, so it wasn't installed."
+    done_line "Checked" "it matches the release's fingerprint"
   fi
-  say "✓ Downloaded   Airband ${tag#v} for $(echo "$kind" | tr '-' ' ') Macs"
 
-  hdiutil attach "$tmp/Airband.dmg" -nobrowse -readonly -noautoopen -mountpoint "$tmp/mnt" -quiet \
+  spin "Installing" "opening the download" hdiutil attach "$tmp/Airband.dmg" -nobrowse -readonly -noautoopen -mountpoint "$tmp/mnt" -quiet \
     || fail "Couldn't open the download."
 
   # Quit a running copy so the new one replaces it.
@@ -59,13 +99,13 @@ JS
   dir=/Applications
   [ -w "$dir" ] || { dir="$HOME/Applications"; mkdir -p "$dir"; }
   rm -rf "$dir/Airband.app"
-  ditto "$tmp/mnt/Airband.app" "$dir/Airband.app" || fail "Couldn't copy Airband to $dir."
+  spin "Installing" "into $dir" ditto "$tmp/mnt/Airband.app" "$dir/Airband.app" || fail "Couldn't copy Airband to $dir."
   xattr -dr com.apple.quarantine "$dir/Airband.app" 2>/dev/null || true
-  say "✓ Installed    $dir/Airband.app"
+  done_line "Installed" "$dir/Airband.app"
 
   open "$dir/Airband.app"
-  say "✓ Opened       Roger sets up the rest"
-  printf '\n'
+  done_line "Opened" "Roger is on his way to the corner of your screen"
+  printf "\n  Done. Roger sets up the rest and says hello in a moment.\n\n"
 }
 
 main "$@"

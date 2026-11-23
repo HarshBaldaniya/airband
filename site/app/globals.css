@@ -376,6 +376,12 @@ p { margin: 0; }
 .get-files .btn { gap: 9px; font-size: 14.5px; }
 .get-files .btn:hover { transform: none; }
 .get-files .size { font-weight: 400; color: var(--faint); font-variant-numeric: tabular-nums; }
+.get-files .btn.starting { color: var(--ink); border-color: rgba(224, 122, 79, 0.55); }
+.get-files .btn.started { border-color: rgba(63, 181, 125, 0.5); }
+.get-files .btn.started svg { color: #3fb57d; }
+.btn svg.spin { animation: btnspin 0.8s linear infinite; }
+@keyframes btnspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn svg.spin { animation: none; } }
 .get-note { margin-top: 14px; font-size: 12.5px; color: var(--faint); }
 @media (max-width: 560px) { .get-body { padding: 22px 18px 20px; } .get-files { grid-auto-flow: row; } .get .cmd { font-size: 13.5px; padding-left: 14px; } }
 .then { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; max-width: 920px; margin: 72px auto 0; }

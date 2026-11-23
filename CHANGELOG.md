@@ -8,6 +8,16 @@
 - **A clearer choice of AI tool in setup.** With none installed, setup shows Claude Code, Codex and
   Gemini CLI as three tiles with their own logos. Each opens the tool's official website, not its
   GitHub page. Setup looks again every few seconds and carries on once one is there.
+- **Uninstall Airband… in the menu.** Moving the app to the Bin left Airband in every agent: its
+  skills, hooks and tools, and the `airband` command. Uninstall takes all of it out, then the app.
+  Keep your chat records and the map, or remove everything. On Windows, the app's own uninstaller
+  does the same. `airband remove --command` also uninstalls the `airband` command.
+- **Updates show how far they are.** Roger's update bar fills as the new version downloads, then
+  says it is installing and starting again. After the restart, Roger says which version he is on.
+- **The one-line install shows each step.** In Terminal and PowerShell, each step has its own line:
+  a spinner while it runs, with how much is downloaded, then a tick.
+- **The download buttons say they are working.** On the website, a download button shows a spinner
+  until the download starts, then "Check your downloads".
 
 ## 0.1.4
 - **Open and Review go to the very chat, Terminal first.** For Claude Code, Codex and Gemini CLI:

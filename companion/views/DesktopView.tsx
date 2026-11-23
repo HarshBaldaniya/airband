@@ -45,6 +45,18 @@ export function DesktopView() {
   const [poked, setPoked] = useState(false);
   /** The very first start: one hello, then never again. */
   const [hello, setHello] = useState(false);
+  /** Just updated: the new version, said once after the restart. */
+  const [updated, setUpdated] = useState<string>();
+  useEffect(() => {
+    let done: ReturnType<typeof setTimeout> | undefined;
+    void bridge.justUpdated?.().then((v) => {
+      if (!v) return;
+      setUpdated(v);
+      done = setTimeout(() => setUpdated(undefined), 7000);
+    });
+    return () => clearTimeout(done);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /** The Station has been out of reach for a while (a short restart says nothing). */
   const [offline, setOffline] = useState(false);
   useEffect(() => {
@@ -348,7 +360,12 @@ export function DesktopView() {
             Hi, I'm <b>{c.name}</b>! I'll tell you when a chat needs you.
           </span>
         )}
-        {!offline && !hello && poked && <span className="hello short" role="status">{line}</span>}
+        {!offline && !hello && updated && !tucked && panel === "closed" && (
+          <span className="hello" role="status">
+            I'm on <b>Airband {updated}</b> now. Everything is where you left it.
+          </span>
+        )}
+        {!offline && !hello && !updated && poked && <span className="hello short" role="status">{line}</span>}
         <Companion mood={c.mood} name={c.name} design={c.design} look={look} count={pending.length} size={104} />
       </div>
     </div>

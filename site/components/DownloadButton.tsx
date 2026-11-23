@@ -2,7 +2,7 @@
 // The hero's two ways in, named for the computer the page is open on (the page is built ahead, so
 // it says Mac until the browser answers).
 import Link from "next/link";
-import { ArrowDownToLine } from "lucide-react";
+import { ArrowDownToLine, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Copy } from "./Copy";
 import { Apple, Windows } from "./Marks";
@@ -23,9 +23,11 @@ export function useOs(): Os | undefined {
  *  install comes first (a file from the browser makes the system warn on its first start). */
 export function DownloadButton() {
   const os = useOs();
+  // Clicked: a spinner until the downloads page is there.
+  const [going, setGoing] = useState(false);
   return (
-    <Link className="btn primary" href="/download/">
-      {os === "mac" ? <Apple /> : os === "windows" ? <Windows /> : <ArrowDownToLine />}
+    <Link className="btn primary" href="/download/" onClick={() => setGoing(true)} aria-busy={going}>
+      {going ? <LoaderCircle className="spin" /> : os === "mac" ? <Apple /> : os === "windows" ? <Windows /> : <ArrowDownToLine />}
       {os === "mac" ? "Download for Mac" : os === "windows" ? "Download for Windows" : "Download"}
     </Link>
   );
