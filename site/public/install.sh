@@ -22,6 +22,9 @@ fail() { printf "${clear}  ${bad}✗${off} %s\n\n" "$*" >&2; exit 1; }
 # Runs a command in the background while one line says what is happening. With $want (bytes) and
 # $into (a file) set, the line also says how much of the file is in.
 want='' into=''
+# curl, quiet (these lines say what happened), failing on an error page, and trying again when
+# GitHub answers a moment's error.
+get='-fsL --retry 3 --retry-all-errors --retry-delay 2 --connect-timeout 15'
 spin() {
   label=$1 what=$2
   shift 2
@@ -57,12 +60,15 @@ main() {
   printf "\n  ${warm}●${off} ${bold}Airband${off}\n"
   printf "    Installing Roger, who keeps an ear on your AI coding chats.\n\n"
 
-  spin "Looking" "for the newest Airband" curl -fsSL -H "Accept: application/vnd.github+json" \
-    "https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20" -o "$tmp/release.json" \
-    || fail "Couldn't reach GitHub. Try again, or download it from https://airband.harshbaldaniya.com/download/"
-
-  # tag, file URL, size and fingerprint of this Mac's file, read with the JavaScript every Mac has.
-  found=$(osascript -l JavaScript - "$tmp/release.json" "$kind" <<'JS'
+  # GitHub's API first: it says which release has a file for this Mac, its size and fingerprint.
+  # It is tried four times (it can answer 502 or 504 for a moment), quietly: these lines say what
+  # happened. If it still doesn't answer, or this network has used its hourly API allowance, the
+  # newest finished release's update file names the version (it is published once every file is up).
+  found=''
+  if spin "Looking" "for the newest Airband" curl $get -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20" -o "$tmp/release.json"; then
+    # tag, file URL, size and fingerprint of this Mac's file, read with the JavaScript every Mac has.
+    found=$(osascript -l JavaScript - "$tmp/release.json" "$kind" <<'JS'
 function run(argv) {
   const text = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js;
   // Newest first: the first release with a file for this Mac.
@@ -74,15 +80,29 @@ function run(argv) {
   return "";
 }
 JS
-  )
-  [ -n "$found" ] || fail "No release has a file for this Mac yet."
+    ) || found=''
+    [ -n "$found" ] || fail "No release has a file for this Mac yet."
+  elif spin "Looking" "on GitHub's download server" curl $get \
+    https://github.com/HarshBaldaniya/airband/releases/latest/download/latest.json -o "$tmp/latest.json"; then
+    v=$(osascript -l JavaScript - "$tmp/latest.json" <<'JS'
+function run(argv) {
+  const text = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js;
+  return JSON.parse(text).version || "";
+}
+JS
+    ) || v=''
+    [ -n "$v" ] || fail "Couldn't read which version is newest. Try again in a minute."
+    found="v$v https://github.com/HarshBaldaniya/airband/releases/download/v$v/Airband-$v-$kind.dmg 0"
+  else
+    fail "Couldn't reach GitHub. Try again in a minute, or download it from https://airband.harshbaldaniya.com/download/"
+  fi
   set -- $found
   tag=$1 url=$2 size=${3:-0} digest=${4:-}
   done_line "Found" "Airband ${tag#v} for $chip Macs"
 
   if [ "$size" -gt 0 ] 2>/dev/null; then want=$size; fi
   into="$tmp/Airband.dmg"
-  spin "Downloading" "Airband ${tag#v}" curl -fsSL "$url" -o "$tmp/Airband.dmg" || fail "The download stopped. Try again."
+  spin "Downloading" "Airband ${tag#v}" curl $get "$url" -o "$tmp/Airband.dmg" || fail "The download stopped. Try again."
   want='' into=''
   done_line "Downloaded" "$(awk -v b="$(wc -c <"$tmp/Airband.dmg" | tr -d ' ')" 'BEGIN { printf "%.1f MB", b / 1048576 }')"
 

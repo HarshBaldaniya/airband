@@ -38,23 +38,40 @@
   Write-Host "    Installing Roger, who keeps an ear on your AI coding chats."
   Write-Host ""
 
+  # Asked up to four times: GitHub can answer 502 or 504 for a moment.
+  function Ask($uri, $headers) {
+    for ($try = 1; $try -le 4; $try++) {
+      try { return Invoke-RestMethod -Uri $uri -Headers $headers -TimeoutSec 20 } catch { if ($try -lt 4) { Start-Sleep -Seconds 2 } }
+    }
+    return $null
+  }
+
+  # GitHub's API first: it says which release has an installer, its size and fingerprint. If it
+  # doesn't answer, or this network has used its hourly API allowance, the newest finished
+  # release's update file names the version (it is published once every file is up).
   Spin 'Looking' 'for the newest Airband'
-  try {
-    $releases = Invoke-RestMethod -Uri 'https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20' -Headers @{ Accept = 'application/vnd.github+json' }
-  } catch {
-    Fail "Couldn't reach GitHub. Try again, or download it from https://airband.harshbaldaniya.com/download/"
-    return
-  }
-  # Newest first: the first release with a Windows installer.
-  $release = $null
   $file = $null
-  foreach ($r in $releases) {
-    if ($r.draft -or $r.prerelease) { continue }
-    $file = $r.assets | Where-Object { $_.name -like 'Airband-Setup-*.exe' } | Select-Object -First 1
-    if ($file) { $release = $r; break }
+  $version = $null
+  $releases = Ask 'https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20' @{ Accept = 'application/vnd.github+json'; 'User-Agent' = 'airband-install' }
+  if ($releases) {
+    # Newest first: the first release with a Windows installer.
+    foreach ($r in $releases) {
+      if ($r.draft -or $r.prerelease) { continue }
+      $file = $r.assets | Where-Object { $_.name -like 'Airband-Setup-*.exe' } | Select-Object -First 1
+      if ($file) { $version = $r.tag_name.TrimStart('v'); break }
+    }
+    if (-not $file) { Fail 'No release has a Windows installer yet.'; return }
+  } else {
+    Spin 'Looking' "on GitHub's download server"
+    $latest = Ask 'https://github.com/HarshBaldaniya/airband/releases/latest/download/latest.json' @{ 'User-Agent' = 'airband-install' }
+    if (-not $latest -or -not $latest.version) {
+      Fail "Couldn't reach GitHub. Try again in a minute, or download it from https://airband.harshbaldaniya.com/download/"
+      return
+    }
+    $version = $latest.version
+    $name = "Airband-Setup-$version.exe"
+    $file = [pscustomobject]@{ name = $name; size = 0; digest = $null; browser_download_url = "https://github.com/HarshBaldaniya/airband/releases/download/v$version/$name" }
   }
-  if (-not $file) { Fail 'No release has a Windows installer yet.'; return }
-  $version = $release.tag_name.TrimStart('v')
   Done 'Found' "Airband $version for Windows"
 
   # Downloaded in the background, so the line can say how much is in.
