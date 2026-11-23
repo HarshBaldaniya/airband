@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.6
 - **Open shows a chat in the app it lives in.** A chat in the Claude app's Code tab opens there,
   at that exact chat, and so does a Claude Code chat the Claude app lists, instead of a new
   Terminal window. A Codex app chat opens in the Codex app. Terminal tabs and VS Code windows still
