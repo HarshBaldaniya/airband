@@ -3,6 +3,8 @@
 // fingerprint (the release on GitHub). Each button gets the newest release that has its file: while
 // a new release is still being built (or one system's build failed), that system's button stays on
 // the version before. If GitHub can't be reached, the links follow the version, without sizes.
+// GitHub is asked again at every build: the build script clears Next's saved answers first, or a
+// build after a release would still see the release as it was at an earlier build.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SITE } from "./site";
