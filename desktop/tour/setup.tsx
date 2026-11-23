@@ -6,9 +6,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Companion } from "../../companion/figure/Companion";
-import claude from "../../site/public/brand/agents/claudecode.svg";
-import codex from "../../site/public/brand/agents/codex.svg";
-import gemini from "../../site/public/brand/agents/gemini.svg";
+import claude from "@lobehub/icons-static-svg/icons/claudecode-color.svg";
+import codex from "@lobehub/icons-static-svg/icons/codex-color.svg";
+import gemini from "@lobehub/icons-static-svg/icons/gemini-color.svg";
 import "./setup.css";
 
 interface Found { name: string; found: boolean; detail?: string | null; link: string }
