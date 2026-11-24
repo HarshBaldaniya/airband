@@ -7,7 +7,8 @@ import { readHookStatus } from "../sessions/status";
 import { cleanText } from "../adapters/chat-text";
 import type { HookStatus, Status } from "../core/types";
 import { describeRequest } from "../station/reply";
-import type { HookInput } from "./input";
+import { fromAgent, type HookInput } from "./input";
+import { isSystemTurn } from "../sessions/record/extract";
 
 /** The status events the hook writes itself: a chat sent back to work, and a Claude app chat starting. */
 const CONTINUED = "Continued";
@@ -37,9 +38,13 @@ export function statusFor(input: HookInput): Status | undefined {
 /** What a chat's status keeps from one event to the next: its agent, its file and the ask it works on. */
 function carried(id: string, input: HookInput, tool: AgentId | undefined, status: Status): Pick<HookStatus, "tool" | "file" | "ask"> {
   const was = readHookStatus(id);
-  const said = input.prompt ? cleanText(input.prompt).replace(/\s+/g, " ").trim() : "";
+  // A message the system sent in the person's place (an agent finishing, another session) is
+  // not what the chat works on.
+  const cleaned = input.prompt ? cleanText(input.prompt).replace(/\s+/g, " ").trim() : "";
+  const said = cleaned && !isSystemTurn(cleaned) ? cleaned : "";
   const ask = status === "idle" ? undefined : said ? said.slice(0, 200) : was?.ask;
-  const file = input.transcript_path ?? was?.file;
+  // An agent's own file is not the chat's.
+  const file = (fromAgent(input) ? undefined : input.transcript_path) ?? was?.file;
   const t = tool ?? was?.tool;
   return { ...(t ? { tool: t } : {}), ...(file ? { file } : {}), ...(ask ? { ask } : {}) };
 }

@@ -21,6 +21,15 @@ export interface HookInput {
   tool_name?: string;
   tool_input?: unknown;
   tool_response?: unknown;
+  /** Set (Claude Code) when the event comes from an agent the chat started, not the chat itself. */
+  agent_id?: string;
+  agent_type?: string;
+}
+
+/** The event comes from an agent the chat started: Claude Code runs the hook inside them, under
+ *  the chat's own id, with the agent's id (and its own file, under the chat's subagents folder). */
+export function fromAgent(input: HookInput): boolean {
+  return !!input.agent_id || /[\\/]subagents[\\/]/.test(input.transcript_path ?? "");
 }
 
 /** Each tool's event names, as the one set Airband works with. */

@@ -145,6 +145,40 @@ export function recentRollouts(dir: string, max: number): { file: string; mtime:
   return out.sort((a, b) => b.mtime - a.mtime);
 }
 
+/** Whether a rollout's start (its session_meta) says an agent of another chat made it: Codex
+ *  names its source a sub-agent. Such a thread belongs to its chat and is no chat of its own. */
+export function isSubagentMeta(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const p = payload as { source?: unknown; thread_source?: unknown };
+  const named = (v: unknown) => typeof v === "string" && /sub[_-]?agent/i.test(v);
+  return named(p.thread_source) || named(p.source) || (!!p.source && typeof p.source === "object" && Object.keys(p.source).some(named));
+}
+
+const subagentFiles = new Map<string, boolean>();
+
+/** Whether a Codex rollout is a sub-agent's thread (read once per file: its start never changes). */
+export function isSubagentRollout(file: string | undefined): boolean {
+  if (!file) return false;
+  const hit = subagentFiles.get(file);
+  if (hit !== undefined) return hit;
+  let sub = false;
+  try {
+    const fd = fs.openSync(file, "r");
+    try {
+      const buf = Buffer.alloc(64 * 1024);
+      const n = fs.readSync(fd, buf, 0, buf.length, 0);
+      const first = parseJsonLine<Line>(buf.toString("utf8", 0, n).split("\n")[0] ?? "");
+      sub = first?.type === "session_meta" && isSubagentMeta(first.payload);
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
+  subagentFiles.set(file, sub);
+  return sub;
+}
+
 function readMeta(file: string): Meta | null {
   let head: string;
   try {
@@ -168,6 +202,7 @@ function readMeta(file: string): Meta | null {
     const o = parseJsonLine<Line>(raw);
     if (!o) continue;
     const p = o.type === "session_meta" ? o.payload : !o.type && o.id && o.timestamp ? o : undefined;
+    if (o.type === "session_meta" && isSubagentMeta(o.payload)) return null;
     if (p && !id) {
       id = p.id;
       cwd = p.cwd ?? cwd;

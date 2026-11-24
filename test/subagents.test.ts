@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { AGENT_QUIET_MS, backgroundAgents, forgetAgents } from "../src/sessions/background";
+import { AGENT_QUIET_MS, WAITED_AGENT_QUIET_MS, forgetAgents, runningAgents } from "../src/sessions/subagents";
 import { claudeRunningChats } from "../src/sessions/running";
 import { record } from "../src/hook/status";
 import { forgetReads, liveChats } from "../src/station/chats";
@@ -44,17 +44,21 @@ function agent(name: string, meta: Record<string, unknown>, wrote = Date.now()) 
 /** This test's own process stands in for the chat's Claude Code. */
 const runs = (pid = process.pid) => fs.writeFileSync(path.join(sessions, `${pid}.json`), JSON.stringify({ pid, sessionId: ID }));
 
-test("an agent not marked finished, in a chat that runs, works; a finished one or the turn's own does not", () => {
+test("an agent not marked finished, in a chat that runs, works; a finished one does not", () => {
   runs();
   agent("a1", { finished: true });
+  assert.equal(runningAgents(ID, file, claudeRunningChats(sessions)), undefined);
+  // One the chat waits for counts while it writes, and is taken for gone sooner once quiet.
   agent("a2", { requestShape: "foreground" });
-  assert.equal(backgroundAgents(ID, file, claudeRunningChats(sessions)), undefined);
+  assert.equal(runningAgents(ID, file, claudeRunningChats(sessions))?.count, 1);
+  agent("a2", { requestShape: "foreground" }, Date.now() - WAITED_AGENT_QUIET_MS - 60_000);
+  assert.equal(runningAgents(ID, file, claudeRunningChats(sessions)), undefined);
   agent("a3", {});
   agent("a4", {});
-  assert.equal(backgroundAgents(ID, file, claudeRunningChats(sessions))?.count, 2);
+  assert.equal(runningAgents(ID, file, claudeRunningChats(sessions))?.count, 2);
   // One ends: its description is rewritten in place.
   fs.writeFileSync(path.join(agents, "agent-a3.meta.json"), JSON.stringify({ requestShape: "background", finished: true }));
-  assert.equal(backgroundAgents(ID, file, claudeRunningChats(sessions))?.count, 1);
+  assert.equal(runningAgents(ID, file, claudeRunningChats(sessions))?.count, 1);
 });
 
 test("an unmarked agent of a closed chat, or one quiet for long, is gone", () => {
@@ -62,10 +66,10 @@ test("an unmarked agent of a closed chat, or one quiet for long, is gone", () =>
   // A process id no process has.
   runs(2 ** 22 + 12345);
   assert.equal(claudeRunningChats(sessions).has(ID), false);
-  assert.equal(backgroundAgents(ID, file, claudeRunningChats(sessions)), undefined, "the chat was closed");
+  assert.equal(runningAgents(ID, file, claudeRunningChats(sessions)), undefined, "the chat was closed");
   runs();
   agent("a1", {}, Date.now() - AGENT_QUIET_MS - 60_000);
-  assert.equal(backgroundAgents(ID, file, claudeRunningChats(sessions)), undefined, "quiet for half an hour");
+  assert.equal(runningAgents(ID, file, claudeRunningChats(sessions)), undefined, "quiet for half an hour");
 });
 
 test("Roger lists a chat whose turn ended as working while its background agent works, and says so", () => {

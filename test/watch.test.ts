@@ -131,3 +131,21 @@ test("a Codex chat with no hook: a whole turn written at once counts as done", a
   assert.equal(readAsks(id, 5).at(-1)?.ask, "Add a health check");
   assert.equal(changes, 1);
 });
+
+test("a Codex agent's own thread is part of the chat that started it, not a chat of its own", async () => {
+  const { isSubagentMeta } = await import("../src/adapters/codex");
+  assert.equal(isSubagentMeta({ id: "x", source: "vscode", thread_source: "user" }), false);
+  assert.equal(isSubagentMeta({ id: "x", source: { subagent: { parent_thread_id: "p" } } }), true);
+  assert.equal(isSubagentMeta({ id: "x", source: "exec", thread_source: "subagent" }), true);
+  let changes = 0;
+  const watch = new ChatWatch(() => changes++, { claude: claudeDir, codex: codexDir });
+  const id = "01a1fe92-880c-7bb3-9db5-687369b71641";
+  const day = path.join(codexDir, "2026", "11", "24");
+  fs.mkdirSync(day, { recursive: true });
+  const file = path.join(day, `rollout-2026-11-24T10-00-00-${id}.jsonl`);
+  fs.writeFileSync(file, j({ type: "session_meta", payload: { id, cwd: "/work/api", source: { subagent: { parent_thread_id: "p" } } } }) + j({ type: "event_msg", payload: { type: "task_complete" } }));
+  watch.touched(file);
+  await watch.tick();
+  assert.equal(readHookStatus(id), undefined);
+  assert.equal(changes, 0);
+});

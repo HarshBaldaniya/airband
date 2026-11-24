@@ -24,10 +24,11 @@ import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../sharing/n
 import { safeId } from "../core/paths";
 import { setSentReply, setStopBlock, takeStopBlock, type StopBlock } from "../sharing/cursors";
 import { cleanText } from "../adapters/chat-text";
+import { isSubagentRollout } from "../adapters/codex";
 import { briefFor } from "../writing/rules";
 import { forgetGiven } from "../writing/given";
 import { writingSettings } from "../writing/settings";
-import { hookOutput, normalise, type HookInput } from "./input";
+import { fromAgent, hookOutput, normalise, type HookInput } from "./input";
 import { bindBranch, deliver, keepRecord, markRead, PERSON_ASK, personWaiting, sendUpdates } from "./sharing";
 import { continued, record } from "./status";
 import { docCheck, sendCheck, writingRules } from "./writing";
@@ -37,6 +38,9 @@ export function handle(raw: HookInput, now = Date.now(), tool: AgentId = "claude
   // The app's own questions to Claude Code (what its companion looks up) are not chats of yours.
   if (process.env.AIRBAND_COMPANION) return undefined;
   const input = normalise(raw, tool);
+  // A Codex agent's own thread belongs to the chat that started it: it is no chat of its own, so
+  // it gets no status, record or updates (its permission requests still reach the app).
+  if (tool === "codex" && isSubagentRollout(input.transcript_path)) return undefined;
   record(input, now, tool);
   switch (input.hook_event_name) {
     case "Stop": {
@@ -111,8 +115,9 @@ export function handle(raw: HookInput, now = Date.now(), tool: AgentId = "claude
     case "PostToolUse": {
       const doc = docCheck(input, tool);
       // The person's own message reaches a working chat after its next tool step, as context the
-      // model reads straight away (Claude Code and Gemini CLI; Codex takes it as it stops).
-      if (tool !== "codex" && personWaiting(input.session_id)) {
+      // model reads straight away (Claude Code and Gemini CLI; Codex takes it as it stops). Never
+      // an agent's step: the message is for the chat, and an agent would take it for itself.
+      if (tool !== "codex" && !fromAgent(input) && personWaiting(input.session_id)) {
         const d = deliver(input, now);
         if (d) {
           const docText = doc ? (JSON.parse(doc) as { hookSpecificOutput?: { additionalContext?: string } }).hookSpecificOutput?.additionalContext : undefined;

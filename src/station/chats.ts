@@ -11,7 +11,7 @@ import type { HookStatus, Status } from "../core/types";
 import { plainText, shorten } from "../core/text";
 import { parseJsonLine } from "../core/json";
 import { DAY_MS } from "../core/units";
-import { backgroundAgents, forgetAgents } from "../sessions/background";
+import { forgetAgents, runningAgents } from "../sessions/subagents";
 import { claudeRunningChats } from "../sessions/running";
 
 
@@ -24,7 +24,7 @@ export interface LiveChat {
   /** Where it runs: a terminal, VS Code, the Claude app or the Codex app (when its file says). */
   app?: ChatApp;
   status: Status;
-  /** Agents it runs in the background: its turn may have ended, but it works until they do. */
+  /** Agents it runs: its turn may have ended, but it works until they do. */
   agents?: number;
   /** What it waits for, when it waits. */
   line?: string;
@@ -225,8 +225,8 @@ export function liveChats(now = Date.now(), windowMs = LIVE_WINDOW_MS, limit = 6
     const settled = !!hook && hook.status !== "working" && hook.status !== "waiting" && told.has(h.tool);
     const activity = settled ? (repliedAfter(h.tool, h.file, hook!.at) ? (mtime(h.file) ?? hook!.at) : hook!.at) : !hook && told.has(h.tool) ? h.updatedAt : (mtime(h.file) ?? h.updatedAt);
     const r = resolveStatus(activity, hook, now);
-    // A turn that ended with agents still at work in the background: the chat works until they end.
-    const agents = h.tool === "claude" && (r.status === "done" || r.status === "idle") ? backgroundAgents(h.id, h.file, running, now) : undefined;
+    // Agents still at work, its turn ended or waiting on them: the chat works until they end.
+    const agents = h.tool === "claude" && (r.status === "done" || r.status === "idle") ? runningAgents(h.id, h.file, running, now) : undefined;
     const ask = cachedLastAsk(h);
     const renamed = liveName(h);
     const app = chatApp(h.tool, h.file);

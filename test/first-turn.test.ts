@@ -120,3 +120,17 @@ test("done stays done while the app writes its own lines after the turn; a new r
   forgetReads();
   assert.equal(liveChats().find((c) => c.id === ID)?.status, "working");
 });
+
+test("an agent's steps keep the chat working on its own file and ask; the system's messages are not asks", () => {
+  const now = Date.now();
+  record({ session_id: ID, hook_event_name: "UserPromptSubmit", cwd: "/work/shop", transcript_path: file, prompt: "Fix the cart total" }, now, "claude");
+  const agentFile = path.join(path.dirname(file), ID, "subagents", "agent-a1.jsonl");
+  record({ session_id: ID, hook_event_name: "PostToolUse", cwd: "/work/shop", transcript_path: agentFile, agent_id: "a1", tool_name: "Bash" }, now + 1, "claude");
+  assert.equal(readHookStatus(ID)?.status, "working");
+  assert.equal(readHookStatus(ID)?.file, file, "the chat's file, not the agent's");
+  // An agent finishing sends the chat a notice in the person's place: it is not the ask.
+  record({ session_id: ID, hook_event_name: "UserPromptSubmit", cwd: "/work/shop", transcript_path: file, prompt: "<task-notification>\n<task-id>a1</task-id>\n<status>completed</status>\n</task-notification>" }, now + 2, "claude");
+  assert.equal(readHookStatus(ID)?.ask, "Fix the cart total");
+  record({ session_id: ID, hook_event_name: "UserPromptSubmit", cwd: "/work/shop", transcript_path: file, prompt: "Another Claude session sent a message: hi" }, now + 3, "claude");
+  assert.equal(readHookStatus(ID)?.ask, "Fix the cart total");
+});

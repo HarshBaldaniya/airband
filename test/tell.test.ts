@@ -36,6 +36,17 @@ test("while a Claude Code chat works, the person's message goes in after its nex
   assert.deepEqual(readInbox(ID), []);
 });
 
+test("an agent the chat started never takes the person's message: the chat's own next step does", () => {
+  fromPerson("Use the staging database.");
+  // Claude Code runs the hook inside the chat's agents, under the chat's own id.
+  const agentFile = path.join(path.dirname(file), "chat", "subagents", "agent-a1.jsonl");
+  assert.equal(handle({ session_id: ID, transcript_path: agentFile, agent_id: "a1", hook_event_name: "PostToolUse", cwd: "/work/app", tool_name: "Bash" }, 5), undefined);
+  assert.equal(handle({ session_id: ID, transcript_path: agentFile, hook_event_name: "PostToolUse", cwd: "/work/app", tool_name: "Bash" }, 5), undefined, "known by its file too");
+  assert.equal(readInbox(ID).length, 1, "still waiting for the chat");
+  const out = JSON.parse(handle({ session_id: ID, transcript_path: file, hook_event_name: "PostToolUse", cwd: "/work/app", tool_name: "Bash" }, 6)!);
+  assert.match(out.hookSpecificOutput.additionalContext, /Use the staging database/);
+});
+
 test("a linked chat's update still waits for the next message, not the next tool step", () => {
   fromLinked("Seats now sync on every plan change.");
   assert.equal(handle({ session_id: ID, transcript_path: file, hook_event_name: "PostToolUse", cwd: "/work/app", tool_name: "Bash" }, 5), undefined);

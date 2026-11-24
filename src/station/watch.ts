@@ -6,6 +6,7 @@
 // reply, it counts as working; when its file shows the turn ended, its record is caught up and it
 // counts as done, so Roger says it finished like any other. Its status says "Watched": the hook's
 // own status, whenever there is one, always wins.
+import { isSubagentRollout } from "../adapters/codex";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { claudeProjectsDir, codexSessionsDir, safeId, statusDir, writeFileAtomic } from "../core/paths";
@@ -155,7 +156,8 @@ export class ChatWatch {
   /** One changed file. True when the chat's status changed. */
   private async look(file: string, now: number): Promise<boolean> {
     const chat = chatOfFile(file, this.dirs.claude, this.dirs.codex);
-    if (!chat) return false;
+    // A Codex agent's own thread is part of the chat that started it.
+    if (!chat || (chat.tool === "codex" && isSubagentRollout(file))) return false;
     // Its hook speaks for it: nothing to do, now or later.
     const hook = readHookStatus(chat.id);
     if (hook && hook.event !== WATCHED) {

@@ -102,6 +102,9 @@ const SYSTEM_TURN = new RegExp(
   `^(<task-notification>|<agent-message|<local-command-|Stop hook feedback|Another Claude session sent a message|\\[Request interrupted|Caveat: The messages below|<system-reminder>|\\[(?:${["Airband", ...OLD_NAMES].join("|")})\\])`,
 );
 
+/** Whether a message in the person's place was written by the system, not by them. */
+export const isSystemTurn = (text: string) => SYSTEM_TURN.test(text.trim());
+
 /** A slash command the person typed, as they typed it: "/pr-review 845". */
 function slashCommand(text: string): string | undefined {
   const name = /<command-name>([^<]+)<\/command-name>/.exec(text)?.[1];
