@@ -2,10 +2,12 @@
 // updates on their way to it, and a dot on each side to draw a line from.
 import { memo, useContext, useEffect, useRef, useState } from "react";
 import { Handle, type NodeProps } from "@xyflow/react";
-import { agoText, contextPct, level, whereItOpens } from "../../lib/format";
+import { agoText, contextPct, whereItOpens } from "../../lib/format";
 import { folderName } from "../../lib/folders";
 import { send } from "../../lib/vscode";
-import { ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, ExternalLink, Eye, Folder, FolderOpen, GitBranch, I, MessageSquareDot, RefreshCw, StatusChip, ToolMark, X } from "../../components/Icons";
+import { ArrowLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, ExternalLink, Folder, FolderOpen, GitBranch, I, StatusChip, ToolMark, X } from "../../components/Icons";
+import { ContextBar } from "../../components/ContextBar";
+import { Incoming } from "../../components/Incoming";
 import { ModelName } from "../../components/ModelName";
 import { SIDES } from "./edges";
 import { LinkMode, type CardNode } from "./types";
@@ -85,9 +87,7 @@ export const ChatCard = memo(function ChatCard({ data, selected }: NodeProps<Car
             <>
               <dt>Context</dt>
               <dd className="ctx" data-tip={`${s.context.used.toLocaleString()} of ${s.context.window.toLocaleString()} tokens`}>
-                <span className={`ctxbar ${level(pct)}`}>
-                  <span style={{ width: `${Math.max(2, pct)}%` }} />
-                </span>
+                <ContextBar pct={pct} />
                 {pct}%
               </dd>
             </>
@@ -108,29 +108,7 @@ export const ChatCard = memo(function ChatCard({ data, selected }: NodeProps<Car
           )}
         </dl>
       )}
-      {!!waiting && (
-        <div key={waiting} className="incoming nodrag nopan">
-          <div className="inhead">
-            <span className="inicon" aria-hidden="true">
-              <MessageSquareDot {...I} size={15} />
-            </span>
-            <span className="intext">
-              <b>
-                {waiting} update{waiting === 1 ? "" : "s"} on the way
-              </b>
-              <span className="insub">from {(data.from ?? []).join(", ") || "linked chats"}</span>
-            </span>
-          </div>
-          <div className="inactions">
-            <button className="btn tiny ghost" onClick={() => send({ type: "peek", id: s.id })}>
-              <Eye {...I} size={12} /> View
-            </button>
-            <button className="btn tiny primary" onClick={() => send({ type: "syncNow", id: s.id })} data-tip="They arrive by themselves when the chat replies or gets its next message. Sync sends them now.">
-              <RefreshCw {...I} size={12} /> Sync
-            </button>
-          </div>
-        </div>
-      )}
+      {!!waiting && <Incoming key={waiting} id={s.id} waiting={waiting} from={data.from} className="nopan" />}
       <div className="bcardactions nodrag nopan">
         <button className="btn small" onClick={() => send({ type: "open", id: s.id })}>
           <ExternalLink {...I} size={13} /> Open
