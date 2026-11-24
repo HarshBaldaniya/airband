@@ -6,11 +6,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawnSync } from "node:child_process";
-import { agentSummary, claudePluginInstalled, doctor, installedVersion, needsSetup, npmCommand, remove, setup } from "../src/core/setup";
+import { agentSummary, claudePluginInstalled, doctor, installedVersion, needsSetup, npmCommand, remove, setup } from "../src/install/setup";
 import { newer, VERSION } from "../src/core/version";
-import { installSkills, removeSkills, SKILLS, skillsDir, skillsState } from "../src/core/skills";
-import { agentStates, codexPromptsDir } from "../src/core/toolkit";
-import { moveOldHome } from "../src/core/migrate";
+import { installSkills, removeSkills, SKILLS, skillsDir, skillsState } from "../src/install/skills";
+import { agentStates, codexPromptsDir } from "../src/install/toolkit";
+import { moveOldHome } from "../src/install/migrate";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 let dist = "";

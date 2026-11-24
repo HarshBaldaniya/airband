@@ -1,7 +1,7 @@
 // Backs up the session logs to a folder the person picks (iCloud Drive, OneDrive, Dropbox, a USB
 // drive ...): a few minutes after start, then every half hour, copying only what changed.
 import * as vscode from "vscode";
-import { backUp, restore } from "../core/backup";
+import { backUp, restore } from "../install/backup";
 
 const EVERY_MS = 30 * 60_000;
 

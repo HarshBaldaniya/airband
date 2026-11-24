@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import { airbandHome } from "../core/paths";
 import { output } from "../core/process";
-import { agentSummary, installedVersion } from "../core/setup";
+import { agentSummary, installedVersion } from "../install/setup";
 import { VERSION } from "../core/version";
 import type { OurCommand } from "./package-managers";
 

@@ -5,16 +5,16 @@ import * as fs from "node:fs";
 import * as https from "node:https";
 import * as os from "node:os";
 import * as path from "node:path";
-import { airbandFile, airbandHome, guardRealHome, writeFileAtomic } from "./paths";
+import { airbandFile, airbandHome, guardRealHome, writeFileAtomic } from "../core/paths";
 import { moveOldHome } from "./migrate";
-import { connect, disconnect, hookCommandFor, hookTargets, installedHookPath, isToolConnected, staleHookTargets } from "./hooks";
+import { connect, disconnect, hookCommandFor, hookTargets, installedHookPath, isToolConnected, staleHookTargets } from "./agent-hooks";
 import { agentStates, installToolkit, removeToolkit } from "./toolkit";
 import { installSkills, removeSkills, SKILLS, skillsState, type SkillAgent } from "./skills";
-import { agentOf, toolOf, type AgentId } from "./agents";
-import { findClaude, findNode } from "./process";
-import { newer, VERSION, VERSION_RE } from "./version";
-import { DAY_MS } from "./units";
-import { OLD_CLAUDE_PLUGIN } from "./legacy";
+import { agentOf, toolOf, type AgentId } from "../core/agents";
+import { findClaude, findNode } from "../core/process";
+import { newer, VERSION, VERSION_RE } from "../core/version";
+import { DAY_MS } from "../core/units";
+import { OLD_CLAUDE_PLUGIN } from "../core/legacy";
 
 /** The npm package: `npx airband` sets everything up; `npm i -g airband` installs the
  *  `airband` command. */

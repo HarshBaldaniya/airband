@@ -6,7 +6,7 @@ import type { CodeMap } from "../codemap/index";
 import { memberName } from "../codemap/graph";
 import type { CodeHitView, CodeMapView, CodeModuleView, LibraryView } from "../core/protocol";
 import { listHeads, readAsks } from "../sessions/record/store";
-import { agentStates } from "../core/toolkit";
+import { agentStates } from "../install/toolkit";
 import { allCommands, PACKS, userLibraryDir } from "../library/index";
 
 const rel = (root: string, f: string) => path.relative(root, f).split(path.sep).join("/");

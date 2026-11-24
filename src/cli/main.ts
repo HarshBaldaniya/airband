@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { findProject } from "../codemap/where";
 import { airbandHome } from "../core/paths";
-import { updateChecksOff } from "../core/setup";
+import { updateChecksOff } from "../install/setup";
 import { newer, VERSION } from "../core/version";
 import { ABOUT_COMMANDS } from "./commands/about";
 import { CHATS_COMMANDS } from "./commands/chats";

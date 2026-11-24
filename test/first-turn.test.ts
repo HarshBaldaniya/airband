@@ -104,7 +104,7 @@ test("a new Claude app chat is working from its start, while its startup hooks s
 test("done stays done while the app writes its own lines after the turn; a new reply after it is work", () => {
   const hooks = path.join(tmp("airband-first-settings-"), "settings.json");
   process.env.AIRBAND_CLAUDE_SETTINGS = hooks;
-  const { connect } = require("../src/core/hooks") as typeof import("../src/core/hooks");
+  const { connect } = require("../src/install/agent-hooks") as typeof import("../src/install/agent-hooks");
   connect('"/usr/bin/node" "/h/.airband/airband-hook.js"', hooks);
   const at = Date.now() - 30_000;
   const stamp = (ms: number) => new Date(ms).toISOString();

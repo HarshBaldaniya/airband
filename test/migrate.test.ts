@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { moveOldHome, moveOldWorkspace } from "../src/core/migrate";
-import { connect, disconnect, isConnected, staleHookTargets } from "../src/core/hooks";
+import { moveOldHome, moveOldWorkspace } from "../src/install/migrate";
+import { connect, disconnect, isConnected, staleHookTargets } from "../src/install/agent-hooks";
 import { readConnections } from "../src/core/store";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

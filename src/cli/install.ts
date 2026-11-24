@@ -6,7 +6,7 @@ import * as path from "node:path";
 import * as readline from "node:readline/promises";
 import { isAgentId } from "../core/agents";
 import { airbandHome } from "../core/paths";
-import { agentSummary, installedVersion, latestVersion, NPM_PACKAGE, setup, type AgentSummary } from "../core/setup";
+import { agentSummary, installedVersion, latestVersion, NPM_PACKAGE, setup, type AgentSummary } from "../install/setup";
 import { newer, VERSION } from "../core/version";
 import { CHANGELOG } from "./about";
 import { changesSince } from "./changes";

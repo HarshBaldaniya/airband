@@ -1,6 +1,6 @@
 // Chats and commands: the Library, the Station, standups, spend, token reports and backups.
 import * as path from "node:path";
-import { backUp, restore } from "../../core/backup";
+import { backUp, restore } from "../../install/backup";
 import { renderTokenReport, tokenReport } from "../../sessions/tokens";
 import { renderSpend, renderWork, sinceDays, spendSince, workSince } from "../../sessions/worklog";
 import { allCommands, suggest } from "../../library/index";

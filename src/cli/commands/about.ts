@@ -1,6 +1,6 @@
 // About Airband: its version, the links, the changelog, completion scripts and help.
 import { openUrl } from "../../core/process";
-import { latestVersion } from "../../core/setup";
+import { latestVersion } from "../../install/setup";
 import { newer, VERSION } from "../../core/version";
 import { aboutInfo, bugUrl, CHANGELOG, DOCS, REPO } from "../about";
 import { releases } from "../changes";

@@ -3,8 +3,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { readConfig, setConfig } from "../../core/config";
-import { claudeAiCreditShown, setClaudeAiCredit } from "../../core/hooks";
-import { agentSummary, doctor, installedVersion, latestVersion, needsSetup, remove } from "../../core/setup";
+import { claudeAiCreditShown, setClaudeAiCredit } from "../../install/agent-hooks";
+import { agentSummary, doctor, installedVersion, latestVersion, needsSetup, remove } from "../../install/setup";
 import { newer, VERSION } from "../../core/version";
 import { checkWriting, renderFindings, summarise } from "../../writing/check";
 import { setProjectWriting, WRITING_KINDS, writingSettings, type WritingKind } from "../../writing/settings";

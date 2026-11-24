@@ -5,8 +5,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { airbandHome, guardRealHome, writeFileAtomic } from "./paths";
-import { OLD_HOOK_PROGRAMS } from "./legacy";
+import { airbandHome, guardRealHome, writeFileAtomic } from "../core/paths";
+import { OLD_HOOK_PROGRAMS } from "../core/legacy";
 
 export const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest", "Notification", "Stop", "SessionEnd"] as const;
 /** A permission request may wait for a click in the Airband app (110 s at most), so Claude Code

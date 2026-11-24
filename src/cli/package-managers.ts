@@ -3,7 +3,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { findCommand } from "../core/process";
-import { npmCommand, NPM_PACKAGE } from "../core/setup";
+import { npmCommand, NPM_PACKAGE } from "../install/setup";
 import { OLD_COMMAND, OLD_NPM_PACKAGES } from "../core/legacy";
 
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";

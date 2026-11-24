@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { agentStates, codexConfigPath, codexPrompt, codexPromptsDir, geminiSettingsPath, installToolkit, mcpServerPath, removeToolkit, withoutCodexBlock, type Runner } from "../src/core/toolkit";
+import { agentStates, codexConfigPath, codexPrompt, codexPromptsDir, geminiSettingsPath, installToolkit, mcpServerPath, removeToolkit, withoutCodexBlock, type Runner } from "../src/install/toolkit";
 import { builtinCommands } from "../src/library/index";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

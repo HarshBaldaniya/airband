@@ -4,8 +4,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { airbandHome } from "./paths";
-import { MiB } from "./units";
+import { airbandHome } from "../core/paths";
+import { MiB } from "../core/units";
 
 /** What is worth keeping: personal, and impossible to rebuild. */
 const ITEMS = ["flightlogs", "library", "connections.json", "deliveries.jsonl"];

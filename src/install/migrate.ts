@@ -7,7 +7,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { OLD_HOME_FOLDERS, OLD_PROGRAMS, RENAMED_FOLDERS } from "./legacy";
+import { OLD_HOME_FOLDERS, OLD_PROGRAMS, RENAMED_FOLDERS } from "../core/legacy";
 
 /** Files an old version wrote that this one makes afresh: its programs, its version stamp (which
  *  would otherwise read as a newer install), its update check and its Tab-completion scripts. */

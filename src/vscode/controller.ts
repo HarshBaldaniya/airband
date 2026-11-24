@@ -2,7 +2,7 @@
 // answers the webviews, and turns their requests (connect, branch, open) into
 // connections, context and chats.
 import * as vscode from "vscode";
-import { agentStates, installToolkit, refreshCodexPrompts, removeToolkit } from "../core/toolkit";
+import { agentStates, installToolkit, refreshCodexPrompts, removeToolkit } from "../install/toolkit";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -18,8 +18,8 @@ import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, View
 import { CodeMap } from "../codemap/index";
 import { codeHits, codeMapView, codeModuleView, knownProjects, libraryView } from "./pages";
 import { projectFile } from "../writing/settings";
-import { claudePluginInstalled, installFiles } from "../core/setup";
-import { installSkills, removeSkills, skillsState } from "../core/skills";
+import { claudePluginInstalled, installFiles } from "../install/setup";
+import { installSkills, removeSkills, skillsState } from "../install/skills";
 import { allCommands, STARTER_DESCRIPTION, userLibraryDir } from "../library/index";
 
 /** Folders picked with "Map another folder", newest first. */
@@ -58,9 +58,9 @@ import { readAsksFrom } from "../sessions/record/extract";
 import { recordContext, recordPointer, renderAsks, type LinkLevel } from "../sessions/record/render";
 import { agentOf } from "../core/agents";
 import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";
-import { moveOldHome, moveOldWorkspace } from "../core/migrate";
+import { moveOldHome, moveOldWorkspace } from "../install/migrate";
 import { findClaude, findNode } from "../core/process";
-import { claudeAiCreditShown, connect, disconnect, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../core/hooks";
+import { claudeAiCreditShown, connect, disconnect, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../install/agent-hooks";
 import { claudeExtensionInstalled, openClaude, openInTerminal } from "./open";
 import { webviewHtml } from "./webview-html";
 import { OLD_CONVERSATIONS_FOLDER } from "../core/legacy";

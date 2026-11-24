@@ -6,14 +6,14 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { airbandFile, guardRealHome, writeFileAtomic } from "./paths";
-import { claudeSettingsPath } from "./hooks";
+import { airbandFile, guardRealHome, writeFileAtomic } from "../core/paths";
+import { claudeSettingsPath } from "./agent-hooks";
 import { builtinCommands, renderCommand, type LibraryCommand } from "../library/index";
-import type { AgentId } from "./agents";
-import { readJson } from "./json";
+import type { AgentId } from "../core/agents";
+import { readJson } from "../core/json";
 // The tool server and Codex command list under Airband's earlier name are taken out wherever
 // Airband's are added or removed, so a computer that had Crosstalk never has both.
-import { OLD_MCP_SERVERS, OLD_PROMPT_MANIFESTS } from "./legacy";
+import { OLD_MCP_SERVERS, OLD_PROMPT_MANIFESTS } from "../core/legacy";
 
 
 export interface AgentState {
