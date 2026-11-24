@@ -31,6 +31,11 @@ fn on_shortcut(app: &AppHandle) {
     }
 }
 
+/// The app's configuration and files, from tauri.conf.json, made once at build time.
+fn context() -> tauri::Context<tauri::Wry> {
+    tauri::generate_context!()
+}
+
 pub fn run() {
     let state: AppState = Arc::new(Mutex::new(Shared::new(Prefs::load())));
     tauri::Builder::default()
@@ -135,7 +140,7 @@ pub fn run() {
             update::watch(&handle);
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context())
         .expect("Airband could not start")
         .run(|_app, e| match e {
             // Closing the setup tour or the corner keeps the app in the menu bar.
@@ -143,4 +148,18 @@ pub fn run() {
             tauri::RunEvent::Exit => engine::stop(),
             _ => {}
         });
+}
+
+#[cfg(test)]
+mod tests {
+    /// tauri.conf.json takes its version from the repository's package.json; Cargo.toml keeps a
+    /// copy of its own, which scripts/set-version.mjs sets with the rest.
+    #[test]
+    fn the_app_has_package_jsons_version() {
+        let context = super::context();
+        let package: serde_json::Value = serde_json::from_str(include_str!("../../../package.json")).unwrap();
+        let version = package["version"].as_str().unwrap();
+        assert_eq!(context.package_info().version.to_string(), version);
+        assert_eq!(env!("CARGO_PKG_VERSION"), version, "Cargo.toml's version: run scripts/set-version.mjs");
+    }
 }

@@ -1,9 +1,13 @@
-// One version everywhere: `node scripts/set-version.mjs 0.1.0` sets it in the extension, the npm
-// package (built from package.json), the Claude Code plugin, the Gemini CLI extension and both
-// desktop app (desktop/, whose installers carry it). The two
-// start bin/mcp.cjs, which runs the airband version in package.json. A plugin's version is what
-// tells Claude Code there's an update.
+// One version everywhere: `node scripts/set-version.mjs 0.1.0` sets it in package.json (the
+// extension, and the npm package built from it), the Claude Code plugin, the Gemini CLI extension
+// and the desktop app's Cargo files. The plugin and the extension start bin/mcp.cjs, which runs the
+// airband version in package.json; a plugin's version is what tells Claude Code there's an update.
+// The desktop app's tauri.conf.json reads its version from package.json itself, so its installers
+// carry it. scripts/check-release.mjs (in CI) fails when any copy differs.
 import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 
 const v = process.argv[2];
 if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/.test(v ?? "")) {
@@ -19,8 +23,6 @@ const edit = (file, change) => {
 edit("package.json", (j) => (j.version = v));
 edit(".claude-plugin/plugin.json", (j) => (j.version = v));
 edit("gemini-extension.json", (j) => (j.version = v));
-edit("desktop/package.json", (j) => (j.version = v));
-edit("desktop/src-tauri/tauri.conf.json", (j) => (j.version = v));
 // Cargo's files are TOML: only the app's own package line changes.
 const cargo = (file, re) => {
   const text = readFileSync(file, "utf8");

@@ -1,0 +1,9 @@
+{
+  "about": "The desktop app's file names on a GitHub release; {version} is the version without its v. Read by scripts/name-downloads.mjs, scripts/updater-manifest.mjs, scripts/sign-engine.mjs, site/lib/release.ts and desktop/src-tauri/build.rs. site/public/install.sh and install.ps1 spell them out, and scripts/check-release.mjs checks that they agree.",
+  "mac-arm": "Airband-{version}-Apple-Silicon.dmg",
+  "mac-intel": "Airband-{version}-Intel.dmg",
+  "windows": "Airband-Setup-{version}.exe",
+  "mac-arm-update": "Airband-{version}-Apple-Silicon.app.tar.gz",
+  "mac-intel-update": "Airband-{version}-Intel.app.tar.gz",
+  "engine-signature": "airband-engine-{version}.tgz.sig"
+}

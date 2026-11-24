@@ -13,10 +13,12 @@ use minisign_verify::{PublicKey, Signature};
 const PUBLIC_KEY: &str = env!("AIRBAND_UPDATER_PUBKEY");
 /// Where the GitHub releases' files are: `<RELEASES>/v<version>/<file>`.
 const RELEASES: &str = env!("AIRBAND_RELEASES");
+/// The signature's file name on a release, with `{version}` in it (desktop/downloads.json).
+const FILE: &str = env!("AIRBAND_ENGINE_SIGNATURE");
 
 /// Where the signature of engine `version` is.
 pub fn url(version: &str) -> String {
-    format!("{RELEASES}/v{version}/airband-engine-{version}.tgz.sig")
+    format!("{RELEASES}/v{version}/{}", FILE.replace("{version}", version))
 }
 
 /// Fetches the signature of engine `version` and checks `tarball` against it.

@@ -4,9 +4,9 @@
 //   Roger's corner the window commands, the setup tour the setup commands. A page from an address
 //   (the Station's, on this computer) may only call what is named for it. scripts/check-commands.mjs
 //   checks this list against the app, the capabilities and the pages.
-// - The updater's public key and the releases' address, read from tauri.conf.json so they are
-//   written in one place: the app checks the engine's signature with the same key
-//   (src/setup/signature.rs).
+// - The updater's public key and the releases' address, read from tauri.conf.json, and the engine
+//   signature's file name, read from ../downloads.json, so each is written in one place: the app
+//   checks the engine's signature with the same key as its own updates (src/setup/signature.rs).
 const COMMANDS: &[&str] = &[
     "hit_areas",
     "drag",
@@ -42,6 +42,13 @@ fn main() {
         .expect("plugins.updater.endpoints[0] in tauri.conf.json, ending with /latest/download/latest.json");
     println!("cargo:rustc-env=AIRBAND_UPDATER_PUBKEY={key}");
     println!("cargo:rustc-env=AIRBAND_RELEASES={releases}/download");
+    // The engine signature's file name on a release, from the list every release script reads.
+    println!("cargo:rerun-if-changed=../downloads.json");
+    let names: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string("../downloads.json").expect("desktop/downloads.json"))
+            .expect("its JSON");
+    let signature = names["engine-signature"].as_str().expect("engine-signature in desktop/downloads.json");
+    println!("cargo:rustc-env=AIRBAND_ENGINE_SIGNATURE={signature}");
 
     tauri_build::try_build(
         tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)),

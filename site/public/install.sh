@@ -51,6 +51,8 @@ main() {
   [ "$(uname -s)" = Darwin ] || fail "This installs the Mac app. On Windows: irm https://airband.harshbaldaniya.com/install.ps1 | iex · Anywhere: npx airband"
 
   # hw.optional.arm64 is 1 on Apple silicon, even in a terminal running under Rosetta.
+  # The release files are named in desktop/downloads.json; scripts/check-release.mjs checks this
+  # script still names them the same.
   if [ "$(sysctl -in hw.optional.arm64 2>/dev/null)" = 1 ]; then kind=Apple-Silicon; else kind=Intel; fi
   chip=$(echo "$kind" | tr '-' ' ')
 

@@ -15,6 +15,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { download } from "./release-names.mjs";
 
 // Paths are the repository's, wherever this is run from.
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
@@ -52,7 +53,7 @@ const signed = spawnSync("npx", args, { cwd: "desktop", env, stdio: ["ignore", "
 if (signed.status !== 0 || !existsSync(`${file}.sig`)) fail("tauri signer sign failed (is desktop/node_modules installed? npm ci --prefix desktop)");
 
 mkdirSync("desktop/release", { recursive: true });
-const out = join("desktop/release", `airband-engine-${version}.tgz.sig`);
+const out = join("desktop/release", download("engine-signature", version));
 copyFileSync(`${file}.sig`, out);
 rmSync(dir, { recursive: true, force: true });
 console.log(`${out}  (airband-${version}.tgz from npm, ${(tarball.length / 1024).toFixed(0)} KB)`);

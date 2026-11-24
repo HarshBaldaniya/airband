@@ -23,6 +23,8 @@ jobs:
       # The desktop app's commands: a command missing from one of the four places it is named is
       # refused by the app with nothing on screen.
       - run: node scripts/check-commands.mjs
+      # One version in every file that keeps a copy, and one set of download names.
+      - run: node scripts/check-release.mjs
       # The one-line installs: a mistake in either breaks every new install on that system.
       - name: The install scripts read
         if: runner.os != 'Linux'
