@@ -27,7 +27,7 @@ export class ChatOpener {
    * panel. Only ever on request; a plain click resumes it in a terminal here.
    */
   async openInFolder(id: string): Promise<void> {
-    const s = this.app.session(id);
+    const s = this.app.chats.session(id);
     if (!s.away || !s.cwd) return this.open(id);
     addOpenRequest({ id: s.id, tool: s.tool, cwd: s.cwd, at: Date.now(), title: s.title });
     this.app.toast(`Opening “${shortTitle(s.title)}” in the ${path.basename(s.cwd)} window`, "ok", undefined, { title: path.basename(s.cwd), icon: "info" });
@@ -90,7 +90,7 @@ export class ChatOpener {
       // a terminal here. Neither waits for this window to list its chats.
       for (const r of takeOpenRequests(roots, Date.now(), () => true, vscode.env.appName)) {
         if (r.tool === "Claude") await this.openClaudeChatWhenReady(r.id);
-        else if (this.app.byId.has(r.id)) await this.open(r.id);
+        else if (this.app.chats.byId.has(r.id)) await this.open(r.id);
         else this.chatTerminal({ id: r.id, tool: r.tool, cwd: r.cwd, title: r.title ?? r.tool, status: "idle", lastModified: r.at });
       }
     } catch {
@@ -126,7 +126,7 @@ export class ChatOpener {
 
   /** Opens a chat. Context waiting for it goes in with it when the hook can't deliver it. */
   async open(id: string): Promise<void> {
-    const s = this.app.session(id);
+    const s = this.app.chats.session(id);
     // A Claude chat of this folder opens, itself, in Claude Code's panel. One from another folder,
     // like a terminal agent's, is resumed in a terminal in its own folder, where its history lives:
     // this window stays as it is.
@@ -143,17 +143,17 @@ export class ChatOpener {
   }
 
   openTerminal(id: string): void {
-    this.chatTerminal(this.app.session(id));
+    this.chatTerminal(this.app.chats.session(id));
   }
 
   /** The chat resumed in its own terminal (its folder, its exact session); shown again if it is open. */
   private chatTerminal(s: ChatSession): { terminal: vscode.Terminal; reused: boolean } {
     const where = s.away && s.cwd ? ` · ${path.basename(s.cwd)}` : "";
-    return openInTerminal(`${s.tool} · ${shortTitle(s.title)}${where}`, this.app.adapter(s.tool).resumeCommand!(s), s.cwd ?? this.app.root, s.id);
+    return openInTerminal(`${s.tool} · ${shortTitle(s.title)}${where}`, this.app.chats.adapter(s.tool).resumeCommand!(s), s.cwd ?? this.app.root, s.id);
   }
 
   async newChat(tool: Tool): Promise<void> {
     if (tool === "Claude") return openClaude(undefined);
-    openInTerminal(tool, this.app.adapter(tool).newCommand!(), this.app.root);
+    openInTerminal(tool, this.app.chats.adapter(tool).newCommand!(), this.app.root);
   }
 }

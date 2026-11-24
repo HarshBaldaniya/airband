@@ -2,29 +2,14 @@
 // answers the webviews, and turns their requests (connect, branch, open) into
 // connections, context and chats.
 import * as vscode from "vscode";
-import * as fs from "node:fs";
-import type { Adapter } from "../adapters/adapter";
-import { ClaudeAdapter } from "../adapters/claude";
-import { CodexAdapter } from "../adapters/codex";
-import { GeminiAdapter } from "../adapters/gemini";
-import { claudeProjectFolder, claudeProjectsDir, airbandFile, airbandHome, statusDir } from "../core/paths";
-import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, ViewState } from "../core/protocol";
+import type { BoardTab, ConnectionView, FromWebview, ToWebview, ViewState } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
 import { libraryView, shortTitle } from "./pages";
 import { BoardStore } from "../core/state";
-import { readHookStatus, resolveStatus } from "../sessions/status";
 import { readConnections, setPaused, setLevel } from "../sharing/connections";
 import { readInbox } from "../sharing/inbox";
 import { readDeliveries } from "../sharing/deliveries";
-import { addUsage } from "../core/types";
-import type { ChatRef, ChatSession, Status } from "../core/types";
-import type { Tool } from "../core/agents";
-import { NO_USAGE } from "../core/types";
-import { isTempFolder, pickElsewhere, unregisterWindow } from "../core/folders";
-import { sameFolder } from "../core/paths";
-import { HOOK_START_MAX, HOOK_STEP_MAX, readHead, setRecordTitle } from "../sessions/record/store";
-import { catchUpRecord, recordBehind } from "../sessions/record/update";
-import { agentOf } from "../core/agents";
+import { unregisterWindow } from "../core/folders";
 import { setClaudeAiCredit } from "../install/agent-hooks";
 import { claudeExtensionInstalled } from "./open";
 import { webviewHtml } from "./webview-html";
@@ -32,24 +17,14 @@ import { PlansService } from "./plans-service";
 import { SetupService } from "./setup-service";
 import { libraryMessage } from "./library-page";
 import { MapPageService } from "./map-page";
+import { ChatIndex } from "./chat-index";
 import { ChatOpener } from "./chat-opener";
 import { Sharing } from "./sharing";
 import { setWriting, syncConfig, writingView } from "./settings";
 
 const POLL_MS = 10_000;
-const PER_TOOL = 60;
-/** Chats from every folder: read again at most every 30 s (see pickElsewhere for which are shown). */
-const ELSEWHERE_PER_TOOL = 400;
-const ELSEWHERE_MS = 30_000;
-/**
- * A chat file with more than this not yet counted is counted in the background, a slice at a time,
- * so the list shows at once and the extension never stops answering (one chat file can be a gigabyte).
- */
-const QUICK_BYTES = 2 * 1024 * 1024;
-const SLICE_BYTES = 4 * 1024 * 1024;
 
 export class Controller implements vscode.Disposable {
-  readonly adapters: Adapter[] = [new ClaudeAdapter(), new CodexAdapter(), new GeminiAdapter()];
   private readonly views = new Set<vscode.Webview>();
   private board: vscode.WebviewPanel | undefined;
   state: ViewState = {
@@ -63,18 +38,12 @@ export class Controller implements vscode.Disposable {
     claudeExtension: false,
     loading: true,
   };
-  byId = new Map<string, ChatSession>();
-  private readonly lastStatus = new Map<string, Status>();
   private readonly disposables: vscode.Disposable[] = [];
-  private watchers: fs.FSWatcher[] = [];
   private refreshTimer: NodeJS.Timeout | undefined;
   private refreshing = false;
-  /** Chats whose files are still being counted, a slice at a time. */
-  private readonly uncounted = new Set<string>();
-  private counting = false;
   private again = false;
-  private firstLoad = true;
 
+  readonly chats = new ChatIndex(this);
   readonly setup = new SetupService(this);
   readonly plansService = new PlansService(this);
   readonly mapPage = new MapPageService(this);
@@ -82,7 +51,7 @@ export class Controller implements vscode.Disposable {
   readonly sharing = new Sharing(this);
 
   constructor(readonly ctx: vscode.ExtensionContext) {
-    this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => (this.rewatch(), this.opener.noteWindow())));
+    this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => (this.chats.rewatch(), this.opener.noteWindow())));
     // A note of this window's folders, so the desktop app opens a chat here when its folder is open.
     this.opener.noteWindow();
     const note = setInterval(() => this.opener.noteWindow(), 60_000);
@@ -92,7 +61,7 @@ export class Controller implements vscode.Disposable {
     this.setup.keepHookCurrent();
     this.setup.tidyStorage();
     syncConfig();
-    this.rewatch();
+    this.chats.rewatch();
     // A window opened to show a Claude chat opens it now, not after every folder's chats are read.
     void this.opener.takeOpens();
     // A window brought forward by another one ("open in its folder") looks for the chat it was
@@ -187,78 +156,20 @@ export class Controller implements vscode.Disposable {
       return;
     }
 
-    const present = this.adapters.filter((a) => a.tool === "Claude" || a.present());
-    const errors: string[] = [];
-    const lists = await Promise.all(
-      present.map((a) =>
-        a.list(root, PER_TOOL).catch((err) => {
-          errors.push(`${a.tool}: ${String(err)}`);
-          return [] as ChatSession[];
-        }),
-      ),
-    );
-    // This folder's chats, then the newest chats of every other folder (for "All folders" and for
-    // links that reach another folder).
-    const mine = lists.flat();
-    const seen = new Set(mine.map((s) => s.id));
-    const elsewhere = pickElsewhere(
-      (await this.elsewhere(present)).filter((s) => !seen.has(s.id)),
-      // Linked chats and the board's cards always show, however old.
-      new Set([...readConnections().flatMap((c) => [c.from.id, c.to.id]), ...new BoardStore(root).read().members]),
-    ).map((s) => ({ ...s, away: !s.cwd || !sameFolder(s.cwd, root) }));
-    const sessions = [...mine, ...elsewhere].sort((a, b) => b.lastModified - a.lastModified);
-    const totals: ViewState["totals"] = {};
-    for (const s of sessions) {
-      // Every agent with Airband's hook records its own status.
-      const { status, line } = resolveStatus(s.lastModified, readHookStatus(s.id));
-      s.status = status;
-      s.lastLine = line;
-      try {
-        if (s.away) {
-          // Another folder's history can run to a gigabyte: only its end is read, for the model and context.
-          const l = this.adapter(s.tool).latest(s);
-          s.model = l?.model;
-          s.context = l?.context;
-          continue;
-        }
-        const a = this.adapter(s.tool);
-        if ((a.pendingBytes?.(s) ?? 0) > QUICK_BYTES) {
-          // Big and not counted yet: the list shows now, with the model and context from the file's
-          // end; its tokens follow once counted in the background.
-          const l = a.latest(s);
-          s.model = l?.model;
-          s.context = l?.context;
-          this.uncounted.add(s.id);
-        } else {
-          const u = a.usage(s);
-          s.usage = u?.total;
-          s.usageToday = u?.today;
-          s.model = u?.model;
-          s.context = u?.context;
-        }
-      } catch {
-        // Usage is a nicety; a file it can't read just shows none.
-        if (s.away) continue;
-      }
-      const t: ToolTotals = (totals[s.tool] ??= { chats: 0, today: NO_USAGE, total: NO_USAGE });
-      t.chats++;
-      if (s.usage) t.total = addUsage(t.total, s.usage);
-      if (s.usageToday) t.today = addUsage(t.today, s.usageToday);
-    }
-    this.byId = new Map(sessions.map((s) => [s.id, s]));
+    const { present, mine, sessions, totals, errors } = await this.chats.list(root);
 
     this.sharing.pumpQuietSources();
 
     const deliveries = readDeliveries();
     const connections: ConnectionView[] = readConnections()
-      .filter((c) => this.byId.has(c.from.id) || this.byId.has(c.to.id))
+      .filter((c) => this.chats.byId.has(c.from.id) || this.chats.byId.has(c.to.id))
       .map((c) => {
         // Only what this link has sent: not what an earlier link between the same chats sent.
         const mine = deliveries.filter((d) => d.at >= c.createdAt && (d.connectionId === c.id || (!d.connectionId && d.from === c.from.id && d.to === c.to.id)));
         return {
           ...c,
-          from: this.ref(c.from),
-          to: this.ref(c.to),
+          from: this.chats.ref(c.from),
+          to: this.chats.ref(c.to),
           updates: mine.length,
           chars: mine.reduce((n, d) => n + d.chars, 0),
           lastAt: mine.length ? mine[mine.length - 1].at : undefined,
@@ -268,7 +179,7 @@ export class Controller implements vscode.Disposable {
     const inbox: ViewState["inbox"] = {};
     for (const s of sessions) {
       const items = readInbox(s.id).filter((i) => i.kind !== "notice");
-      if (items.length) inbox[s.id] = { count: items.length, chars: items.reduce((n, i) => n + i.text.length, 0), from: [...new Set(items.map((i) => this.ref(i.from).title))] };
+      if (items.length) inbox[s.id] = { count: items.length, chars: items.reduce((n, i) => n + i.text.length, 0), from: [...new Set(items.map((i) => this.chats.ref(i.from).title))] };
     }
 
     const store = new BoardStore(root);
@@ -279,13 +190,13 @@ export class Controller implements vscode.Disposable {
       const linked = connections.flatMap((c) => [c.from.id, c.to.id]);
       const busy = mine.filter((s) => s.status === "working" || s.status === "waiting").map((s) => s.id);
       const recent = mine.slice(0, 5).map((s) => s.id);
-      store.add([...linked, ...busy, ...recent].filter((id) => this.byId.has(id)));
+      store.add([...linked, ...busy, ...recent].filter((id) => this.chats.byId.has(id)));
       board = store.update((b) => (b.seeded = true));
     } else if (!board.seeded && board.members.length) {
       board = store.update((b) => (b.seeded = true));
     }
 
-    this.notifyWaiting(sessions);
+    this.chats.notifyWaiting(sessions);
     this.plansService.follow();
     void this.plansService.refresh();
     this.state = {
@@ -307,138 +218,7 @@ export class Controller implements vscode.Disposable {
     };
     this.post({ type: "state", state: this.state });
     void this.opener.takeOpens();
-    if (this.uncounted.size) void this.countInBackground();
-    else {
-      for (const a of this.adapters) a.saveCache?.();
-      void this.recordInBackground();
-    }
-  }
-
-  private recording = false;
-
-  /**
-   * Session records for this folder's chats and every linked chat, so any of them can be picked up
-   * from its record. The hook keeps a record current after each reply; here, only what the hook
-   * leaves alone: a quiet chat with no record yet, a big one, or one far behind. A slice at a time, after the
-   * token counting, never two at once.
-   */
-  private async recordInBackground(): Promise<void> {
-    if (this.recording || this.counting) return;
-    this.recording = true;
-    try {
-      const linked = new Set(readConnections().flatMap((c) => [c.from.id, c.to.id]));
-      const wanted = [...this.byId.values()].filter((s) => s.file && (!s.away || linked.has(s.id)));
-      for (const s of wanted) {
-        const tool = agentOf(s.tool);
-        const behind = recordBehind(s.id, tool, s.file!);
-        // A chat replying now is the hook's (it records the ask as the reply ends); a quiet one
-        // with no record yet, or a record far behind, is caught up here.
-        const quiet = Date.now() - s.lastModified > 120_000;
-        const hookWont = readHead(s.id) ? behind > HOOK_STEP_MAX : behind > HOOK_START_MAX || (quiet && behind > 0);
-        if (hookWont) await this.ensureRecord(s);
-      }
-    } catch {
-      // A record is a nicety; it is tried again on the next refresh.
-    } finally {
-      this.recording = false;
-    }
-  }
-
-  /**
-   * Counts the big chat files a slice at a time, letting everything else run between slices, then
-   * shows the totals. What is counted is kept, so the next window starts from it.
-   */
-  private async countInBackground(): Promise<void> {
-    if (this.counting) return;
-    this.counting = true;
-    let lastShown = Date.now();
-    try {
-      while (this.uncounted.size) {
-        const id = this.uncounted.values().next().value!;
-        this.uncounted.delete(id);
-        const s = this.byId.get(id);
-        if (!s) continue;
-        const a = this.adapter(s.tool);
-        if (a.usageStep) {
-          while ((a.pendingBytes?.(s) ?? 0) > 0) {
-            a.usageStep(s, SLICE_BYTES);
-            await new Promise((r) => setImmediate(r));
-          }
-        } else {
-          a.usage(s);
-          await new Promise((r) => setImmediate(r));
-        }
-        if (Date.now() - lastShown > 2000) {
-          lastShown = Date.now();
-          this.refreshSoon(0);
-        }
-      }
-    } finally {
-      this.counting = false;
-      for (const a of this.adapters) a.saveCache?.();
-      this.refreshSoon(0);
-    }
-  }
-
-  private elsewhereCache: { at: number; list: ChatSession[] } | undefined;
-
-  /** The newest chats of every folder, from every tool; listed again at most every 30 seconds. */
-  private async elsewhere(present: Adapter[]): Promise<ChatSession[]> {
-    const hit = this.elsewhereCache;
-    if (hit && Date.now() - hit.at < ELSEWHERE_MS) return hit.list.map((s) => ({ ...s }));
-    const lists = await Promise.all(present.map((a) => a.list(undefined, ELSEWHERE_PER_TOOL).catch(() => [] as ChatSession[])));
-    // A chat without a folder, or whose folder is gone, can't be opened; one in a temp folder is a
-    // throwaway (a test, a scratch run): all left out.
-    const list = lists.flat().filter((s) => s.cwd && fs.existsSync(s.cwd) && !isTempFolder(s.cwd));
-    this.elsewhereCache = { at: Date.now(), list };
-    return list.map((s) => ({ ...s }));
-  }
-
-  adapter(tool: Tool): Adapter {
-    return this.adapters.find((a) => a.tool === tool)!;
-  }
-
-  /** A connection's chat as it is called now (titles change as chats go on). */
-  ref(r: ChatRef): ChatRef {
-    const s = this.byId.get(r.id);
-    return s ? { id: s.id, tool: s.tool, title: s.title, cwd: s.cwd ?? r.cwd } : r;
-  }
-
-  private notifyWaiting(sessions: ChatSession[]): void {
-    for (const s of sessions) {
-      const before = this.lastStatus.get(s.id);
-      this.lastStatus.set(s.id, s.status);
-      if (this.firstLoad || s.status !== "waiting" || before === "waiting") continue;
-      void vscode.window.showInformationMessage(`“${s.title}” is waiting for you${s.lastLine ? `: ${s.lastLine}` : ""}`, "Open").then((pick) => {
-        if (pick) void this.opener.open(s.id);
-      });
-    }
-    this.firstLoad = false;
-  }
-
-  /** Watches the folders chats are written to, so cards change as the chats do. */
-  private rewatch(): void {
-    for (const w of this.watchers) w.close();
-    this.watchers = [];
-    const root = this.root;
-    const targets = [statusDir(), airbandFile("inbox")];
-    if (root) targets.push(fs.existsSync(claudeProjectFolder(root)) ? claudeProjectFolder(root) : claudeProjectsDir());
-    for (const dir of targets) {
-      try {
-        fs.mkdirSync(dir, { recursive: true });
-        this.watchers.push(fs.watch(dir, () => this.refreshSoon()));
-      } catch {
-        // The poll still keeps the list current.
-      }
-    }
-    // Another window asking this one to open a chat of this folder.
-    try {
-      fs.mkdirSync(airbandHome(), { recursive: true });
-      this.watchers.push(fs.watch(airbandHome(), (_e, name) => name === "open-requests.json" && void this.opener.takeOpens()));
-    } catch {
-      // Requests are also checked after every refresh.
-    }
-    this.refreshSoon(0);
+    this.chats.afterLoad();
   }
 
   // ---- requests from the views ----
@@ -482,7 +262,7 @@ export class Controller implements vscode.Disposable {
           const c = readConnections().find((x) => x.id === m.connectionId);
           if (c) {
             this.sharing.notice(c.to.id, c.from, m.paused ? `Paused: updates from “${c.from.title}” stop until resumed.` : `Resumed: updates from “${c.from.title}” come again.`, `pause:${c.id}`);
-            this.toast(`${shortTitle(this.ref(c.from).title)} → ${shortTitle(this.ref(c.to).title)}`, "ok", from, {
+            this.toast(`${shortTitle(this.chats.ref(c.from).title)} → ${shortTitle(this.chats.ref(c.to).title)}`, "ok", from, {
               title: m.paused ? "Paused" : "Resumed",
               icon: m.paused ? "pause" : "play",
               undo: { type: "pause", connectionId: c.id, paused: !m.paused },
@@ -597,21 +377,8 @@ export class Controller implements vscode.Disposable {
     }
   }
 
-  session(id: string): ChatSession {
-    const s = this.byId.get(id);
-    if (!s) throw new Error("That chat isn't in the list any more. Refresh and try again.");
-    return s;
-  }
-
   boardStore(): BoardStore {
     return new BoardStore(this.requireRoot());
-  }
-
-  /** A chat's record, caught up (a big chat is read a slice at a time, without holding anything up). */
-  async ensureRecord(s: ChatSession): Promise<void> {
-    if (!s.file) return;
-    await catchUpRecord(s.id, agentOf(s.tool), s.file, { cwd: s.cwd, title: s.title });
-    setRecordTitle(s.id, s.title, s.cwd);
   }
 
   private focusOn = false;
@@ -681,7 +448,7 @@ export class Controller implements vscode.Disposable {
 
   dispose(): void {
     clearTimeout(this.refreshTimer);
-    for (const w of this.watchers) w.close();
+    this.chats.dispose();
     for (const d of this.disposables) d.dispose();
     this.board?.dispose();
   }

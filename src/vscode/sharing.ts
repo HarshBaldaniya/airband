@@ -39,34 +39,34 @@ export class Sharing {
 
   /** Links every pair (from → to): one-to-one, one-to-many, many-to-one or every way. */
   async connectMany(pairs: [string, string][], view: vscode.Webview, quiet = false): Promise<void> {
-    const wanted = pairs.filter(([a, b]) => a !== b && this.app.byId.has(a) && this.app.byId.has(b));
+    const wanted = pairs.filter(([a, b]) => a !== b && this.app.chats.byId.has(a) && this.app.chats.byId.has(b));
     if (!wanted.length) return;
     // The link is saved and drawn at once. What the other chat has done so far (which can mean
     // reading a conversation of a gigabyte) follows in the background, before its next message.
     const fresh: { from: ChatSession; to: ChatSession; connectionId: string }[] = [];
     for (const [a, b] of wanted) {
-      const from = this.app.session(a);
-      const to = this.app.session(b);
+      const from = this.app.chats.session(a);
+      const to = this.app.chats.session(b);
       const isNew = !readConnections().some((c) => c.from.id === from.id && c.to.id === to.id);
-      const { connection } = addConnection(this.app.ref(from), this.app.ref(to));
+      const { connection } = addConnection(this.app.chats.ref(from), this.app.chats.ref(to));
       if (isNew) fresh.push({ from, to, connectionId: connection.id });
       // Updates start from now: the past goes in the context. (A chat already sharing elsewhere keeps
       // its bookmark, so what it owes those chats isn't skipped.)
       const sharingElsewhere = readConnections().some((c) => c.from.id === from.id && c.to.id !== to.id && !c.paused);
-      if (getCursor(from.id) === undefined || (isNew && !sharingElsewhere)) setCursor(from.id, this.app.adapter(from.tool).end(from));
+      if (getCursor(from.id) === undefined || (isNew && !sharingElsewhere)) setCursor(from.id, this.app.chats.adapter(from.tool).end(from));
     }
     this.app.boardStore().add([...new Set(wanted.flat())]);
     // Started once the line is drawn: reading a big chat's record must not hold up the board.
     if (fresh.length) setTimeout(() => void this.sendContexts(fresh, wanted), CONTEXT_AFTER_MS);
     // A link only works by itself with auto-sharing on: ask now, rather than leave a hint.
-    if (wanted.some(([, b]) => !this.app.setup.hooked(this.app.session(b).tool))) {
+    if (wanted.some(([, b]) => !this.app.setup.hooked(this.app.chats.session(b).tool))) {
       await this.app.setup.turnOn();
       this.app.state.hooksOn = Object.values(this.app.setup.hookState()).every(Boolean);
     }
     if (!quiet) {
       const [[a0, b0]] = wanted;
-      const from = this.app.session(a0);
-      const to = this.app.session(b0);
+      const from = this.app.chats.session(a0);
+      const to = this.app.chats.session(b0);
       const twoWay = wanted.length === 2 && wanted[1][0] === b0 && wanted[1][1] === a0;
       const what = wanted.length === 1 ? `${shortTitle(from.title)} → ${shortTitle(to.title)}` : twoWay ? `${shortTitle(from.title)} ⇄ ${shortTitle(to.title)}` : `${fresh.length || wanted.length} chats`;
       const created = readConnections().filter((c) => wanted.some(([x, y]) => c.from.id === x && c.to.id === y));
@@ -89,9 +89,9 @@ export class Sharing {
         const last = readDeliveries().filter((d) => d.from === from.id && d.to === to.id).pop();
         const text = await this.contextFor(from, { forFolder: to.cwd, level: link.level ?? "ping", since: last?.at });
         if (!readConnections().some((c) => c.id === connectionId)) continue;
-        appendInbox(to.id, { connectionId, from: this.app.ref(from), at: Date.now(), kind: "context", text });
+        appendInbox(to.id, { connectionId, from: this.app.chats.ref(from), at: Date.now(), kind: "context", text });
         // The sharing chat is told too, unless the other way already gives it the full context.
-        if (!wanted.some(([x, y]) => x === to.id && y === from.id)) this.notice(from.id, this.app.ref(to), `Channel open: this chat’s work now goes to “${to.title}” after each reply.`, `${from.id}>${to.id}`);
+        if (!wanted.some(([x, y]) => x === to.id && y === from.id)) this.notice(from.id, this.app.chats.ref(to), `Channel open: this chat’s work now goes to “${to.title}” after each reply.`, `${from.id}>${to.id}`);
       } catch {
         // The link works without it: updates still flow from the next reply.
       }
@@ -110,7 +110,7 @@ export class Sharing {
       this.notice(c.from.id, c.to, `No longer sharing this chat’s work with “${c.to.title}”.`, `${c.from.id}>${c.to.id}`);
     }
     if (gone.length && !quiet) {
-      const names = [...new Set(gone.flatMap((c) => [this.app.ref(c.from).title, this.app.ref(c.to).title]))];
+      const names = [...new Set(gone.flatMap((c) => [this.app.chats.ref(c.from).title, this.app.chats.ref(c.to).title]))];
       this.app.toast(
         names.length === 2 ? `${shortTitle(names[0])} · ${shortTitle(names[1])}` : `${gone.length} channels`,
         "ok",
@@ -132,8 +132,8 @@ export class Sharing {
     const remove = [want === "ba" ? ab?.id : undefined, want === "ab" ? ba?.id : undefined].filter((x): x is string => !!x);
     if (add.length) await this.connectMany(add, view, true);
     if (remove.length) this.unlink(remove, view, true);
-    const A = this.app.session(a).title;
-    const B = this.app.session(b).title;
+    const A = this.app.chats.session(a).title;
+    const B = this.app.chats.session(b).title;
     const text = want === "both" ? `${shortTitle(A)} ⇄ ${shortTitle(B)}` : want === "ab" ? `${shortTitle(A)} → ${shortTitle(B)}` : `${shortTitle(B)} → ${shortTitle(A)}`;
     this.app.toast(text, "ok", view, { title: want === "both" ? "Both ways" : "One way", icon: "link" });
     await this.app.refresh();
@@ -149,24 +149,24 @@ export class Sharing {
     const root = s.cwd ?? this.app.root;
     const absolute = !!(opts.forFolder && root && !sameFolder(opts.forFolder, root));
     if (opts.level !== "full") {
-      await this.app.ensureRecord(s);
+      await this.app.chats.ensureRecord(s);
       const text = recordContext(s.id, s.title, { root, absolute, since: opts.since });
       if (text) return text;
     }
     const d = await this.digest(s);
     const budget = CONTEXT_BUDGET[opts.level === "full" ? contextSize() : "compact"];
-    return buildContext({ from: this.app.ref(s), digest: d, root, absolute, budget, pointer: s.file ? recordPointer(s.id, s.title) : undefined });
+    return buildContext({ from: this.app.chats.ref(s), digest: d, root, absolute, budget, pointer: s.file ? recordPointer(s.id, s.title) : undefined });
   }
 
   private async digest(s: ChatSession): Promise<ChatDigest> {
-    const d = await this.app.adapter(s.tool).read(s, this.app.requireRoot());
+    const d = await this.app.chats.adapter(s.tool).read(s, this.app.requireRoot());
     this.digests.set(s.id, d);
     return d;
   }
 
   /** A short note about a link change, delivered with the chat's next message. */
   notice(chatId: string, about: ChatRef, text: string, topic?: string): void {
-    appendInbox(chatId, { from: this.app.ref(about), at: Date.now(), kind: "notice", text, topic });
+    appendInbox(chatId, { from: this.app.chats.ref(about), at: Date.now(), kind: "notice", text, topic });
   }
 
   takeForPaste(id: string): string | undefined {
@@ -175,12 +175,12 @@ export class Sharing {
     const now = Date.now();
     for (const i of items) logDelivery({ at: now, connectionId: i.connectionId, from: i.from.id, to: id, chars: i.text.length });
     this.app.refreshSoon();
-    return formatDelivery(items, undefined, this.app.byId.get(id)?.cwd);
+    return formatDelivery(items, undefined, this.app.chats.byId.get(id)?.cwd);
   }
 
   /** One click: open the chat ready to catch up; its next message brings everything waiting. */
   async syncNow(id: string): Promise<void> {
-    const s = this.app.session(id);
+    const s = this.app.chats.session(id);
     const ask = "Catch up on what my connected chats did, then tell me in a few lines what changed.";
     if (s.tool !== "Claude" || s.away) return this.app.opener.open(id);
     if (this.app.setup.hooked("Claude")) {
@@ -193,15 +193,15 @@ export class Sharing {
   }
 
   peek(id: string, view: vscode.Webview): void {
-    const s = this.app.session(id);
+    const s = this.app.chats.session(id);
     const items = readInbox(id);
-    const text = items.length ? formatDelivery(items, undefined, this.app.byId.get(id)?.cwd) : "Nothing is on its way to this chat.";
+    const text = items.length ? formatDelivery(items, undefined, this.app.chats.byId.get(id)?.cwd) : "Nothing is on its way to this chat.";
     this.app.post({ type: "peek", id, title: s.title, text }, view);
   }
 
   async askBranch(id: string, view: vscode.Webview): Promise<void> {
-    const s = this.app.session(id);
-    await this.app.ensureRecord(s);
+    const s = this.app.chats.session(id);
+    await this.app.chats.ensureRecord(s);
     // The asks to bring along come from the chat's record: no need to read its whole conversation.
     const asks = readAsks(s.id, 25)
       .reverse()
@@ -212,7 +212,7 @@ export class Sharing {
 
   async branch(m: Extract<FromWebview, { type: "branch" }>, view: vscode.Webview): Promise<void> {
     const root = this.app.requireRoot();
-    const s = this.app.session(m.from);
+    const s = this.app.chats.session(m.from);
     const task = m.task.trim();
     if (!task) throw new Error("Say what the new chat should do.");
     const parts: string[] = [];
@@ -224,16 +224,16 @@ export class Sharing {
     if (brought.length) parts.push(`Earlier in that chat:\n${brought.join("\n")}`);
     const context = parts.join("\n\n");
 
-    if (m.keepConnected && getCursor(s.id) === undefined) setCursor(s.id, this.app.adapter(s.tool).end(s));
+    if (m.keepConnected && getCursor(s.id) === undefined) setCursor(s.id, this.app.chats.adapter(s.tool).end(s));
     const title = task.split("\n")[0].slice(0, 60);
     // The new chat is a Claude Code chat: what matters is Claude's hook.
     if (this.app.setup.hooked("Claude")) {
       // The new chat opens in this window's folder, wherever the old one lives.
-      addPending({ id: randomBytes(6).toString("hex"), from: this.app.ref(s), title, cwd: root, at: Date.now(), taskStart: task, context, keepConnected: m.keepConnected });
+      addPending({ id: randomBytes(6).toString("hex"), from: this.app.chats.ref(s), title, cwd: root, at: Date.now(), taskStart: task, context, keepConnected: m.keepConnected });
       await openClaude(undefined, task);
       this.app.toast(`New chat opened with your task. Press Send and it gets “${s.title}”’s context with it.`, "ok", view);
     } else {
-      const prompt = context ? `${task}\n\n---\n${formatDelivery([{ from: this.app.ref(s), at: Date.now(), kind: "context", text: context }])}` : task;
+      const prompt = context ? `${task}\n\n---\n${formatDelivery([{ from: this.app.chats.ref(s), at: Date.now(), kind: "context", text: context }])}` : task;
       await openClaude(undefined, prompt);
       this.app.toast("New chat opened with your task and the context. Turn on auto-sharing to keep them connected.", "warn", view);
     }
@@ -252,9 +252,9 @@ export class Sharing {
       bySource.set(c.from.id, [...(bySource.get(c.from.id) ?? []), c]);
     }
     for (const [id, conns] of bySource) {
-      const s = this.app.byId.get(id);
+      const s = this.app.chats.byId.get(id);
       if (!s) continue;
-      const a = this.app.adapter(s.tool);
+      const a = this.app.chats.adapter(s.tool);
       const cursor = getCursor(id);
       if (cursor === undefined) {
         setCursor(id, a.end(s));
@@ -272,7 +272,7 @@ export class Sharing {
       setCursor(id, words?.next ?? read!.next);
       const root = s.cwd ?? this.app.root;
       for (const c of conns) {
-        const to = this.app.byId.get(c.to.id)?.cwd ?? c.to.cwd;
+        const to = this.app.chats.byId.get(c.to.id)?.cwd ?? c.to.cwd;
         const elsewhere = !!(to && root && !sameFolder(to, root));
         const text =
           c.level === "full" || !read
@@ -280,7 +280,7 @@ export class Sharing {
             : read.asks.length
               ? renderAsks(read.asks, c.level ?? "ping", { root, absolute: elsewhere })
               : undefined;
-        if (text) appendInbox(c.to.id, { connectionId: c.id, from: this.app.ref(c.from), at: now, kind: "update", text });
+        if (text) appendInbox(c.to.id, { connectionId: c.id, from: this.app.chats.ref(c.from), at: now, kind: "update", text });
       }
     }
   }

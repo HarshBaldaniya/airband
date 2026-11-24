@@ -41,7 +41,7 @@ export class PlansService {
     try {
       // An agent counts once it is installed (its home folder exists), even before its first chat, so
       // its card can say what to do next.
-      const present = new Set<Tool>([...this.app.adapters.filter((a) => a.tool === "Claude" || a.present()).map((a) => a.tool), ...hookTargets().filter((t) => t.present()).map((t) => t.tool)]);
+      const present = new Set<Tool>([...this.app.chats.adapters.filter((a) => a.tool === "Claude" || a.present()).map((a) => a.tool), ...hookTargets().filter((t) => t.present()).map((t) => t.tool)]);
       const exe = findClaude();
       if (exe) {
         try {
@@ -83,7 +83,7 @@ export class PlansService {
    * newest chat file changes, not on the five-minute cycle Claude's need. One folder listing, no more.
    */
   follow(): void {
-    if (this.loading || !this.app.adapters.some((a) => a.tool === "Codex" && a.present())) return;
+    if (this.loading || !this.app.chats.adapters.some((a) => a.tool === "Codex" && a.present())) return;
     const newest = recentRollouts(codexSessionsDir(), 1)[0]?.mtime ?? 0;
     if (!newest || newest <= this.codexMtime) return;
     this.plans = { ...this.plans, Codex: this.codexPlan() };
