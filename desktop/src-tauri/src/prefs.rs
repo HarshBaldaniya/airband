@@ -1,5 +1,5 @@
 //! The app's settings, ~/.airband/app.json.
-use crate::paths::home;
+use crate::paths::{self, PREFS};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -36,7 +36,7 @@ impl Default for Prefs {
 }
 
 fn prefs_file() -> PathBuf {
-    home().join("app.json")
+    paths::file(PREFS)
 }
 
 /// The app's settings, or the defaults when there are none yet.
@@ -45,7 +45,7 @@ pub fn load_prefs() -> Prefs {
 }
 
 pub fn save_prefs(p: &Prefs) {
-    let _ = fs::create_dir_all(home());
+    let _ = fs::create_dir_all(paths::home());
     if let Ok(t) = serde_json::to_string_pretty(p) {
         let tmp = prefs_file().with_extension("tmp");
         if fs::write(&tmp, t).is_ok() {

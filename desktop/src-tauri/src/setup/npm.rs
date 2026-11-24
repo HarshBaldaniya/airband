@@ -1,7 +1,20 @@
 //! Airband's engine, the `airband` package on npm.
 use super::download::{download, fetch_text, sha512_b64, untar, Progress};
 use crate::engine;
-use crate::paths::home;
+use crate::paths::engine_dir;
+
+/// Where npm says what its newest `airband` is.
+const LATEST: &str = "https://registry.npmjs.org/airband/latest";
+/// npm's own address: a tarball anywhere else is refused.
+const REGISTRY: &str = "https://registry.npmjs.org/";
+
+/// The newest engine on npm, as npm describes it.
+pub struct NpmRelease {
+    pub version: String,
+    tarball: String,
+    /// The tarball's sha512, base64 (npm's "integrity", without its "sha512-").
+    integrity: String,
+}
 
 /// The engine's version, from its package.json.
 pub fn engine_version() -> Option<String> {
@@ -10,19 +23,9 @@ pub fn engine_version() -> Option<String> {
     v["version"].as_str().map(String::from)
 }
 
-/// The newest engine on npm.
-pub fn latest_engine() -> Result<String, String> {
-    let meta: serde_json::Value = serde_json::from_str(&fetch_text("https://registry.npmjs.org/airband/latest")?)
-        .map_err(|_| "npm's answer didn't read")?;
-    meta["version"].as_str().map(String::from).ok_or_else(|| "no version on npm".into())
-}
-
-pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
-    if std::env::var("AIRBAND_ENGINE_DIR").is_ok() {
-        return engine_version().ok_or_else(|| "AIRBAND_ENGINE_DIR has no airband package".into());
-    }
-    let meta: serde_json::Value = serde_json::from_str(&fetch_text("https://registry.npmjs.org/airband/latest")?)
-        .map_err(|_| "npm's answer didn't read")?;
+/// Asks npm for its newest engine.
+pub fn latest() -> Result<NpmRelease, String> {
+    let meta: serde_json::Value = serde_json::from_str(&fetch_text(LATEST)?).map_err(|_| "npm's answer didn't read")?;
     let version = meta["version"].as_str().ok_or("no version on npm")?.to_string();
     let tarball = meta["dist"]["tarball"].as_str().ok_or("no package on npm")?.to_string();
     let integrity = meta["dist"]["integrity"]
@@ -30,14 +33,28 @@ pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
         .and_then(|i| i.strip_prefix("sha512-"))
         .ok_or("no fingerprint on npm")?
         .to_string();
-    if !tarball.starts_with("https://registry.npmjs.org/") {
+    if !tarball.starts_with(REGISTRY) {
         return Err("the package isn't on npm's own address".into());
     }
-    let dir = home().join("engine");
+    Ok(NpmRelease { version, tarball, integrity })
+}
+
+/// The newest engine from npm, into ~/.airband/engine. With AIRBAND_ENGINE_DIR (development), the
+/// engine there is used as it is.
+pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
+    if std::env::var("AIRBAND_ENGINE_DIR").is_ok() {
+        return engine_version().ok_or_else(|| "AIRBAND_ENGINE_DIR has no airband package".into());
+    }
+    install(&latest()?, progress)
+}
+
+/// Downloads `release`, checks it against npm's fingerprint, and puts it in place.
+pub fn install(release: &NpmRelease, progress: Progress) -> Result<String, String> {
+    let dir = engine_dir();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let archive = dir.join(format!("airband-{version}.tgz"));
-    download(progress, &tarball, &archive, "engine", 1_600_000)?;
-    if sha512_b64(&archive)? != integrity {
+    let archive = dir.join(format!("airband-{}.tgz", release.version));
+    download(progress, &release.tarball, &archive, "engine", 1_600_000)?;
+    if sha512_b64(&archive)? != release.integrity {
         let _ = std::fs::remove_file(&archive);
         return Err("the download didn't match npm's fingerprint, so it was thrown away. Try again.".into());
     }
@@ -49,5 +66,5 @@ pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
     let _ = std::fs::remove_dir_all(dir.join("package"));
     std::fs::rename(next.join("package"), dir.join("package")).map_err(|e| e.to_string())?;
     let _ = std::fs::remove_dir_all(&next);
-    Ok(version)
+    Ok(release.version.clone())
 }

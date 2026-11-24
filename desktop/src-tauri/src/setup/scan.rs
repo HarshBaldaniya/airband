@@ -1,9 +1,10 @@
 //! What is on this computer, and what is not.
 use super::engine_version;
 use crate::engine::{self, NODE_MIN};
+use crate::paths::user_home;
 use crate::process::{find_command, major, version_of};
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Serialize)]
 pub struct Found {
@@ -32,15 +33,11 @@ pub struct Scan {
 fn app_exists(mac: &str, win_dirs: &[&str]) -> bool {
     if cfg!(target_os = "macos") {
         return Path::new(mac).exists()
-            || home_dir().join("Applications").join(Path::new(mac).file_name().unwrap_or_default()).exists();
+            || user_home().join("Applications").join(Path::new(mac).file_name().unwrap_or_default()).exists();
     }
     let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
     let pf = std::env::var("ProgramFiles").unwrap_or_default();
     win_dirs.iter().any(|d| Path::new(&local).join(d).exists() || Path::new(&pf).join(d).exists())
-}
-
-fn home_dir() -> PathBuf {
-    PathBuf::from(std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_else(|_| ".".into()))
 }
 
 pub fn look() -> Scan {

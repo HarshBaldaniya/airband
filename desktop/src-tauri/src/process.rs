@@ -1,6 +1,26 @@
-//! Other programs: finding them, and running them without a console window on Windows.
+//! Other programs: finding them, running them (with no console window on Windows), and the
+//! processes they leave running.
+use crate::paths::user_home;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+/// Windows' CREATE_NO_WINDOW: a console program started by the app opens no window of its own.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// A command to run. On Windows it opens no console window, which every program the app runs
+/// (curl, tar, node, reg ...) would otherwise flash on screen.
+pub fn command(program: impl AsRef<OsStr>) -> Command {
+    #[allow(unused_mut)]
+    let mut c = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        c.creation_flags(CREATE_NO_WINDOW);
+    }
+    c
+}
 
 /// A command's full path: on the PATH, or where its installer usually puts it (the engine's
 /// `findCommand` looks in the same places, so the setup tour and Roger agree).
@@ -11,13 +31,11 @@ pub fn find_command(name: &str) -> Option<PathBuf> {
 
 fn on_path(name: &str) -> Option<PathBuf> {
     let out = if cfg!(windows) {
-        let mut c = Command::new("where");
-        c.arg(name);
-        hide_window(&mut c);
-        c.output().ok()?
+        command("where").arg(name).output().ok()?
     } else {
+        // The person's login shell, where nvm and Homebrew put their folders on the PATH.
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
-        Command::new(shell).args(["-lc", &format!("command -v {name}")]).output().ok()?
+        command(shell).args(["-lc", "command -v \"$1\"", "sh", name]).output().ok()?
     };
     let text = String::from_utf8_lossy(&out.stdout);
     let runs = |l: &str| {
@@ -30,7 +48,7 @@ fn on_path(name: &str) -> Option<PathBuf> {
 }
 
 fn usual_places(name: &str) -> Vec<PathBuf> {
-    let home = PathBuf::from(std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default());
+    let home = user_home();
     if cfg!(windows) {
         let env = |k: &str, or: PathBuf| std::env::var(k).map(PathBuf::from).unwrap_or(or);
         let roaming = env("APPDATA", home.join("AppData").join("Roaming"));
@@ -54,10 +72,7 @@ fn usual_places(name: &str) -> Vec<PathBuf> {
 
 /// What a command says to `--version`, first line.
 pub fn version_of(cmd: &Path) -> Option<String> {
-    let mut c = Command::new(cmd);
-    c.arg("--version");
-    hide_window(&mut c);
-    let out = c.output().ok()?;
+    let out = command(cmd).arg("--version").output().ok()?;
     let t = String::from_utf8_lossy(&out.stdout).trim().lines().next()?.to_string();
     (!t.is_empty()).then_some(t)
 }
@@ -67,11 +82,38 @@ pub fn major(version: &str) -> Option<u32> {
     version.trim().trim_start_matches('v').split('.').next()?.parse().ok()
 }
 
-pub fn hide_window(c: &mut Command) {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        c.creation_flags(0x0800_0000);
+/// The process is still running.
+pub fn is_alive(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
     }
-    let _ = c;
+    if cfg!(windows) {
+        let out = command("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH"]).output();
+        out.is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
+    } else {
+        command("kill").args(["-0", &pid.to_string()]).output().is_ok_and(|o| o.status.success())
+    }
+}
+
+/// Asks the process to stop (on Windows, with the processes it started).
+pub fn kill(pid: u32) {
+    let _ = if cfg!(windows) {
+        command("taskkill").args(["/PID", &pid.to_string(), "/T", "/F"]).output()
+    } else {
+        command("kill").arg(pid.to_string()).output()
+    };
+}
+
+/// Opens a web page in the person's browser.
+pub fn open_url(url: &str) -> std::io::Result<()> {
+    let mut c = if cfg!(target_os = "macos") {
+        command("open")
+    } else if cfg!(windows) {
+        let mut c = command("rundll32");
+        c.arg("url.dll,FileProtocolHandler");
+        c
+    } else {
+        command("xdg-open")
+    };
+    c.arg(url).spawn().map(|_| ())
 }

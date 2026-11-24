@@ -60,7 +60,7 @@ fn set_step(app: &AppHandle, step: &'static str) {
 
 /// Written just before the new app goes in place, so the new app can say it is the new one.
 fn marker() -> std::path::PathBuf {
-    crate::paths::home().join("updated.json")
+    crate::paths::file(crate::paths::UPDATED)
 }
 
 /// The version this app was just updated to, once: Roger says so after the restart.
@@ -106,11 +106,11 @@ fn engine_update(app: &AppHandle) {
         return;
     }
     let (Some(have), Ok(latest)) = (setup::engine_version(), setup::latest_engine()) else { return };
-    if !newer(&latest, &have) {
+    if !newer(&latest.version, &have) {
         return;
     }
-    log(&format!("update: engine {have} to {latest}"));
-    match setup::engine_from_npm(&|_, _, _| {}) {
+    log(&format!("update: engine {have} to {}", latest.version));
+    match setup::install_engine(&latest, &|_, _, _| {}) {
         Ok(v) => {
             match setup::connect() {
                 Ok(_) => log("update: agents set up with the new engine"),

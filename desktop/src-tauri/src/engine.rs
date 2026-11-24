@@ -1,12 +1,14 @@
-// Airband's engine: the Station (`airband station`), run with Node. The app starts it, waits for
-// it to write ~/.airband/station.json, opens Roger's corner on its page, and starts it again if it
-// stops. The engine is the npm package the setup tour fetched (or AIRBAND_ENGINE_DIR, for
-// development). Node is the computer's own, or the one the setup tour fetched.
+//! Airband's engine: the Station (`airband station`), run with Node. The app starts it, waits for
+//! it to write ~/.airband/station.json, opens Roger's corner on its page, and starts it again if it
+//! stops. The engine is the npm package the setup tour fetched (or AIRBAND_ENGINE_DIR, for
+//! development). Node is the computer's own, or the one the setup tour fetched.
 use crate::corner::open_corner;
-use crate::paths::home;
-use crate::process::{find_command, hide_window, major, version_of};
+use crate::logging::log;
+use crate::paths::{self, engine_dir, runtime_dir, ENGINE_LOG};
+use crate::process::{command, find_command, is_alive, major, version_of};
+use crate::station::StationFile;
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
@@ -22,12 +24,12 @@ pub fn engine_js() -> PathBuf {
     if let Ok(d) = std::env::var("AIRBAND_ENGINE_DIR") {
         return PathBuf::from(d).join("airband.js");
     }
-    home().join("engine").join("package").join("airband.js")
+    engine_dir().join("package").join("airband.js")
 }
 
 /// The Node the setup tour fetched, if it did.
 pub fn own_node() -> PathBuf {
-    let dir = home().join("runtime").join("node");
+    let dir = runtime_dir().join("node");
     if cfg!(windows) {
         dir.join("node.exe")
     } else {
@@ -62,41 +64,8 @@ pub fn was_ready() -> bool {
     READY.load(Ordering::Relaxed)
 }
 
-/// The Station's port, key and process, once it has written them (since `since`).
-fn station_info(since: SystemTime) -> Option<(u16, String, u32)> {
-    let f = home().join("station.json");
-    let fresh = std::fs::metadata(&f).and_then(|m| m.modified()).map(|t| t >= since).unwrap_or(false);
-    if !fresh {
-        return None;
-    }
-    let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(f).ok()?).ok()?;
-    Some((v["port"].as_u64()? as u16, v["token"].as_str()?.to_string(), v["pid"].as_u64().unwrap_or(0) as u32))
-}
-
-/// A process is still running.
-fn alive(pid: u32) -> bool {
-    if pid == 0 {
-        return false;
-    }
-    let mut c = if cfg!(windows) {
-        let mut c = Command::new("tasklist");
-        c.args(["/FI", &format!("PID eq {pid}"), "/NH"]);
-        c
-    } else {
-        let mut c = Command::new("kill");
-        c.args(["-0", &pid.to_string()]);
-        c
-    };
-    hide_window(&mut c);
-    match c.output() {
-        Ok(o) if cfg!(windows) => String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()),
-        Ok(o) => o.status.success(),
-        Err(_) => false,
-    }
-}
-
-fn open(app: &AppHandle, port: u16, token: &str) {
-    let url = format!("http://127.0.0.1:{port}/app?mode=desktop&t={token}");
+fn open(app: &AppHandle, station: &StationFile) {
+    let Some(url) = station.page() else { return };
     let a = app.clone();
     let _ = app.run_on_main_thread(move || open_corner(&a, &url));
 }
@@ -109,40 +78,38 @@ pub fn start(app: &AppHandle) {
         let mut tries = 0;
         loop {
             // One already runs: use it, and look again only when it stops.
-            if let Some((port, token, pid)) = station_info(SystemTime::UNIX_EPOCH).filter(|(_, _, pid)| alive(*pid)) {
-                crate::logging::log(&format!("engine: using the Station that already runs (process {pid})"));
-                open(&app, port, &token);
-                while alive(pid) {
+            let running = StationFile::read().filter(|s| s.page().is_some() && s.pid.is_some_and(is_alive));
+            if let Some(station) = running {
+                let pid = station.pid.unwrap_or_default();
+                log(&format!("engine: using the Station that already runs (process {pid})"));
+                open(&app, &station);
+                while is_alive(pid) {
                     std::thread::sleep(Duration::from_secs(2));
                 }
-                crate::logging::log("engine: that Station stopped");
+                log("engine: that Station stopped");
                 continue;
             }
             let Some(node) = node() else {
-                crate::logging::log("engine: no Node.js");
+                log("engine: no Node.js");
                 return;
             };
             let since = SystemTime::now() - Duration::from_secs(1);
-            let log = std::fs::File::create(home().join("engine.log")).ok();
-            let mut c = Command::new(&node);
-            c.arg(engine_js()).arg("station").stdin(Stdio::null()).stdout(Stdio::null());
-            match log {
-                Some(f) => c.stderr(f),
-                None => c.stderr(Stdio::null()),
-            };
-            hide_window(&mut c);
+            let errors =
+                std::fs::File::create(paths::file(ENGINE_LOG)).map(Stdio::from).unwrap_or_else(|_| Stdio::null());
+            let mut c = command(&node);
+            c.arg(engine_js()).arg("station").stdin(Stdio::null()).stdout(Stdio::null()).stderr(errors);
             let Ok(child) = c.spawn() else {
-                crate::logging::log("engine: couldn't start");
+                log("engine: couldn't start");
                 return;
             };
-            crate::logging::log(&format!("engine: started (process {})", child.id()));
+            log(&format!("engine: started (process {})", child.id()));
             let started = std::time::Instant::now();
             *CHILD.lock().unwrap() = Some(child);
             let mut opened = false;
             for _ in 0..150 {
                 std::thread::sleep(Duration::from_millis(100));
-                if let Some((port, token, _)) = station_info(since) {
-                    open(&app, port, &token);
+                if let Some(station) = StationFile::written_since(since).filter(|s| s.page().is_some()) {
+                    open(&app, &station);
                     opened = true;
                     break;
                 }
@@ -163,18 +130,18 @@ pub fn start(app: &AppHandle) {
                 }
             }
             if RESTART.swap(false, Ordering::Relaxed) {
-                crate::logging::log("engine: starting again on the new version");
+                log("engine: starting again on the new version");
                 tries = 0;
                 continue;
             }
-            crate::logging::log("engine: stopped by itself");
+            log("engine: stopped by itself");
             // A Station that ran a good while before stopping isn't one that can't start.
             if started.elapsed() > Duration::from_secs(600) {
                 tries = 0;
             }
             tries += 1;
             if tries >= 5 || (!opened && tries >= 2) {
-                crate::logging::log("engine: gave up starting it again");
+                log("engine: gave up starting it again");
                 return;
             }
             std::thread::sleep(Duration::from_secs(2));

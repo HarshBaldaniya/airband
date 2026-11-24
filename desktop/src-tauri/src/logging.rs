@@ -1,25 +1,33 @@
-//! The app's own short log, ~/.airband/app.log.
-use crate::paths::home;
+//! A short log of what the app did (~/.airband/app.log), for when something goes wrong.
+use crate::paths::{self, APP_LOG};
 use std::fs;
+use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Set once Airband is being uninstalled.
-pub static LOG_OFF: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// The log is started again once it is past this size, so it stays small.
+const MAX_BYTES: u64 = 200_000;
 
-/// A short log of what the app did (~/.airband/app.log), for when something goes wrong.
-/// Kept small: started again past 200 KB.
+/// Set once Airband is being uninstalled: ~/.airband is going, and a log line would make it again.
+static STOPPED: AtomicBool = AtomicBool::new(false);
+
+/// Writes one line, after the time in seconds.
 pub fn log(line: &str) {
-    use std::io::Write;
-    // Uninstalling: ~/.airband is going, and a log line would make it again.
-    if LOG_OFF.load(std::sync::atomic::Ordering::Relaxed) {
+    if STOPPED.load(Ordering::Relaxed) {
         return;
     }
-    let f = home().join("app.log");
-    let _ = fs::create_dir_all(home());
-    if fs::metadata(&f).map(|m| m.len() > 200_000).unwrap_or(false) {
+    let f = paths::file(APP_LOG);
+    let _ = fs::create_dir_all(paths::home());
+    if fs::metadata(&f).is_ok_and(|m| m.len() > MAX_BYTES) {
         let _ = fs::remove_file(&f);
     }
     if let Ok(mut out) = fs::OpenOptions::new().create(true).append(true).open(&f) {
-        let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
         let _ = writeln!(out, "{secs} {line}");
     }
+}
+
+/// No more lines from here on.
+pub fn stop() {
+    STOPPED.store(true, Ordering::Relaxed);
 }

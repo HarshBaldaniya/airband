@@ -1,6 +1,6 @@
 //! Everything a page may ask the app, as Tauri commands. Each one is also named in build.rs and
 //! granted to its window in capabilities/ (scripts/check-commands.mjs checks the four agree).
-use crate::corner::{set_pref_inner, show};
+use crate::corner::{is_visible, set_pref_inner, show};
 use crate::engine;
 use crate::logging::log;
 use crate::prefs::{prefs_view, save_prefs};
@@ -8,8 +8,7 @@ use crate::setup::{self, Scan};
 use crate::state::{Rect, State};
 use crate::tray::build_menu;
 use crate::update;
-use std::process::Command;
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, WebviewWindow};
 
 // ---- Roger's corner ----
 
@@ -86,8 +85,7 @@ pub fn come_back(app: AppHandle) {
     if !p.notify {
         return;
     }
-    let visible = app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false);
-    if !visible || p.hidden {
+    if !is_visible(&app) || p.hidden {
         log("corner: a chat finished or needs you: coming back");
         show(&app, false);
     }
@@ -108,18 +106,14 @@ pub async fn scan() -> Scan {
 /// against nodejs.org's own list of fingerprints.
 #[tauri::command]
 pub async fn install_node(app: AppHandle) -> Result<String, String> {
-    setup::node_from_nodejs(&|step, got, total| {
-        let _ = app.emit("setup-progress", serde_json::json!({ "step": step, "got": got, "total": total }));
-    })
+    setup::node_from_nodejs(&setup::progress_to(&app))
 }
 
 /// Airband's engine, the latest npm package, into ~/.airband/engine, checked against npm's
 /// published fingerprint (its sha512 "integrity").
 #[tauri::command]
 pub async fn install_engine(app: AppHandle) -> Result<String, String> {
-    setup::engine_from_npm(&|step, got, total| {
-        let _ = app.emit("setup-progress", serde_json::json!({ "step": step, "got": got, "total": total }));
-    })
+    setup::engine_from_npm(&setup::progress_to(&app))
 }
 
 /// Connects Airband to the agents found: its hook, tools and skills, and the `airband` command
@@ -157,19 +151,5 @@ pub fn open_url(url: String) -> Result<(), String> {
     if !url.starts_with("https://") {
         return Err("only https links".into());
     }
-    let mut c = if cfg!(target_os = "macos") {
-        let mut c = Command::new("open");
-        c.arg(&url);
-        c
-    } else if cfg!(windows) {
-        let mut c = Command::new("rundll32");
-        c.args(["url.dll,FileProtocolHandler", &url]);
-        c
-    } else {
-        let mut c = Command::new("xdg-open");
-        c.arg(&url);
-        c
-    };
-    crate::process::hide_window(&mut c);
-    c.spawn().map(|_| ()).map_err(|e| e.to_string())
+    crate::process::open_url(&url).map_err(|e| e.to_string())
 }

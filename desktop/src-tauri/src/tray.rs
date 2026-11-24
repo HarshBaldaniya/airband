@@ -1,6 +1,6 @@
 //! The menu-bar (macOS) or tray (Windows) icon's menu, also shown by a right-click on Roger.
-use crate::corner::{hide_corner, set_pref_inner, show};
-use crate::paths::home;
+use crate::corner::{hide_corner, is_visible, set_pref_inner, show};
+use crate::paths::{self, STATION_SETTINGS};
 use crate::state::State;
 use crate::{engine, setup, uninstall, update};
 use std::fs;
@@ -9,7 +9,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 /// The companion's name, from the engine's settings (for the menu).
 fn companion_name() -> String {
-    fs::read_to_string(home().join("station-settings.json"))
+    fs::read_to_string(paths::file(STATION_SETTINGS))
         .ok()
         .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
         .and_then(|v| v["companion"]["name"].as_str().map(String::from))
@@ -20,7 +20,7 @@ fn companion_name() -> String {
 pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let p = app.state::<State>().lock().unwrap().prefs.clone();
     let name = companion_name();
-    let visible = app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false);
+    let visible = is_visible(app);
     let items = Menu::new(app)?;
     let newer = update::current();
     if let Some(v) = &newer.version {
@@ -84,8 +84,7 @@ pub fn menu_event(app: &AppHandle, id: &str) {
     let p = app.state::<State>().lock().unwrap().prefs.clone();
     match id {
         "toggle" => {
-            let visible = app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false);
-            if visible && !p.hidden {
+            if is_visible(app) && !p.hidden {
                 hide_corner(app)
             } else {
                 show(app, false)

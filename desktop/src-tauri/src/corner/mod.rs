@@ -22,6 +22,11 @@ pub const FIG_H: f64 = 125.0;
 
 pub const FIG_PAD: f64 = 10.0;
 
+/// Roger's window is on screen.
+pub fn is_visible(app: &AppHandle) -> bool {
+    app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false)
+}
+
 /// What the Station's page is given to reach the app (bridge.js).
 const BRIDGE: &str = include_str!("bridge.js");
 

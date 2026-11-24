@@ -7,15 +7,23 @@ mod node;
 mod npm;
 mod scan;
 
-use crate::engine::{self};
-use crate::process::hide_window;
-use std::process::Command;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use crate::engine;
+use crate::process::command;
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 pub use node::node_from_nodejs;
-pub use npm::{engine_from_npm, engine_version, latest_engine};
+pub use npm::{engine_from_npm, engine_version};
+pub use npm::{install as install_engine, latest as latest_engine};
 pub use scan::{look, Scan};
 
+/// Turns a download's progress into the tour's `setup-progress` events.
+pub fn progress_to(app: &AppHandle) -> impl Fn(&str, u64, u64) + '_ {
+    move |step, got, total| {
+        let _ = app.emit("setup-progress", serde_json::json!({ "step": step, "got": got, "total": total }));
+    }
+}
+
+/// Opens the setup tour, or brings it to the front.
 pub fn open(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("setup") {
         let _ = w.show();
@@ -37,10 +45,13 @@ pub fn open(app: &AppHandle) {
 
 pub fn connect() -> Result<serde_json::Value, String> {
     let node = engine::node().ok_or("Node isn't there yet")?;
-    let mut c = Command::new(&node);
-    c.arg(engine::engine_js()).args(["setup", "--json"]).arg("--node").arg(&node);
-    hide_window(&mut c);
-    let out = c.output().map_err(|e| format!("couldn't start Airband's engine: {e}"))?;
+    let out = command(&node)
+        .arg(engine::engine_js())
+        .args(["setup", "--json"])
+        .arg("--node")
+        .arg(&node)
+        .output()
+        .map_err(|e| format!("couldn't start Airband's engine: {e}"))?;
     let text = String::from_utf8_lossy(&out.stdout);
     let start = text.find('{').ok_or("the engine said nothing")?;
     serde_json::from_str(&text[start..]).map_err(|_| "the engine's answer didn't read".into())

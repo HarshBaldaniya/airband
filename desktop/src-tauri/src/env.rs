@@ -1,9 +1,7 @@
 //! The app's own environment variables.
 use crate::logging::log;
 #[cfg(windows)]
-use crate::process::hide_window;
-#[cfg(windows)]
-use std::process::Command;
+use crate::process::command;
 
 /// The app's own environment, before anything reads it. macOS can hand an app the environment of an
 /// earlier start (one from a test, or from inside an AI agent's terminal), and the engine inherits it.
@@ -55,10 +53,7 @@ pub fn refresh_path() {
     #[cfg(windows)]
     {
         let read = |key: &str| -> Option<String> {
-            let mut c = Command::new("reg");
-            c.args(["query", key, "/v", "Path"]);
-            hide_window(&mut c);
-            let out = c.output().ok()?;
+            let out = command("reg").args(["query", key, "/v", "Path"]).output().ok()?;
             let text = String::from_utf8_lossy(&out.stdout).to_string();
             let line = text.lines().find(|l| l.contains("REG_"))?;
             let value = line[line.find("REG_")?..].split_once(char::is_whitespace)?.1.trim().to_string();

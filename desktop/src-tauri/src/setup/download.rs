@@ -1,14 +1,12 @@
 //! Downloads with the computer's own curl, checked, and unpacked with its own tar.
-use crate::process::hide_window;
+use crate::process::command;
 use base64::Engine as _;
 use sha2::{Digest, Sha256, Sha512};
 use std::path::Path;
-use std::process::Command;
 
-fn curl() -> Command {
-    let mut c = Command::new(if cfg!(windows) { "curl.exe" } else { "curl" });
+fn curl() -> std::process::Command {
+    let mut c = command(if cfg!(windows) { "curl.exe" } else { "curl" });
     c.args(["-fsSL", "--proto", "=https", "--tlsv1.2", "--retry", "2"]);
-    hide_window(&mut c);
     c
 }
 
@@ -51,12 +49,11 @@ pub fn sha512_b64(file: &Path) -> Result<String, String> {
 
 pub fn untar(archive: &Path, into: &Path) -> Result<(), String> {
     std::fs::create_dir_all(into).map_err(|e| e.to_string())?;
-    let mut c = Command::new("tar");
+    let mut c = command("tar");
     c.arg(if archive.extension().and_then(|e| e.to_str()) == Some("zip") { "-xf" } else { "-xzf" })
         .arg(archive)
         .arg("-C")
         .arg(into);
-    hide_window(&mut c);
     let out = c.output().map_err(|e| format!("couldn't run tar: {e}"))?;
     if out.status.success() {
         Ok(())

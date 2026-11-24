@@ -1,6 +1,6 @@
 //! The app itself: its plugins, the menu-bar icon, the commands pages may call, and what happens
 //! at start and at exit.
-use crate::corner::{show, watch_pointer};
+use crate::corner::{is_visible, show, watch_pointer};
 use crate::logging::log;
 use crate::prefs::{load_prefs, login_item};
 use crate::state::{Shared, State};
@@ -46,8 +46,7 @@ pub fn run() {
                 .with_handler(|app, _shortcut, event| {
                     if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                         let p = app.state::<State>().lock().unwrap().prefs.clone();
-                        let visible = app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false);
-                        if !visible || p.tucked {
+                        if !is_visible(app) || p.tucked {
                             show(app, true)
                         } else if let Some(w) = app.get_webview_window("main") {
                             let _ = w.emit("command", "toggle");
