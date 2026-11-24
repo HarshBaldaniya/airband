@@ -41,12 +41,37 @@
 .agents .with { color: var(--faint); font-size: 13px; }
 .agents img { width: 20px; height: 20px; }
 
-/* ---- the numbers under the hero: npm and the app's downloads ---- */
-.counters { display: inline-flex; flex-wrap: wrap; justify-content: center; margin-top: 36px; border: 1px solid var(--line); border-radius: 20px; background: var(--glass); }
-.counter { display: grid; justify-items: center; gap: 2px; padding: 14px 28px; }
-.counter + .counter { border-left: 1px solid var(--line); }
-.counter b { font-family: var(--font-display), sans-serif; font-size: 26px; font-weight: 700; line-height: 1.15; color: var(--ink); font-variant-numeric: tabular-nums; }
-.counter span { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+/* ---- On the air: the downloads as a radio dial ---- */
+.onair { text-align: center; padding-top: 72px; }
+.onair-tag { display: inline-flex; align-items: center; gap: 9px; height: 30px; padding: 0 14px; border-radius: 99px; border: 1px solid var(--line-2); background: var(--glass); font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand-2); }
+.onair-tag .live { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 60%, transparent); animation: live 2.2s ease-out infinite; }
+@keyframes live { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 10px transparent; } }
+.onair-num { display: block; margin-top: 22px; font-family: var(--font-display), sans-serif; font-size: clamp(84px, 13vw, 168px); font-weight: 700; line-height: 0.95; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; background: linear-gradient(180deg, #fff 30%, color-mix(in srgb, var(--brand-2) 80%, #fff) 120%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.onair-what { margin-top: 14px; font-size: 17px; color: var(--muted); }
+
+/* The tuning scale: one tick per slice of a day, as tall as that day's downloads. */
+.dial { position: relative; width: min(900px, 100%); margin: 52px auto 0; }
+.dial-scale { position: relative; display: flex; align-items: flex-end; justify-content: space-between; height: 96px; padding: 0 2px; border-bottom: 1px solid var(--line-2); }
+.dial-scale i { flex: none; width: 2px; height: calc(10px + var(--h) * 78px); border-radius: 1px; background: rgba(255, 255, 255, 0.16); transform-origin: bottom; }
+.dial-scale i.major { width: 3px; background: rgba(255, 255, 255, 0.28); }
+.dial-scale i.week { background: linear-gradient(180deg, var(--brand-2), var(--brand)); box-shadow: 0 0 12px color-mix(in srgb, var(--brand) 45%, transparent); }
+.dial .needle { position: absolute; top: -10px; bottom: -6px; left: calc(100% - 1px); width: 2px; border-radius: 2px; background: #fff; box-shadow: 0 0 14px rgba(255, 255, 255, 0.7), 0 0 34px color-mix(in srgb, var(--brand) 70%, transparent); }
+.dial .needle::before { content: ""; position: absolute; top: -6px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 12px color-mix(in srgb, var(--brand) 80%, transparent); }
+.dial-ends { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; font-weight: 500; letter-spacing: 0.04em; color: var(--faint); text-transform: uppercase; }
+/* Coming on screen: the needle sweeps from the first day to today and the ticks rise as it passes. */
+.onair.run .dial .needle { animation: sweep 1.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.onair.run .dial-scale i { animation: tick-rise 0.5s var(--ease) both; animation-delay: calc(var(--i) * 17ms); }
+@keyframes sweep { from { left: 0; } to { left: calc(100% - 1px); } }
+@keyframes tick-rise { from { transform: scaleY(0.15); opacity: 0.3; } to { transform: none; opacity: 1; } }
+
+.onair-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 40px; }
+.onair .chip { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 99px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--glass-2), var(--glass)); font-size: 14px; color: var(--muted); }
+.onair .chip > svg { width: 16px; height: 16px; color: var(--brand-2); }
+.onair .chip b { font-family: var(--font-display), sans-serif; font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.onair .chip em { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; padding-left: 12px; border-left: 1px solid var(--line); font-style: normal; color: var(--faint); font-variant-numeric: tabular-nums; }
+.onair .chip em svg { width: 13px; height: 13px; margin-left: 4px; }
+.onair-note { margin-top: 20px; font-size: 12.5px; color: var(--faint); }
+@media (prefers-reduced-motion: reduce) { .onair-tag .live, .onair.run .dial .needle, .onair.run .dial-scale i { animation: none; } }
 
 /* ---- how it works: the steps on the left, the picture on the right ---- */
 .how { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 32px; align-items: stretch; }

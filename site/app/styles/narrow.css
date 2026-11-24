@@ -17,10 +17,12 @@
   .hero .actions > .cmd { justify-content: space-between; }
   .agents { gap: 10px 20px; margin-top: 32px; }
   .agents .with { flex-basis: 100%; text-align: center; justify-content: center; }
-  .counters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; margin-top: 28px; }
-  .counter { padding: 12px 6px; }
-  .counter b { font-size: 21px; }
-  .counter span { font-size: 11.5px; white-space: normal; text-align: center; }
+  .onair { padding-top: 40px; }
+  .dial { margin-top: 36px; }
+  .dial-scale { height: 72px; }
+  .dial-scale i { width: 1.5px; height: calc(8px + var(--h) * 58px); }
+  .dial-scale i.major { width: 2px; }
+  .onair .chip { height: auto; min-height: 44px; padding: 8px 16px; flex-wrap: wrap; justify-content: center; }
   .hr-talk { max-width: 340px; }
   .hr-bubble { font-size: 14.5px; }
   .alt { flex-direction: column; align-items: stretch; }

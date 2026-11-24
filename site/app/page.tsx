@@ -5,7 +5,7 @@ import { HowItWorks } from "@/components/home/HowItWorks";
 import { GitHub, Npm } from "@/components/ui/BrandMarks";
 import { Reveal } from "@/components/layout/Reveal";
 import { WaysIn } from "@/components/home/WaysIn";
-import { Counters, type Counter } from "@/components/home/Counters";
+import { Stats } from "@/components/home/Stats";
 import { NEW_TAB } from "@/lib/links";
 import { downloads, VERSION } from "@/lib/release";
 import { SITE } from "@/lib/site";
@@ -26,13 +26,7 @@ const FOUR = [
 ];
 
 export default async function Home() {
-  const [files, s] = await Promise.all([downloads(), stats()]);
-  // Only the numbers that could be read, and only once there is something to count.
-  const counters = [
-    s.npmTotal ? { value: s.npmTotal, label: "npm downloads" } : undefined,
-    s.npmWeek ? { value: s.npmWeek, label: "this week" } : undefined,
-    s.appDownloads ? { value: s.appDownloads, label: "app downloads" } : undefined,
-  ].filter((c): c is Counter => !!c);
+  const [files, numbers] = await Promise.all([downloads(), stats()]);
   return (
     <>
       <JsonLd data={faqGraph()} />
@@ -68,11 +62,10 @@ export default async function Home() {
               ))}
             </div>
           </Reveal>
-          <Reveal delay={0.42}>
-            <Counters items={counters} />
-          </Reveal>
         </div>
       </section>
+
+      <Stats numbers={numbers} />
 
       <section className="section" id="demo">
         <div className="wrap">
