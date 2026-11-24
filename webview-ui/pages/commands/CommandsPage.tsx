@@ -109,7 +109,7 @@ export function CommandsPage() {
                 <X {...I} />
               </button>
             ) : (
-              <kbd className="cbkey">/</kbd>
+              <kbd className="findkey">/</kbd>
             )}
           </div>
           {notSetUp.length > 0 && (

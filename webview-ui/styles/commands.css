@@ -8,7 +8,7 @@
 .libsearch > svg { flex: none; color: var(--muted); }
 .libsearch input { flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: none; color: var(--vscode-input-foreground, var(--vscode-foreground)); font: inherit; font-size: 13px; }
 .libsearch input::placeholder { color: var(--muted); }
-.libnotice { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 12px; border-radius: 9px; font-size: 12px; background: color-mix(in srgb, var(--ct-waiting, #d29922) 10%, transparent); }
+.libnotice { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 12px; border-radius: 9px; font-size: 12px; background: color-mix(in srgb, var(--ab-waiting, #d29922) 10%, transparent); }
 .liblist { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 4px 4px 32px 0; }
 .libgroup { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .libgrouptitle { padding: 0 10px 5px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
@@ -40,7 +40,7 @@
 .libcode:focus-visible { outline: 1px solid var(--focus); }
 .libcodetext { flex: 1 1 auto; min-width: 0; font-size: 13.5px; font-weight: 500; }
 .libcode > svg { flex: none; color: var(--muted); }
-.libcode > svg.libcopied { color: var(--ct-done, #3fb950); }
+.libcode > svg.libcopied { color: var(--ab-done, #3fb950); }
 .libarg { color: var(--muted); font-weight: 400; }
 .libargs { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .libargs li { display: grid; grid-template-columns: minmax(56px, max-content) minmax(0, 1fr); gap: 12px; font-size: 13px; line-height: 1.45; }

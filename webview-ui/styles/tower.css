@@ -1,7 +1,7 @@
 /* The board page and the Tower: the tabs, the canvas, cards, lines, the tray and the toolbar. */
-.dirtag { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; color: var(--ct-live); background: color-mix(in srgb, var(--ct-live) 13%, transparent); }
-.dirtag.in { color: var(--ct-working); background: color-mix(in srgb, var(--ct-working) 13%, transparent); }
-.dirtag.both { color: var(--ct-done); background: color-mix(in srgb, var(--ct-done) 13%, transparent); }
+.dirtag { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; color: var(--ab-live); background: color-mix(in srgb, var(--ab-live) 13%, transparent); }
+.dirtag.in { color: var(--ab-working); background: color-mix(in srgb, var(--ab-working) 13%, transparent); }
+.dirtag.both { color: var(--ab-done); background: color-mix(in srgb, var(--ab-done) 13%, transparent); }
 .check { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; cursor: pointer; }
 .check input { margin-top: 3px; accent-color: var(--vscode-button-background); }
 .boardpage { height: 100vh; display: flex; flex-direction: column; }
@@ -28,8 +28,8 @@
 .legendpanel.react-flow__panel { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); }
 .legend { display: inline-flex; align-items: center; gap: 6px; }
 .swatch { width: 20px; height: 0; border-top: 2px dashed; display: inline-block; }
-.swatch.live { border-color: var(--ct-live); }
-.swatch.paused { border-color: var(--ct-idle); }
+.swatch.live { border-color: var(--ab-live); }
+.swatch.paused { border-color: var(--ab-idle); }
 .boardempty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; color: var(--muted); text-align: center; padding: 20px; }
 .boardempty p { margin: 0; max-width: 340px; }
 .boardempty .strong { color: var(--vscode-foreground); }
@@ -46,8 +46,8 @@
 }
 .bcard:hover { border-color: color-mix(in srgb, var(--focus) 60%, transparent); }
 .bcard.selected { border-color: var(--focus); }
-.bcard.working { box-shadow: 0 0 0 1px color-mix(in srgb, var(--ct-working) 45%, transparent), 0 8px 26px color-mix(in srgb, var(--ct-working) 20%, transparent); }
-.bcard.waiting { border-color: var(--ct-waiting); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ct-waiting) 22%, transparent), 0 8px 24px rgba(0,0,0,.2); }
+.bcard.working { box-shadow: 0 0 0 1px color-mix(in srgb, var(--ab-working) 45%, transparent), 0 8px 26px color-mix(in srgb, var(--ab-working) 20%, transparent); }
+.bcard.waiting { border-color: var(--ab-waiting); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ab-waiting) 22%, transparent), 0 8px 24px rgba(0,0,0,.2); }
 .bcardhead .toolmark { margin-top: 2px; }
 .bcardtitle {
   all: unset; flex: 1; min-width: 0; cursor: pointer;
@@ -57,25 +57,25 @@
 .bcardtitle:focus-visible { outline: 1px solid var(--focus); }
 .bcardactions { display: flex; gap: 2px; border-top: 1px solid var(--line-soft); padding-top: 6px; margin: 0 -6px; }
 .port.react-flow__handle { border-radius: 50%;
-  background: var(--surface); border: 2px solid var(--ct-live);
+  background: var(--surface); border: 2px solid var(--ab-live);
 }
 .port.out { right: -7px; }
-.port.in { left: -7px; border-color: var(--ct-idle); opacity: 0; }
-.react-flow__node:hover .port.out { transform: scale(1.35); background: var(--ct-live); }
+.port.in { left: -7px; border-color: var(--ab-idle); opacity: 0; }
+.react-flow__node:hover .port.out { transform: scale(1.35); background: var(--ab-live); }
 .react-flow.connecting .port.in, .react-flow__handle.connectingto { opacity: 1; }
-.react-flow__connectionline path, .react-flow__connection-path { stroke: var(--ct-live); stroke-width: 2.5; stroke-dasharray: 6 6; }
+.react-flow__connectionline path, .react-flow__connection-path { stroke: var(--ab-live); stroke-width: 2.5; stroke-dasharray: 6 6; }
 /* link lines */
-.arrowhead.live { fill: var(--ct-live); }
-.arrowhead.paused { fill: var(--ct-idle); }
+.arrowhead.live { fill: var(--ab-live); }
+.arrowhead.paused { fill: var(--ab-idle); }
 @keyframes flow { to { stroke-dashoffset: -14; } }
 .edgelabel { position: absolute; pointer-events: all; z-index: 10; }
 .edgepill {
   display: inline-flex; align-items: center; border-radius: 999px; font-size: 11px; font-weight: 600; cursor: pointer;
-  background: var(--surface); border: 1px solid color-mix(in srgb, var(--ct-live) 55%, transparent); white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  background: var(--surface); border: 1px solid color-mix(in srgb, var(--ab-live) 55%, transparent); white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,.2);
 }
-.edgepill svg { color: var(--ct-live); }
+.edgepill svg { color: var(--ab-live); }
 .edgelabel.paused .edgepill { border-color: var(--line); color: var(--muted); }
-.edgelabel.paused .edgepill svg { color: var(--ct-idle); }
+.edgelabel.paused .edgepill svg { color: var(--ab-idle); }
 .edgemenu {
   position: absolute; left: 50%; transform: translateX(-50%);
   display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 11px;
@@ -85,46 +85,46 @@
 .edgemenu button:hover, .edgemenu button:focus-visible { background: var(--hover); }
 .bcard { position: relative; width: 300px; gap: 0; padding: 0; overflow: visible; border-radius: 14px; }
 .bcard::before { content: ""; position: absolute; left: 14px; right: 14px; top: -1px; height: 2px; border-radius: 0 0 2px 2px; background: transparent; }
-.bcard.working::before { background: linear-gradient(90deg, transparent, var(--ct-working), transparent); background-size: 200% 100%; animation: sweep 1.6s linear infinite; }
-.bcard.waiting::before { background: var(--ct-waiting); }
-.bcard.done::before { background: color-mix(in srgb, var(--ct-done) 70%, transparent); }
+.bcard.working::before { background: linear-gradient(90deg, transparent, var(--ab-working), transparent); background-size: 200% 100%; animation: sweep 1.6s linear infinite; }
+.bcard.waiting::before { background: var(--ab-waiting); }
+.bcard.done::before { background: color-mix(in srgb, var(--ab-done) 70%, transparent); }
 @keyframes sweep { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 .bcardhead { display: flex; align-items: flex-start; gap: 11px; padding: 14px 12px 12px 14px; }
 .bcardlogo { display: inline-flex; padding: 7px; border-radius: 10px; border: 1px solid var(--line-soft); flex: none; }
 .bcardheading { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .bcardtitle { font-size: 14px; font-weight: 600; line-height: 1.35; }
 .bcardsub { display: flex; align-items: center; gap: 8px; }
-.bcardattn { margin: -4px 14px 10px; padding: 6px 9px; border-radius: 8px; font-size: 12px; line-height: 1.4; color: var(--ct-waiting); background: color-mix(in srgb, var(--ct-waiting) 10%, transparent); }
+.bcardattn { margin: -4px 14px 10px; padding: 6px 9px; border-radius: 8px; font-size: 12px; line-height: 1.4; color: var(--ab-waiting); background: color-mix(in srgb, var(--ab-waiting) 10%, transparent); }
 .bcardfacts { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 7px 10px; margin: 0; padding: 11px 14px; border-top: 1px solid var(--line-soft); font-size: 12px; align-items: center; }
 .bcardfacts dt { color: var(--muted); }
 .bcardfacts dd { margin: 0; min-width: 0; }
 .bcardfacts .ctxbar { width: 92px; }
 .bcardlinks { display: flex; flex-direction: column; gap: 3px; }
-.bcardlink { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--ct-live); }
-.bcardlink.in { color: var(--ct-working); }
-.bcardlink.both { color: var(--ct-done); }
+.bcardlink { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--ab-live); }
+.bcardlink.in { color: var(--ab-working); }
+.bcardlink.both { color: var(--ab-done); }
 .bcardlink .ellipsis { color: var(--vscode-foreground); }
 .bcard .bcardactions { display: flex; margin: 0; padding: 10px 12px 12px; border-top: 1px solid var(--line-soft); }
 .bcard .bcardactions .btn { flex: 1; }
-.link .linkglow { stroke: var(--ct-live); stroke-linecap: round; transition: stroke-opacity .3s, stroke-width .3s; }
+.link .linkglow { stroke: var(--ab-live); stroke-linecap: round; transition: stroke-opacity .3s, stroke-width .3s; }
 .link .linkbase {
-  stroke: var(--ct-live); stroke-linecap: round;
+  stroke: var(--ab-live); stroke-linecap: round;
   transition: stroke .3s, stroke-opacity .3s, stroke-width .2s;
 }
-.link .arrowhead { fill: none; stroke: var(--ct-live); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.link.paused .linkbase { stroke: var(--ct-idle); animation: none; stroke-dashoffset: 0; }
-.link.paused .linkglow { stroke: var(--ct-idle); stroke-opacity: .05; }
-.link.paused .arrowhead { stroke: var(--ct-idle); }
+.link .arrowhead { fill: none; stroke: var(--ab-live); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.link.paused .linkbase { stroke: var(--ab-idle); animation: none; stroke-dashoffset: 0; }
+.link.paused .linkglow { stroke: var(--ab-idle); stroke-opacity: .05; }
+.link.paused .arrowhead { stroke: var(--ab-idle); }
 .edgelabel { animation: fadein .35s ease-out .25s both; }
 .edgepill { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
-.edgepill:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.28); border-color: var(--ct-live); }
-.edgelabel.fresh .edgepill { border-color: var(--ct-live); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ct-live) 18%, transparent); }
+.edgepill:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.28); border-color: var(--ab-live); }
+.edgelabel.fresh .edgepill { border-color: var(--ab-live); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ab-live) 18%, transparent); }
 .edgemenu { animation: pop .14s ease-out; transform-origin: top center; }
 @keyframes pop { from { opacity: 0; transform: translateX(-50%) scale(.96) translateY(-3px); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
 @keyframes fadein { from { opacity: 0; } }
 .bcard { animation: cardin .3s cubic-bezier(.2, .8, .2, 1); }
 @keyframes cardin { from { opacity: 0; transform: translateY(6px) scale(.98); } }
-.port.out::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--ct-live); opacity: 0; }
+.port.out::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--ab-live); opacity: 0; }
 .react-flow__node:hover .port.out::after { animation: ripple 1.4s ease-out infinite; }
 @keyframes ripple { 0% { opacity: .6; transform: scale(.6); } 100% { opacity: 0; transform: scale(1.6); } }
 .react-flow__connectionline path, .react-flow__connection-path { animation: flow .8s linear infinite; }
@@ -132,15 +132,15 @@
 @media (prefers-reduced-motion: reduce) {
   .link .linkbase { stroke-dashoffset: 0; }
 }
-.port.react-flow__handle { opacity: 0; border-color: var(--ct-live); }
+.port.react-flow__handle { opacity: 0; border-color: var(--ab-live); }
 .react-flow__node:hover .port { opacity: 1; }
 .react-flow__node:hover .port:hover { cursor: crosshair; }
 .canvas.is-connecting .port { opacity: 1; animation: magnet 1.1s ease-in-out infinite; }
-.canvas.is-connecting .react-flow__node:hover .bcard { border-color: var(--ct-live); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ct-live) 20%, transparent), 0 14px 32px rgba(0,0,0,.28); }
-.port.connectingto, .port.valid { opacity: 1 !important; background: var(--ct-live); animation: none; }
-.port.connectingfrom { opacity: 1; background: var(--ct-live); }
+.canvas.is-connecting .react-flow__node:hover .bcard { border-color: var(--ab-live); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ab-live) 20%, transparent), 0 14px 32px rgba(0,0,0,.28); }
+.port.connectingto, .port.valid { opacity: 1 !important; background: var(--ab-live); animation: none; }
+.port.connectingfrom { opacity: 1; background: var(--ab-live); }
 .port.out::after { display: none; }
-@keyframes magnet { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ct-live) 40%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ct-live) 0%, transparent); } }
+@keyframes magnet { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ab-live) 40%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ab-live) 0%, transparent); } }
 .react-flow__node.selected .bcard { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent), 0 10px 26px rgba(0,0,0,.24); }
 .selbar.react-flow__panel {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; padding: 7px 8px 7px 12px; border-radius: 11px; font-size: 12px; max-width: 520px;
@@ -150,14 +150,14 @@
 .selbar b { color: var(--vscode-foreground); }
 .stop.tool-claude, .stop.tool-codex, .stop.tool-gemini { stop-color: var(--tool); }
 .link .arrowhead[class*="tool-"] { stroke: var(--tool); }
-.link.paused .arrowhead[class*="tool-"] { stroke: var(--ct-idle); }
+.link.paused .arrowhead[class*="tool-"] { stroke: var(--ab-idle); }
 .edgepill { gap: 5px; padding: 3px 10px 3px 8px; }
 .edgepill .pillsep { width: 1px; height: 12px; background: var(--line); margin: 0 2px; }
 .edgelabel.paused .edgepill .toolmark { filter: grayscale(1); opacity: .6; }
-.bcardlogo { background: color-mix(in srgb, var(--tool, var(--ct-idle)) 13%, transparent); border-color: color-mix(in srgb, var(--tool, var(--ct-idle)) 32%, transparent); }
+.bcardlogo { background: color-mix(in srgb, var(--tool, var(--ab-idle)) 13%, transparent); border-color: color-mix(in srgb, var(--tool, var(--ab-idle)) 32%, transparent); }
 .bcard::after {
   content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px; pointer-events: none; opacity: 0;
-  background: conic-gradient(from var(--spin), transparent 0 62%, var(--ct-working) 80%, color-mix(in srgb, var(--ct-working) 30%, white) 86%, transparent 94%);
+  background: conic-gradient(from var(--spin), transparent 0 62%, var(--ab-working) 80%, color-mix(in srgb, var(--ab-working) 30%, white) 86%, transparent 94%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
   transition: opacity .4s;
 }
@@ -168,9 +168,9 @@
 @keyframes logospin { to { transform: rotate(360deg); } }
 @keyframes logopulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
 .bcard.waiting { animation: cardin .3s cubic-bezier(.2, .8, .2, 1), breathe 2.2s ease-in-out .3s infinite; }
-@keyframes breathe { 0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ct-waiting) 18%, transparent), 0 8px 24px rgba(0,0,0,.2); } 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--ct-waiting) 8%, transparent), 0 8px 24px rgba(0,0,0,.2); } }
+@keyframes breathe { 0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ab-waiting) 18%, transparent), 0 8px 24px rgba(0,0,0,.2); } 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--ab-waiting) 8%, transparent), 0 8px 24px rgba(0,0,0,.2); } }
 .bcard.justdone { animation: doneflash 1.5s ease-out; }
-@keyframes doneflash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ct-done) 60%, transparent); border-color: var(--ct-done); } 100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--ct-done) 0%, transparent); } }
+@keyframes doneflash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ab-done) 60%, transparent); border-color: var(--ab-done); } 100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--ab-done) 0%, transparent); } }
 @media (prefers-reduced-motion: reduce) {
   .bcard::after { animation: none !important; }
 }
@@ -224,11 +224,11 @@
 .edgemenu button.danger { color: var(--vscode-errorForeground); }
 .menusection { padding: 4px 8px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .menusep { height: 1px; background: var(--line-soft); margin: 4px 2px; }
-.edgemenu .check { display: inline-flex; width: 16px; justify-content: center; flex: none; color: var(--ct-done); }
+.edgemenu .check { display: inline-flex; width: 16px; justify-content: center; flex: none; color: var(--ab-done); }
 .edgemenu button.danger .check, .edgemenu button[role="menuitem"] .check { color: inherit; }
 .diropt .dirlabel { min-width: 0; flex: 1; }
-.diropt .dirarrow { color: var(--ct-live); flex: none; }
-.diropt.on { background: color-mix(in srgb, var(--ct-done) 10%, transparent); }
+.diropt .dirarrow { color: var(--ab-live); flex: none; }
+.diropt.on { background: color-mix(in srgb, var(--ab-done) 10%, transparent); }
 .react-flow__node-chat:hover .bcard { transform: none; box-shadow: 0 12px 30px rgba(0,0,0,.28); }
 .bcard:active { transform: none; }
 .react-flow__node-chat.dragging .bcard { transform: none; box-shadow: 0 18px 38px rgba(0,0,0,.36); }
@@ -239,13 +239,13 @@
 .port.bottom { bottom: -6px; }
 .port.left { left: -6px; }
 .port.right { right: -6px; }
-.react-flow__node:hover .port:hover { transform: none; background: var(--ct-live); box-shadow: 0 0 0 5px color-mix(in srgb, var(--ct-live) 25%, transparent); }
-.port.connectingto, .port.valid { transform: none; box-shadow: 0 0 0 7px color-mix(in srgb, var(--ct-live) 28%, transparent); }
+.react-flow__node:hover .port:hover { transform: none; background: var(--ab-live); box-shadow: 0 0 0 5px color-mix(in srgb, var(--ab-live) 25%, transparent); }
+.port.connectingto, .port.valid { transform: none; box-shadow: 0 0 0 7px color-mix(in srgb, var(--ab-live) 28%, transparent); }
 .bcard .incoming { margin: 0 12px 10px; }
 .diropt .dirlabel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto minmax(0, 1fr); align-items: center; gap: 6px; }
 .diropt .dirlabel .ellipsis { max-width: none; }
 .diropt .dirarrow { margin: 0 2px; }
-.diropt.on .dirarrow { color: var(--ct-done); }
+.diropt.on .dirarrow { color: var(--ab-done); }
 .tsearch { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: 7px; color: var(--muted); background: var(--hover); cursor: text; }
 .tsearch:focus-within { outline: 1px solid var(--focus); }
 .tsearch input { border: 0; outline: 0; background: transparent; color: var(--vscode-foreground); font: inherit; font-size: 12px; transition: width .2s; }
@@ -269,7 +269,7 @@
 .bcard .bcardactions .btn.on { color: var(--focus); background: color-mix(in srgb, var(--focus) 14%, transparent); }
 .bcard.linksource { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent), 0 12px 30px rgba(0,0,0,.28); }
 .bcard.linktarget { cursor: copy; }
-.react-flow__node:hover .bcard.linktarget { border-color: var(--ct-done); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ct-done) 25%, transparent), 0 12px 30px rgba(0,0,0,.28); }
+.react-flow__node:hover .bcard.linktarget { border-color: var(--ab-done); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ab-done) 25%, transparent), 0 12px 30px rgba(0,0,0,.28); }
 .linkbanner { display: flex; align-items: center; gap: 8px; }
 .linkbanner svg { color: var(--focus); }
 /* cards slide to their new place when live columns change */
@@ -315,8 +315,8 @@
 .canvas .react-flow__node-chat:hover .bcard { border-color: var(--card-line-hover); }
 .canvas .bcard .bcardfacts { border-top: 1px solid var(--card-divider); }
 .canvas .bcard .bcardactions { border-top: 1px solid var(--card-divider); }
-.canvas .bcard.working { border-color: color-mix(in srgb, var(--ct-working) 55%, var(--card-line)); }
-.canvas .bcard.waiting { border-color: var(--ct-waiting); }
+.canvas .bcard.working { border-color: color-mix(in srgb, var(--ab-working) 55%, var(--card-line)); }
+.canvas .bcard.waiting { border-color: var(--ab-waiting); }
 .canvas .react-flow__node.selected .bcard, .canvas .bcard.linksource { border-color: var(--focus); }
 .bcardfacts dd.bfolder { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--vscode-foreground); }
 .bcardfacts dd.bfolder svg { flex: none; color: var(--muted); }

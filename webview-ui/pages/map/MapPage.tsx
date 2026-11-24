@@ -383,10 +383,10 @@ export function MapPage() {
   const focusName = selPart ? { title: selPart.label, sub: partPath(selPart.id) } : selDot ? { title: selDot.name, sub: selDot.p } : undefined;
 
   return (
-    <div className="cbpage">
-      <div className="cbtop">
+    <div className="mappage">
+      <div className="maptop">
         {data ? <ProjectPicker data={data} name={project} pick={setProject} /> : <div className="projbtn">Reading this project…</div>}
-        <div className="cbsearch">
+        <div className="mapsearch">
           <div className="codesearch">
             <Search {...I} />
             <input
@@ -400,7 +400,7 @@ export function MapPage() {
               aria-label="Find code"
               role="combobox"
               aria-expanded={shown.length > 0}
-              aria-controls="cbfound"
+              aria-controls="mapfound"
               onKeyDown={(e) => {
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
@@ -420,16 +420,16 @@ export function MapPage() {
                 <X {...I} />
               </button>
             ) : (
-              <kbd className="cbkey">/</kbd>
+              <kbd className="findkey">/</kbd>
             )}
           </div>
           {hits && hits.q === q.trim() && (
-            <div className="cbfound" id="cbfound" role="listbox">
-              {shown.length === 0 && <div className="muted small cbnone">Nothing by that name</div>}
+            <div className="mapfound" id="mapfound" role="listbox">
+              {shown.length === 0 && <div className="muted small mapnone">Nothing by that name</div>}
               {shown.map((h, n) => (
-                <button key={`${h.path}:${h.start}:${h.name}`} className={`cbhit${n === active ? " on" : ""}`} role="option" aria-selected={n === active} onMouseEnter={() => setActive(n)} onClick={() => goTo(h)}>
-                  <span className="cbhitname ellipsis">{marked(h.name, q.trim())}</span>
-                  <span className="cbhitfile ellipsis">{h.path.split("/").pop()}</span>
+                <button key={`${h.path}:${h.start}:${h.name}`} className={`maphit${n === active ? " on" : ""}`} role="option" aria-selected={n === active} onMouseEnter={() => setActive(n)} onClick={() => goTo(h)}>
+                  <span className="maphitname ellipsis">{marked(h.name, q.trim())}</span>
+                  <span className="maphitfile ellipsis">{h.path.split("/").pop()}</span>
                 </button>
               ))}
             </div>
@@ -437,18 +437,18 @@ export function MapPage() {
         </div>
       </div>
 
-      <div className="cbboard" ref={boardRef}>
+      <div className="mapboard" ref={boardRef}>
         <canvas ref={canvasRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={() => !gesture.current && setHoverTarget(undefined)} onDoubleClick={onDouble} role="img" aria-label={model ? `Map of ${project}: ${model.parts.length} parts, ${model.dots.length} files. Use Find to reach a file.` : "Map"} />
-        {!model && <div className="cbempty muted">{data && !data.building && !data.modules.length ? "No code found in this folder." : data?.building ? "Reading this project for the first time. After this it keeps itself up to date." : "Reading this project…"}</div>}
-        <div ref={cardRef} className={`cbcard${hoverInfo ? " on" : ""}`} aria-hidden="true">
+        {!model && <div className="mapempty muted">{data && !data.building && !data.modules.length ? "No code found in this folder." : data?.building ? "Reading this project for the first time. After this it keeps itself up to date." : "Reading this project…"}</div>}
+        <div ref={cardRef} className={`mapcard${hoverInfo ? " on" : ""}`} aria-hidden="true">
           {hoverInfo && (
             <>
-              <div className="cbcardtitle ellipsis">{hoverInfo.title}</div>
-              <div className="cbcardsub ellipsis">{hoverInfo.sub}</div>
+              <div className="mapcardtitle ellipsis">{hoverInfo.title}</div>
+              <div className="mapcardsub ellipsis">{hoverInfo.sub}</div>
             </>
           )}
         </div>
-        <div className="cblegend small">
+        <div className="maplegend small">
           {lit ? (
             <>
               <span className="tmkey tmuses" /> {lit.file ? "imports" : "uses"}
@@ -458,7 +458,7 @@ export function MapPage() {
             <span className="muted">Drag to move · scroll to zoom · click for links</span>
           )}
         </div>
-        <div className="cbzoom" role="group" aria-label="Zoom">
+        <div className="mapzoom" role="group" aria-label="Zoom">
           <button onClick={() => zoomBy(1.4)} aria-label="Zoom in" data-tip="Zoom in (+)">
             <Plus {...I} />
           </button>
@@ -476,9 +476,9 @@ export function MapPage() {
         </div>
 
         {focusName && (
-          <div className="cbfocus" role="status">
-            <span className={`cbfocusdot${selDot ? " file" : ""}`} />
-            <span className="cbfocusname ellipsis" data-tip={focusName.sub}>
+          <div className="mapfocus" role="status">
+            <span className={`mapfocusdot${selDot ? " file" : ""}`} />
+            <span className="mapfocusname ellipsis" data-tip={focusName.sub}>
               {focusName.title}
             </span>
             {selDot && data && (

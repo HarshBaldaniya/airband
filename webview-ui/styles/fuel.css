@@ -13,7 +13,7 @@
 .list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .listrow { display: grid; gap: 12px; align-items: center; padding: 9px 14px; font-size: 12.5px; border-top: 1px solid var(--line-soft); }
 .listrow:first-child { border-top: 0; }
-.listrow .live { color: var(--ct-live); font-weight: 600; }
+.listrow .live { color: var(--ab-live); font-weight: 600; }
 .table { width: 100%; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
 .table th { text-align: left; font-weight: 600; font-size: 11px; color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--line); }
 .table td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); }
@@ -32,12 +32,12 @@
   .listrow .num:nth-last-child(-n + 2) { display: block; }
 }
 .planbar { position: relative; display: inline-block; flex: none; width: 54px; height: 5px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 13%, transparent); }
-.planbar > span { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--ct-done, #3fb950); }
-.planbar.high > span { background: var(--ct-waiting); }
+.planbar > span { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--ab-done, #3fb950); }
+.planbar.high > span { background: var(--ab-waiting); }
 .planbar.full > span { background: var(--vscode-errorForeground, #f14c4c); }
 .planbar.wide { width: 100%; height: 7px; }
 .planpct { flex: none; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.planpct.high { color: var(--ct-waiting); }
+.planpct.high { color: var(--ab-waiting); }
 .planpct.full { color: var(--vscode-errorForeground, #f14c4c); }
 /* the sidebar's foot: one line per agent */
 .planstrip {
@@ -69,7 +69,7 @@
 }
 .plancardmini:hover { border-color: color-mix(in srgb, var(--vscode-foreground, #ccc) 24%, transparent); background: color-mix(in srgb, var(--vscode-foreground, #ccc) 6%, transparent); }
 .plancardmini:focus-visible { outline: 1px solid var(--focus); }
-.plancardmini.high { border-color: color-mix(in srgb, var(--ct-waiting) 40%, transparent); }
+.plancardmini.high { border-color: color-mix(in srgb, var(--ab-waiting) 40%, transparent); }
 .plancardmini.full { border-color: color-mix(in srgb, var(--vscode-errorForeground, #f14c4c) 45%, transparent); }
 .plancardmini .planbar.wide { height: 6px; }
 .usage { gap: 30px; }
@@ -91,15 +91,15 @@
 .gauge { position: relative; flex: none; display: grid; place-items: center; }
 .gauge svg { position: absolute; inset: 0; }
 .gaugebg { fill: none; stroke: color-mix(in srgb, var(--vscode-foreground, #ccc) 12%, transparent); stroke-width: 8; }
-.gaugefg { fill: none; stroke: var(--ct-done, #3fb950); stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray .4s ease; }
-.gauge.high .gaugefg { stroke: var(--ct-waiting); }
+.gaugefg { fill: none; stroke: var(--ab-done, #3fb950); stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray .4s ease; }
+.gauge.high .gaugefg { stroke: var(--ab-waiting); }
 .gauge.full .gaugefg { stroke: var(--vscode-errorForeground, #f14c4c); }
 .gaugetext { position: relative; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .gaugetext small { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 1px; }
 .planherotext { display: flex; flex-direction: column; }
 .planherolabel { font-size: 14px; font-weight: 600; }
 .planherohint { font-size: 12px; color: var(--muted); }
-.gauge.high + .planherotext .planherohint { color: var(--ct-waiting); }
+.gauge.high + .planherotext .planherohint { color: var(--ab-waiting); }
 .gauge.full + .planherotext .planherohint { color: var(--vscode-errorForeground, #f14c4c); }
 /* every limit, one row each */
 .limitrows { display: flex; flex-direction: column; gap: 10px; }
@@ -120,7 +120,7 @@
 .planfoot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 0; padding-top: 0; border-top: 0; }
 .planfoot a { font-size: 12px; }
 .planchip { font-size: 11.5px; font-weight: 500; padding: 3px 9px; border-radius: 99px; color: var(--muted); background: color-mix(in srgb, var(--vscode-foreground) 7%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground) 12%, transparent); }
-.planchip.on { color: var(--vscode-foreground); background: color-mix(in srgb, var(--ct-done) 16%, transparent); border-color: color-mix(in srgb, var(--ct-done) 40%, transparent); }
+.planchip.on { color: var(--vscode-foreground); background: color-mix(in srgb, var(--ab-done) 16%, transparent); border-color: color-mix(in srgb, var(--ab-done) 40%, transparent); }
 /* token figures in the same style as the plan cards */
 .usage .tile { padding: 16px 18px; border-radius: 14px; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 3.5%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground, #ccc) 12%, transparent); box-shadow: none; }
 .usage .tilelabel { font-size: 12px; color: var(--muted); }
@@ -174,7 +174,7 @@
 .fueltool.claude { background: #d97757; }
 .fueltool.codex { background: #3987e5; }
 .fueltool.gemini { background: #1baf7a; }
-.heavy { display: inline-flex; align-items: center; gap: 8px; color: var(--ct-waiting); white-space: nowrap; }
+.heavy { display: inline-flex; align-items: center; gap: 8px; color: var(--ab-waiting); white-space: nowrap; }
 .heavy .btn { color: var(--vscode-foreground); }
 @container (max-width: 420px) {
   .limitrow { grid-template-columns: 1fr 42px; }

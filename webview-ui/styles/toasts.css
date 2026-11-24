@@ -2,7 +2,7 @@
 .toasts { position: fixed; left: 12px; right: 12px; z-index: 60; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
 .toast { font-size: 12px; line-height: 1.4;
 }
-.toast.warn { border-left-color: var(--ct-waiting); }
+.toast.warn { border-left-color: var(--ab-waiting); }
 @keyframes rise { from { transform: translateY(6px); opacity: 0; } }
 .toast { animation: rise .2s cubic-bezier(.2, .8, .2, 1); }
 .toasts { bottom: 14px; gap: 8px; }
@@ -12,18 +12,18 @@
   background: var(--vscode-notifications-background, var(--surface)); color: var(--vscode-notifications-foreground, var(--vscode-foreground));
   border: 1px solid var(--vscode-notifications-border, var(--line));
 }
-.toasticon { display: inline-flex; flex: none; color: var(--ct-done); background: color-mix(in srgb, var(--ct-done) 15%, transparent); }
+.toasticon { display: inline-flex; flex: none; color: var(--ab-done); background: color-mix(in srgb, var(--ab-done) 15%, transparent); }
 .toast.unlink .toasticon, .toast.pause .toasticon { color: var(--muted); background: var(--hover); }
-.toast.sync .toasticon, .toast.info .toasticon { color: var(--ct-working); background: color-mix(in srgb, var(--ct-working) 15%, transparent); }
-.toast.warn .toasticon { color: var(--ct-waiting); background: color-mix(in srgb, var(--ct-waiting) 15%, transparent); }
+.toast.sync .toasticon, .toast.info .toasticon { color: var(--ab-working); background: color-mix(in srgb, var(--ab-working) 15%, transparent); }
+.toast.warn .toasticon { color: var(--ab-waiting); background: color-mix(in srgb, var(--ab-waiting) 15%, transparent); }
 .toastbody { flex: 1; display: flex; line-height: 1.45; }
 .toastbody b { font-weight: 600; }
 .toastbody span { color: var(--muted); }
 .toastundo { flex: none; align-self: center; border: 0; background: none; cursor: pointer; font-weight: 600; color: var(--vscode-textLink-foreground); }
 .toastundo:hover { background: var(--hover); }
 .toastclose { flex: none; }
-.toastbar { position: absolute; left: 0; bottom: 0; width: 100%; background: color-mix(in srgb, var(--ct-done) 70%, transparent); transform-origin: left; animation: countdown linear forwards; }
-.toast.warn .toastbar { background: var(--ct-waiting); }
+.toastbar { position: absolute; left: 0; bottom: 0; width: 100%; background: color-mix(in srgb, var(--ab-done) 70%, transparent); transform-origin: left; animation: countdown linear forwards; }
+.toast.warn .toastbar { background: var(--ab-waiting); }
 .toast:hover .toastbar { animation-play-state: paused; }
 @keyframes countdown { to { transform: scaleX(0); } }
 .toast { width: auto; max-width: min(460px, calc(100vw - 24px)); align-items: center; }
