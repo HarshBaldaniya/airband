@@ -1,24 +1,15 @@
 // Builds the phone app into relay/public/ for Airband's relay: app.js and app.css (the screens),
 // sw.js (the service worker: notifications), and the Home Screen icons, drawn in code.
 import { build } from "esbuild";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { browser as page, VERSION } from "./esbuild-presets.mjs";
 
 const out = "relay/public";
-const VERSION = JSON.parse(readFileSync("package.json", "utf8")).version;
-const browser = {
-  bundle: true,
-  platform: "browser",
-  target: "es2022",
-  minify: true,
-  logLevel: "warning",
-  define: { "process.env.NODE_ENV": '"production"', __AIRBAND_VERSION__: JSON.stringify(VERSION) },
-  loader: { ".svg": "text" },
-  legalComments: "eof",
-};
-await build({ ...browser, format: "iife", jsx: "automatic", entryPoints: ["companion/phone/main.tsx"], outfile: join(out, "app.js") });
-await build({ ...browser, format: "iife", entryPoints: ["companion/phone/sw.ts"], outfile: join(out, "sw.js") });
+const browser = { ...page(), logLevel: "warning", legalComments: "eof" };
+await build({ ...browser, entryPoints: ["companion/phone/main.tsx"], outfile: join(out, "app.js") });
+await build({ ...browser, entryPoints: ["companion/phone/sw.ts"], outfile: join(out, "sw.js") });
 
 const tool = join("relay", ".wrangler", "icon-tool.cjs");
 mkdirSync(join("relay", ".wrangler"), { recursive: true });
