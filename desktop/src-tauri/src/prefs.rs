@@ -16,8 +16,10 @@ pub struct Prefs {
     pub greeted: bool,
     /// The setup tour was finished on this computer.
     pub set_up: bool,
-    /// Where the window was left (logical pixels).
+    /// Where the window was left (logical pixels), for older apps.
     pub window_at: Option<(f64, f64)>,
+    /// Where Roger himself was left: the figure's top-left (logical pixels).
+    pub figure_at: Option<(f64, f64)>,
 }
 
 impl Default for Prefs {
@@ -31,6 +33,7 @@ impl Default for Prefs {
             greeted: false,
             set_up: false,
             window_at: None,
+            figure_at: None,
         }
     }
 }

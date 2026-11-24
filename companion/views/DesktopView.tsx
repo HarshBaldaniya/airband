@@ -65,7 +65,7 @@ export function DesktopView() {
   const [prefs, setPrefs] = useState<DesktopPrefs>();
   const [entering, setEntering] = useState(true);
   /** Hiding and coming back: the whole corner fades and moves as one, on the graphics chip. */
-  const [motion, setMotion] = useState<"leaving" | "arriving">();
+  const [motion, setMotion] = useState<"leaving" | "arriving" | "hopping" | "landing">();
   const motionTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** A reaction to a poke, said for a moment. */
   const [line, setLine] = useState("");
@@ -179,6 +179,13 @@ export function DesktopView() {
         setMotion(cmd === "leave" ? "leaving" : "arriving");
         if (cmd === "leave") sounds.close();
         else motionTimer.current = setTimeout(() => setMotion(undefined), 560);
+      }
+      // Dropped on the other half of the screen: out of sight while the app moves him to the
+      // window's other side, then back in, so he never jumps across it.
+      if (cmd === "hop" || cmd === "land") {
+        clearTimeout(motionTimer.current);
+        setMotion(cmd === "hop" ? "hopping" : "landing");
+        if (cmd === "land") motionTimer.current = setTimeout(() => setMotion(undefined), 320);
       }
     }));
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && closePanel();

@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- **Moving Roger feels smooth.** When you let go, he glides to where he lands at once, not half a
+  second later with a jump. Near an edge he is pulled onto it, two edges at once in a corner,
+  measured on Roger himself, not on his invisible window. Dropped on the other half of the
+  screen, he pops onto his new side instead of jumping across his window. He always stays wholly
+  on the screen, and he comes back where you left him after a restart.
 - **Roger's sounds play every time they are on.** They failed after the Mac slept or the
   headphones changed, because the audio was left stopped. It now starts again before each sound.
   Turning Sounds on in settings plays its chime, and turning them off is silent, not the other

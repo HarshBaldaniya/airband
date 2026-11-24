@@ -1,12 +1,14 @@
 //! Roger's corner: a borderless, see-through window on the Station's page, that stays on top and
 //! lets clicks through everywhere but on what the page draws.
+mod landing;
 mod pointer;
 
 use crate::logging::log;
 use crate::prefs::{apply_start_at_login, PrefKey};
 use crate::state::{hooks, lock, save_prefs, AppState, Side, Vertical};
+use landing::{Area, Spot};
 use serde::Serialize;
-use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::atomic::{AtomicU16, AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
@@ -24,10 +26,15 @@ pub const FIG_W: f64 = 104.0;
 pub const FIG_H: f64 = 125.0;
 pub const FIG_PAD: f64 = 10.0;
 
-/// Left this close to an edge after a drag, the window settles against it.
-const SNAP_DISTANCE: f64 = 80.0;
-/// A drag is over once the window has not moved for this long.
+/// Where the mouse button can't be asked, a drag is over once the window has not moved for this long.
 const MOVE_SETTLES_AFTER: Duration = Duration::from_millis(450);
+/// How often a drag looks at the mouse button, and a glide moves the window: a frame or two.
+const DRAG_LOOK: Duration = Duration::from_millis(12);
+const GLIDE_STEP: Duration = Duration::from_millis(8);
+/// Landing on the other half of the screen, Roger fades out this fast, moves to his window's other
+/// side while unseen, and pops back.
+const HOP_OUT: Duration = Duration::from_millis(110);
+const HOP_DOCK: Duration = Duration::from_millis(60);
 /// How long the page takes to fade Roger out before the window goes.
 const FADE_OUT: Duration = Duration::from_millis(260);
 
@@ -61,6 +68,10 @@ pub enum PageCommand {
     Toggle,
     /// Open the panel on its settings.
     Settings,
+    /// Fade out quickly: he is about to move to the window's other side.
+    Hop,
+    /// Pop back in, on his new side.
+    Land,
 }
 
 /// Roger's window, once it exists.
@@ -102,15 +113,6 @@ fn allow_navigation(url: &Url) -> bool {
     allowed
 }
 
-/// The screen's area without the menu bar and the Dock or taskbar (logical pixels).
-#[derive(Clone, Copy)]
-struct Area {
-    x: f64,
-    y: f64,
-    w: f64,
-    h: f64,
-}
-
 fn work_area(w: &WebviewWindow) -> Option<Area> {
     let m = w.current_monitor().ok().flatten().or_else(|| w.primary_monitor().ok().flatten())?;
     let s = m.scale_factor();
@@ -123,20 +125,30 @@ fn work_area(w: &WebviewWindow) -> Option<Area> {
     })
 }
 
-/// Puts the window where it was left, or at the bottom right; keeps it on the screen.
+/// Puts Roger where he was left, or at the bottom right, wholly on the screen.
 fn place(w: &WebviewWindow, state: &AppState) {
     let Some(a) = work_area(w) else { return };
-    let at = lock(state).prefs.window_at;
-    let (mut x, mut y) = at.unwrap_or((a.x + a.w - WIN_W, a.y + a.h - WIN_H));
-    x = x.clamp(a.x - WIN_W + FIG_W + 2.0 * FIG_PAD, a.x + a.w - FIG_W - 2.0 * FIG_PAD);
-    y = y.clamp(a.y - WIN_H + FIG_H + 2.0 * FIG_PAD, a.y + a.h - FIG_H - 2.0 * FIG_PAD);
-    let _ = w.set_position(tauri::LogicalPosition::new(x, y));
-    tell_place(w, state, x, y, a);
+    let (figure_at, window_at) = {
+        let s = lock(state);
+        (s.prefs.figure_at, s.prefs.window_at)
+    };
+    let at = match (figure_at, window_at) {
+        (Some((x, y)), _) => Spot { x, y },
+        // Saved by an older app: the window's place, with the cards opening as they did then.
+        (None, Some(win)) => {
+            let side = if win.0 + WIN_W / 2.0 > a.x + a.w / 2.0 { Side::Right } else { Side::Left };
+            let vertical = if win.1 + WIN_H / 2.0 > a.y + a.h / 2.0 { Vertical::Bottom } else { Vertical::Top };
+            landing::figure_in(win, side, vertical)
+        }
+        (None, None) => Spot { x: f64::MAX, y: f64::MAX },
+    };
+    let at = landing::on_screen(at, a);
+    let (side, vertical) = landing::dock_for(at, a);
+    move_window(w, landing::window_for(at, side, vertical));
+    tell_place(w, state, side, vertical);
 }
 
-fn tell_place(w: &WebviewWindow, state: &AppState, x: f64, y: f64, a: Area) {
-    let side = if x + WIN_W / 2.0 > a.x + a.w / 2.0 { Side::Right } else { Side::Left };
-    let vertical = if y + WIN_H / 2.0 > a.y + a.h / 2.0 { Vertical::Bottom } else { Vertical::Top };
+fn tell_place(w: &WebviewWindow, state: &AppState, side: Side, vertical: Vertical) {
     {
         let mut s = lock(state);
         s.side = side;
@@ -145,26 +157,94 @@ fn tell_place(w: &WebviewWindow, state: &AppState, x: f64, y: f64, a: Area) {
     let _ = w.emit(event::PLACE, serde_json::json!({ "side": side, "vertical": vertical }));
 }
 
-/// After a drag: near an edge, it settles against it; then where it is, is kept.
-fn settle(w: &WebviewWindow, state: &AppState) {
+/// When the app last moved the window itself (ms since it started): a move this soon after is the
+/// app's own (placing it, a glide), not a drag, and starts no landing.
+static OWN_MOVE_AT: AtomicU64 = AtomicU64::new(0);
+const OWN_MOVE_MS: u64 = 150;
+
+fn clock_ms() -> u64 {
+    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    START.get_or_init(std::time::Instant::now).elapsed().as_millis() as u64 + OWN_MOVE_MS
+}
+
+fn move_window(w: &WebviewWindow, (x, y): (f64, f64)) {
+    OWN_MOVE_AT.store(clock_ms(), Ordering::Relaxed);
+    let _ = w.set_position(tauri::LogicalPosition::new(x, y));
+}
+
+/// The window glides to `to`, eased, a few milliseconds a step.
+fn glide(w: &WebviewWindow, from: (f64, f64), to: (f64, f64)) {
+    let distance = (to.0 - from.0).hypot(to.1 - from.1);
+    if distance < 0.5 {
+        return;
+    }
+    let time = landing::glide_time(distance);
+    let start = std::time::Instant::now();
+    loop {
+        let t = (start.elapsed().as_secs_f64() / time.as_secs_f64()).min(1.0);
+        let k = landing::ease(t);
+        move_window(w, (from.0 + (to.0 - from.0) * k, from.1 + (to.1 - from.1) * k));
+        if t >= 1.0 {
+            break;
+        }
+        std::thread::sleep(GLIDE_STEP);
+    }
+}
+
+/// After a drag: Roger glides to where he lands, pulled onto any edge near him, and the cards
+/// open towards the middle from there. Landing on the other half of the screen, he hops to his
+/// window's other side first, unseen, so he never jumps across it. Where he is, is kept.
+fn land(w: &WebviewWindow, state: &AppState) {
     let Some(a) = work_area(w) else { return };
     let Ok(pos) = w.outer_position() else { return };
     let scale = w.scale_factor().unwrap_or(1.0);
-    let (mut x, mut y) = (pos.x as f64 / scale, pos.y as f64 / scale);
-    if (a.x + a.w) - (x + WIN_W) < SNAP_DISTANCE {
-        x = a.x + a.w - WIN_W;
-    } else if x - a.x < SNAP_DISTANCE {
-        x = a.x;
+    let win = (pos.x as f64 / scale, pos.y as f64 / scale);
+    let (side, vertical) = {
+        let s = lock(state);
+        (s.side, s.vertical)
+    };
+    let now = landing::figure_in(win, side, vertical);
+    let to = landing::landing(now, a);
+    let (new_side, new_vertical) = landing::dock_for(to, a);
+    let mut from = win;
+    if (new_side, new_vertical) != (side, vertical) {
+        let app = w.app_handle();
+        tell(app, PageCommand::Hop);
+        std::thread::sleep(HOP_OUT);
+        from = landing::window_for(now, new_side, new_vertical);
+        move_window(w, from);
+        tell_place(w, state, new_side, new_vertical);
+        std::thread::sleep(HOP_DOCK);
+        tell(app, PageCommand::Land);
     }
-    if (a.y + a.h) - (y + WIN_H) < SNAP_DISTANCE {
-        y = a.y + a.h - WIN_H;
-    } else if y - a.y < SNAP_DISTANCE {
-        y = a.y;
+    glide(w, from, landing::window_for(to, new_side, new_vertical));
+    {
+        let mut s = lock(state);
+        s.prefs.figure_at = Some((to.x, to.y));
+        s.prefs.window_at = Some(landing::window_for(to, new_side, new_vertical));
     }
-    let _ = w.set_position(tauri::LogicalPosition::new(x, y));
-    lock(state).prefs.window_at = Some((x, y));
     save_prefs(state);
-    tell_place(w, state, x, y, a);
+}
+
+/// Waits for each drag to end, then lands Roger. A drag is over the moment the button is let go;
+/// where the button can't be asked, once the window has stood still for a moment.
+fn watch_drags(w: WebviewWindow, state: AppState, moves: mpsc::Receiver<()>) {
+    while moves.recv().is_ok() {
+        loop {
+            match crate::macos::left_button_down() {
+                Some(true) => std::thread::sleep(DRAG_LOOK),
+                Some(false) => break,
+                None => {
+                    if moves.recv_timeout(MOVE_SETTLES_AFTER).is_err() {
+                        break;
+                    }
+                }
+            }
+        }
+        land(&w, &state);
+        // Moves that came while it landed were its own.
+        while moves.try_recv().is_ok() {}
+    }
 }
 
 /// Roger's corner, on the Station's page.
@@ -226,18 +306,16 @@ pub fn open_corner(app: &AppHandle, url: &str) {
     };
     let _ = w.set_ignore_cursor_events(true);
     lock(&state).passing = true;
-    // One thread settles the window once a drag is over: each move starts its wait again.
+    // One thread lands Roger after each drag. The window's own moves (placing it, a glide) are
+    // not a drag.
     let (moved, moves) = mpsc::channel::<()>();
-    let (settle_w, settle_state) = (w.clone(), state.clone());
-    std::thread::spawn(move || {
-        while moves.recv().is_ok() {
-            while moves.recv_timeout(MOVE_SETTLES_AFTER).is_ok() {}
-            settle(&settle_w, &settle_state);
-        }
-    });
+    let (drag_w, drag_state) = (w.clone(), state.clone());
+    std::thread::spawn(move || watch_drags(drag_w, drag_state, moves));
     w.on_window_event(move |e| {
         if let tauri::WindowEvent::Moved(_) = e {
-            let _ = moved.send(());
+            if clock_ms().saturating_sub(OWN_MOVE_AT.load(Ordering::Relaxed)) > OWN_MOVE_MS {
+                let _ = moved.send(());
+            }
         }
     });
     if hidden {
