@@ -8,6 +8,10 @@
   --surface: rgba(24, 24, 28, 0.97);
   --surface2: #26262b;
   --line: #34343c;
+  /* Shadows pulled in at the sides (the negative spread), so they fade out before the window's
+     edge, a few pixels beside the cards, instead of being cut there. */
+  --lift: 0 14px 28px -12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.22);
+  --lift-high: 0 26px 48px -20px rgba(0, 0, 0, 0.7), 0 3px 10px rgba(0, 0, 0, 0.28);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -29,6 +33,9 @@ button { font: inherit; color: inherit; }
 .dock.top .stack { flex-direction: column-reverse; }
 .stack { display: flex; flex-direction: column; gap: 8px; width: 384px; max-height: calc(100vh - 150px); overflow-y: auto; overflow-x: hidden; padding: 16px 16px 14px; margin: -16px -16px 0; box-sizing: content-box; scrollbar-width: none; }
 .stack::-webkit-scrollbar { display: none; }
+/* The open panel scrolls inside itself, so the stack around it clips nothing: a clipping stack
+   cut the panel's shadow off in a straight line a little way out. */
+.stack:has(> .panelwrap) { overflow: visible; }
 .dock.bottom .stack { justify-content: flex-end; }
 .stack:empty { display: none; }
 .companion { position: relative; width: 104px; height: 125px; cursor: grab; touch-action: none; will-change: transform; transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease; }
@@ -65,14 +72,14 @@ button { font: inherit; color: inherit; }
 .dock.left .linkpill { left: 8px; }
 .linkpill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ab-waiting); animation: softblink 1.2s ease-in-out infinite; }
 @keyframes softblink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-.hello { position: absolute; bottom: calc(100% + 8px); width: 230px; padding: 10px 13px; border-radius: 14px; background: #221d1a; border: 1px solid #4a3428; font-size: 13px; line-height: 1.45; color: var(--ink); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35); pointer-events: none; animation: hellolife 7s ease both; }
+.hello { position: absolute; bottom: calc(100% + 8px); width: 230px; padding: 10px 13px; border-radius: 14px; background: #221d1a; border: 1px solid #4a3428; font-size: 13px; line-height: 1.45; color: var(--ink); box-shadow: var(--lift); pointer-events: none; animation: hellolife 7s ease both; }
 .dock.right .hello { right: 4px; }
 .dock.left .hello { left: 4px; }
 .dock.top .hello { bottom: auto; top: calc(100% + 8px); }
 .hello b { color: var(--ab-brand); }
 .hello.short { width: auto; white-space: nowrap; animation: hellolife 2.2s ease both; }
 @keyframes hellolife { 0% { opacity: 0; transform: translateY(8px) scale(0.95); } 6% { opacity: 1; transform: none; } 90% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(4px); } }
-.toast { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 8px 0 12px; border-radius: 14px; background: var(--surface); border: 1px solid #1f3d2d; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35); animation: toastlife 12s ease both; min-width: 0; }
+.toast { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 8px 0 12px; border-radius: 14px; background: var(--surface); border: 1px solid #1f3d2d; box-shadow: var(--lift); animation: toastlife 12s ease both; min-width: 0; }
 .toasticon { color: var(--ab-done); flex: none; }
 .toasttext { flex: 1; font-size: 13px; color: #c8c8cf; }
 .toasttext b { color: var(--ink); font-weight: 600; }
@@ -90,7 +97,7 @@ button { font: inherit; color: inherit; }
 .more { align-self: stretch; height: 34px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ab-waiting); cursor: pointer; font-weight: 600; }
 
 /* ---- cards ---- */
-.card { position: relative; display: flex; flex-direction: column; gap: 9px; padding: 13px 14px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); animation: slidein 0.35s ease-out both; overflow: hidden; }
+.card { position: relative; display: flex; flex-direction: column; gap: 9px; padding: 13px 14px 12px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--lift); animation: slidein 0.35s ease-out both; overflow: hidden; }
 .card.needs { border-color: #4a3d1e; }
 .card.done { border-color: #1f3d2d; }
 .card.say { gap: 8px; background: #221d1a; border-color: #4a3428; overflow: visible; }
@@ -154,7 +161,7 @@ button { font: inherit; color: inherit; }
 :focus-visible { outline: 1px solid var(--ab-brand); outline-offset: 2px; }
 
 /* ---- the panel ---- */
-.panel { display: flex; flex-direction: column; gap: 10px; width: 100%; max-height: min(560px, calc(100vh - 160px)); overflow: hidden; padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45); animation: panelin 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; user-select: none; }
+.panel { display: flex; flex-direction: column; gap: 10px; width: 100%; max-height: min(560px, calc(100vh - 160px)); overflow: hidden; padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); box-shadow: var(--lift-high); animation: panelin 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; user-select: none; }
 .panelwrap { display: flex; flex-direction: column; }
 .panelwrap.closing .panel { animation: panelout 0.16s ease-in both; pointer-events: none; }
 .dock.right .panel { transform-origin: bottom right; }
