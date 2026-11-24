@@ -1,110 +1,114 @@
 "use client";
-// "On the air": how often Airband was downloaded, as a radio dial. One big number, and under it a
-// tuning scale whose ticks are the real downloads of each day since the first version, the last
-// week lit. When the section comes on screen the number counts up and the needle sweeps to today,
-// lighting the days it passes, unless the person asked for less motion. The page carries the real
-// numbers, so it reads without JavaScript.
+// "On the air": how often Airband was downloaded from npm. One big number inside a broadcast's
+// rings. Each time the section comes on screen the rings draw themselves in, sparks of signal run
+// along them, and every digit rolls into place like a dial, unless the person asked for less
+// motion. The page carries the real number, so it reads without JavaScript.
 import { useEffect, useRef, useState } from "react";
-import { TrendingUp } from "lucide-react";
-import { Apple, Windows } from "@/components/ui/BrandMarks";
-import type { Stats as Numbers } from "@/lib/stats";
+import { FIRST_DAY, type Stats as Numbers } from "@/lib/stats";
 
-const COUNT_MS = 1800;
-/** The dial always has this many ticks, whatever the number of days. */
-const TICKS = 96;
-const ease = (t: number) => 1 - Math.pow(1 - t, 3);
+/** The rings, from the inside out, as radii in the drawing's units (it is 800 wide). */
+const RINGS = [150, 210, 270, 330, 390];
 const format = (n: number) => n.toLocaleString("en-US");
+const since = new Date(`${FIRST_DAY}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" });
 
-function useCount(value: number, run: boolean): number {
-  const [shown, setShown] = useState(value);
-  useEffect(() => {
-    if (!run || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let frame = 0;
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / COUNT_MS);
-      setShown(Math.round(value * ease(t)));
-      if (t < 1) frame = requestAnimationFrame(step);
-    };
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-  }, [run, value]);
-  return shown;
-}
-
-const dayName = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-
-/** Each day is a run of ticks as tall as its downloads; the last 7 days are lit. */
-function Dial({ days, from }: { days: number[]; from?: string }) {
-  const top = Math.max(1, ...days);
-  const ticks = Array.from({ length: TICKS }, (_, i) => {
-    const d = Math.min(days.length - 1, Math.floor((i / TICKS) * days.length));
-    return { level: days[d] / top, week: d >= days.length - 7, major: i % 8 === 0 };
-  });
+/** Each digit rolls from 0 to its value on a strip of 0 to 9; the last digits settle last. */
+function Rolling({ value, run }: { value: number; run: boolean }) {
+  const text = format(value);
+  let digitIndex = 0;
   return (
-    <div className="dial" aria-hidden="true">
-      <div className="dial-scale">
-        {ticks.map((t, i) => (
-          <i key={i} className={`${t.week ? "week" : ""}${t.major ? " major" : ""}`} style={{ ["--h" as string]: t.level.toFixed(3), ["--i" as string]: i }} />
-        ))}
-        <span className="needle" />
-      </div>
-      <div className="dial-ends">
-        <span>{from ? dayName(from) : ""}</span>
-        <span>Today</span>
-      </div>
-    </div>
+    <b className="rolling" aria-label={text}>
+      {[...text].map((ch, i) => {
+        if (!/\d/.test(ch)) {
+          return (
+            <span key={i} className="sep" aria-hidden="true">
+              {ch}
+            </span>
+          );
+        }
+        const d = Number(ch);
+        const order = digitIndex++;
+        return (
+          <span key={i} className="digit" aria-hidden="true">
+            <span className="strip" style={{ ["--d" as string]: run ? d : 0, ["--o" as string]: order }}>
+              {"0123456789".split("").map((n) => (
+                <span key={n}>{n}</span>
+              ))}
+            </span>
+          </span>
+        );
+      })}
+    </b>
   );
 }
 
-function againstBefore(week: number, before: number | undefined): string | undefined {
-  if (!before) return undefined;
-  const r = week / before;
-  if (r >= 2) return `${r.toFixed(1)}× the week before`;
-  const pct = Math.round((r - 1) * 100);
-  return pct === 0 ? "same as the week before" : `${pct > 0 ? "+" : ""}${pct}% on the week before`;
+/** Half rings around the number, fading out towards their ends. Each is drawn as two halves from
+ *  its top, so it draws itself outward to both ends, and a spark of signal runs along it. */
+function Rings() {
+  const half = (r: number, side: 1 | -1) => `M 400 ${400 - r} A ${r} ${r} 0 0 ${side === 1 ? 1 : 0} ${400 + side * r} 400`;
+  const whole = (r: number) => `M ${400 - r} 400 A ${r} ${r} 0 0 1 ${400 + r} 400`;
+  return (
+    <svg className="signal-rings" viewBox="0 0 800 400" aria-hidden="true">
+      <defs>
+        <linearGradient id="ring-fade" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="0" y2="400">
+          <stop offset="0" stopColor="var(--brand-2)" stopOpacity="1" />
+          <stop offset="0.7" stopColor="var(--brand)" stopOpacity="0.55" />
+          <stop offset="1" stopColor="var(--brand)" stopOpacity="0" />
+        </linearGradient>
+        <filter id="spark-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      {RINGS.map((r, i) =>
+        ([-1, 1] as const).map((side) => <path key={`${r}${side}`} className="ring" pathLength={1} d={half(r, side)} style={{ ["--i" as string]: i }} />),
+      )}
+      {RINGS.map((r, i) => (
+        <path key={`spark${r}`} className={`spark${i % 2 ? " back" : ""}`} pathLength={1} d={whole(r)} filter="url(#spark-glow)" style={{ ["--i" as string]: i }} />
+      ))}
+    </svg>
+  );
 }
 
 export function Stats({ numbers: n }: { numbers: Numbers }) {
   const ref = useRef<HTMLElement>(null);
-  const [run, setRun] = useState(false);
+  // Starts true so the page, before JavaScript, carries the real number.
+  const [run, setRun] = useState(true);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const io = new IntersectionObserver(([e]) => e.isIntersecting && (setRun(true), io.disconnect()), { threshold: 0.35 });
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setRun(false);
+    // Each time the number comes on screen it rolls in again; off screen it waits at 0.
+    const io = new IntersectionObserver(([e]) => setRun(e.isIntersecting), { threshold: 0.35 });
     io.observe(el);
     return () => io.disconnect();
   }, []);
-  const total = useCount(n.npmTotal ?? 0, run);
   // Nothing could be read: no section, rather than a wrong number.
-  if (!n.npmTotal) return null;
-  const versus = n.npmWeek ? againstBefore(n.npmWeek, n.npmWeekBefore) : undefined;
+  if (!n.total) return null;
   return (
     <section ref={ref} className={`section onair${run ? " run" : ""}`}>
       <div className="wrap">
-        <p className="onair-tag">
-          <span className="live" /> On the air
-        </p>
-        <b className="onair-num">{format(total)}</b>
-        <p className="onair-what">npm downloads since the first version</p>
-        {n.npmDaily && n.npmDaily.length > 1 && <Dial days={n.npmDaily} from={n.npmFrom} />}
-        <div className="onair-chips">
-          {!!n.npmWeek && (
-            <span className="chip">
-              <TrendingUp />
-              <b>{format(n.npmWeek)}</b> this week{versus ? <em>{versus}</em> : null}
-            </span>
-          )}
-          {!!n.appDownloads && (
-            <span className="chip">
-              <b>{format(n.appDownloads)}</b> app downloads
-              <em>
-                <Apple /> {format(n.macDownloads ?? 0)} <Windows /> {format(n.windowsDownloads ?? 0)}
-              </em>
-            </span>
-          )}
+        <div className="head">
+          <h2 className="grad">On the air since {since}.</h2>
+          <p>Every download, as npm counts it.</p>
         </div>
-        <p className="onair-note">Downloads as npm and GitHub count them, not people. Updated with each release.</p>
+        <div className="signal">
+          <span className="glow" aria-hidden="true" />
+          <Rings />
+          <div className="signal-count">
+            <Rolling value={n.total} run={run} />
+            <span>npm downloads</span>
+          </div>
+        </div>
+        {!!n.week && (
+          <p className="onair-week">
+            <b>{format(n.week)}</b> in the last 7 days
+          </p>
+        )}
+        <p className="onair-note">Downloads, not people. Updated with each release.</p>
       </div>
     </section>
   );
