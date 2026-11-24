@@ -2,7 +2,7 @@
 // runs a hook only once the person has reviewed and trusted it in Codex, and asks again whenever
 // it changes, and until then it skips it without a word. Then nothing is shared and no status is
 // written. So the hook notes each run here, and setup and the doctor compare that with the agent's
-// own chats: chats newer than the hook's last run mean the agent skips it.
+// own chats: a chat begun with no run of the hook since means the agent skips it.
 import * as fs from "node:fs";
 import type { AgentId } from "../core/agents";
 import { readJson } from "../core/json";
@@ -12,8 +12,8 @@ import { recentRollouts } from "../adapters/codex";
 const FILE = "hooks-ran.json";
 /** A run is noted at most this often per agent: the hook runs on every step. */
 const NOTE_EVERY_MS = 60_000;
-/** An agent's chat this much newer than the hook's last run was not one the hook ran in. */
-const SKIPPED_AFTER_MS = 5 * 60_000;
+/** A chat begun this soon after the hook was set up may have begun before it. */
+const SETUP_GRACE_MS = 30_000;
 
 type Runs = Partial<Record<AgentId, number>>;
 
@@ -32,29 +32,29 @@ export function noteHookRan(tool: AgentId, now = Date.now()): void {
 
 export const hookLastRan = (tool: AgentId): number | undefined => read()[tool];
 
-/** When the agent's newest chat last moved, where Airband can tell (Codex). */
-function newestChatAt(tool: AgentId): number | undefined {
+/** When the agent's newest chat began, where Airband can tell (Codex: one file per chat). */
+function newestChatBegan(tool: AgentId): number | undefined {
   if (tool !== "codex") return undefined;
   try {
-    return recentRollouts(codexSessionsDir(), 1)[0]?.mtime;
+    const newest = recentRollouts(codexSessionsDir(), 1)[0];
+    return newest ? fs.statSync(newest.file).birthtimeMs || undefined : undefined;
   } catch {
     return undefined;
   }
 }
 
-/** Whether an agent whose settings have Airband's hook (`settingsFile`) skips it: its chats moved
- *  well after the hook was set up, and the hook never ran in them. */
+/** Whether an agent whose settings have Airband's hook (`settingsFile`) skips it: a chat began
+ *  after the hook was set up, and the hook has not run since it began. */
 export function hookSkipped(tool: AgentId, settingsFile: string): boolean {
-  const newest = newestChatAt(tool);
-  if (!newest) return false;
-  let connectedAt = 0;
+  const began = newestChatBegan(tool);
+  if (!began) return false;
+  let connectedAt: number;
   try {
     connectedAt = fs.statSync(settingsFile).mtimeMs;
   } catch {
     return false;
   }
-  const since = Math.max(connectedAt, hookLastRan(tool) ?? 0);
-  return newest - since > SKIPPED_AFTER_MS;
+  return began > connectedAt + SETUP_GRACE_MS && (hookLastRan(tool) ?? 0) < began;
 }
 
 /** What to do about it, in the agent's own words. */

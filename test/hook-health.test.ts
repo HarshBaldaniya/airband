@@ -30,16 +30,15 @@ test("each run is noted, at most once a minute", () => {
   assert.equal(hookLastRan("codex"), 1_070_000);
 });
 
-test("Codex chats well after the hook was set up, with no run of it, mean Codex skips it", () => {
+test("a Codex chat begun after the hook was set up, with no run of it since, means Codex skips it", () => {
   const now = Date.now();
   at(settings, now - 60 * 60_000);
   fs.writeFileSync(rollout, "{}\n");
-  at(rollout, now);
-  assert.equal(hookSkipped("codex", settings), true, "never ran since it was set up");
-  noteHookRan("codex", now - 60_000);
+  assert.equal(hookSkipped("codex", settings), true, "never ran in it");
+  noteHookRan("codex", Date.now() + 1000);
   assert.equal(hookSkipped("codex", settings), false, "it runs");
-  // A chat from before the hook was set up says nothing.
-  at(rollout, now - 2 * 60 * 60_000);
+  // A chat begun before the hook was set up says nothing.
   fs.rmSync(path.join(process.env.AIRBAND_HOME!, "hooks-ran.json"));
+  at(settings, now + 60 * 60_000);
   assert.equal(hookSkipped("codex", settings), false);
 });
