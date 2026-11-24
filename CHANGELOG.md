@@ -22,6 +22,8 @@
   corner, measured on Roger himself. Dropped on the other half of the screen, he pops onto his
   new side instead of jumping across his window. He always stays wholly on the screen, and he
   comes back where you left him after a restart.
+- **Roger's window can pass the menu bar** without ever losing its size: macOS observes each
+  window through a class of its own, so only the method is added, and the class is never swapped.
 - **Roger can't be selected.** A triple-click (a poke) drew a blue box over him that stayed, and
   a grey line beside him while the window was not in front.
 - **Roger's sounds play every time they are on.** They failed after the Mac slept or the

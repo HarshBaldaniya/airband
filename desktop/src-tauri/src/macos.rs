@@ -106,11 +106,15 @@ pub fn app_bundle() -> Option<PathBuf> {
 /// Lets one window go above the menu bar, as Roger's must: his window is tall and mostly empty,
 /// with him at its bottom, so a window kept below the menu bar kept him from the top of the
 /// screen. macOS keeps every window there, a borderless one too, by asking the window to
-/// constrain each new frame; this window is given its own subclass that keeps the frame as asked.
-/// Roger himself stays on the screen: the app places him so.
+/// constrain each new frame. The window's class is given that method once: for this window it
+/// keeps the frame as asked, for every other it does what macOS does. The window's class itself is
+/// never swapped: macOS may already have put its own in place (to observe the window), and
+/// swapping that one left the window with no size at all. Roger himself stays on the screen: the
+/// app places him so.
 #[cfg(target_os = "macos")]
 pub fn let_window_pass_menu_bar(ns_window: *mut std::ffi::c_void) -> bool {
-    use std::ffi::c_void;
+    use std::ffi::{c_char, c_void, CStr};
+    use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
     type Id = *mut c_void;
 
     #[repr(C)]
@@ -121,41 +125,55 @@ pub fn let_window_pass_menu_bar(ns_window: *mut std::ffi::c_void) -> bool {
         width: f64,
         height: f64,
     }
+    type Constrain = extern "C" fn(Id, Id, CGRect, Id) -> CGRect;
 
     #[link(name = "objc")]
     extern "C" {
         fn object_getClass(obj: Id) -> Id;
-        fn object_setClass(obj: Id, class: Id) -> Id;
-        fn objc_getClass(name: *const std::ffi::c_char) -> Id;
-        fn objc_allocateClassPair(superclass: Id, name: *const std::ffi::c_char, extra: usize) -> Id;
-        fn objc_registerClassPair(class: Id);
-        fn class_addMethod(class: Id, name: Id, imp: *const c_void, types: *const std::ffi::c_char) -> bool;
-        fn sel_registerName(name: *const std::ffi::c_char) -> Id;
+        fn class_getName(class: Id) -> *const c_char;
+        fn class_getSuperclass(class: Id) -> Id;
+        fn class_getMethodImplementation(class: Id, name: Id) -> *const c_void;
+        fn class_addMethod(class: Id, name: Id, imp: *const c_void, types: *const c_char) -> bool;
+        fn sel_registerName(name: *const c_char) -> Id;
     }
 
-    extern "C" fn as_asked(_window: Id, _cmd: Id, frame: CGRect, _screen: Id) -> CGRect {
-        frame
+    /// Roger's window, and what macOS itself does for every other window.
+    static FREE: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
+    static MACOS: AtomicUsize = AtomicUsize::new(0);
+
+    extern "C" fn constrain(window: Id, cmd: Id, frame: CGRect, screen: Id) -> CGRect {
+        if window == FREE.load(Ordering::Acquire) {
+            return frame;
+        }
+        match MACOS.load(Ordering::Acquire) {
+            0 => frame,
+            // SAFETY: NSWindow's own implementation of this very method, with its own arguments.
+            imp => unsafe { std::mem::transmute::<usize, Constrain>(imp)(window, cmd, frame, screen) },
+        }
     }
 
     if ns_window.is_null() {
         return false;
     }
-    let name = c"AirbandCornerWindow";
     // SAFETY: the Objective-C runtime's own calls, on a live window, from the main thread. The
-    // subclass adds one method with the signature AppKit calls it with, and nothing else.
+    // method added has the signature AppKit calls it with.
     unsafe {
-        let mut class = objc_getClass(name.as_ptr());
-        if class.is_null() {
-            class = objc_allocateClassPair(object_getClass(ns_window), name.as_ptr(), 0);
-            if class.is_null() {
+        let selector = sel_registerName(c"constrainFrameRect:toScreen:".as_ptr());
+        // The window's own class, under any class macOS put in place to observe it.
+        let mut class = object_getClass(ns_window);
+        while CStr::from_ptr(class_getName(class)).to_bytes().starts_with(b"NSKVONotifying_") {
+            class = class_getSuperclass(class);
+        }
+        if MACOS.load(Ordering::Acquire) == 0 {
+            let inherited = class_getMethodImplementation(class_getSuperclass(class), selector);
+            MACOS.store(inherited as usize, Ordering::Release);
+            let types = c"{CGRect={CGPoint=dd}{CGSize=dd}}@:{CGRect={CGPoint=dd}{CGSize=dd}}@";
+            if !class_addMethod(class, selector, constrain as *const c_void, types.as_ptr()) {
                 return false;
             }
-            let selector = sel_registerName(c"constrainFrameRect:toScreen:".as_ptr());
-            let types = c"{CGRect={CGPoint=dd}{CGSize=dd}}@:{CGRect={CGPoint=dd}{CGSize=dd}}@";
-            class_addMethod(class, selector, as_asked as *const c_void, types.as_ptr());
-            objc_registerClassPair(class);
         }
-        !object_setClass(ns_window, class).is_null()
+        FREE.store(ns_window, Ordering::Release);
+        true
     }
 }
 
