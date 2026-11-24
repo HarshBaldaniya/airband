@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { handle, FROM_PERSON } from "../src/hook/airband-hook";
+import { handle } from "../src/hook/handle";
+import { FROM_PERSON } from "../src/hook/sharing";
 import { addConnection, appendInbox, readConnections, readInbox, setCursor, setLevel, takeInbox } from "../src/core/store";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

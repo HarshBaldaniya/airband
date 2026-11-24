@@ -8,7 +8,7 @@ import * as path from "node:path";
 import { addOpenRequest, dropOpenRequest, isTempFolder, pickElsewhere, takeOpenRequests } from "../src/core/folders";
 import { readTail } from "../src/core/transcript";
 import { formatDelivery, buildContext } from "../src/core/delivery";
-import { handle } from "../src/hook/airband-hook";
+import { handle } from "../src/hook/handle";
 import { addConnection, appendInbox, readInbox, setCursor } from "../src/core/store";
 import { GeminiAdapter } from "../src/adapters/gemini";
 import { CodexAdapter } from "../src/adapters/codex";

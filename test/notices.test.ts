@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { handle } from "../src/hook/airband-hook";
+import { handle } from "../src/hook/handle";
 import { deliveryNotice, startNotice, toolNotice } from "../src/core/notices";
 import { addConnection, appendInbox } from "../src/core/store";
 import { airbandFile } from "../src/core/paths";

@@ -5,7 +5,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { CLAUDE_TIMEOUTS, HOOK_EVENTS, appNode, claudeAiCreditShown, connect, disconnect, isConnected, setClaudeAiCredit } from "../src/core/hooks";
-import { handle, record, statusFor } from "../src/hook/airband-hook";
+import { handle } from "../src/hook/handle";
+import { record, statusFor } from "../src/hook/status";
 import { addConnection, addPending, appendInbox, getCursor, readConnections, readDeliveries, readInbox, setCursor } from "../src/core/store";
 
 function tmp(prefix: string): string {

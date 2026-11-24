@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { connect, hookCommandFor, hookTargets, staleHookTargets } from "../src/core/hooks";
-import { handle } from "../src/hook/airband-hook";
+import { handle } from "../src/hook/handle";
 import { addConnection, appendInbox, getCursor, readInbox, setCursor } from "../src/core/store";
 import { GeminiAdapter, geminiChatDirs, loadGeminiChat } from "../src/adapters/gemini";
 import { codexMessages } from "../src/adapters/codex";
