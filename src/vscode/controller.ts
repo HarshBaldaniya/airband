@@ -3,7 +3,6 @@
 // connections, context and chats.
 import * as vscode from "vscode";
 import * as fs from "node:fs";
-import * as path from "node:path";
 import { randomBytes } from "node:crypto";
 import type { Adapter } from "../adapters/adapter";
 import { ClaudeAdapter } from "../adapters/claude";
@@ -12,9 +11,7 @@ import { GeminiAdapter } from "../adapters/gemini";
 import { claudeProjectFolder, claudeProjectsDir, airbandFile, airbandHome, statusDir } from "../core/paths";
 import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, ViewState } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
-import { libraryView } from "./pages";
-
-/** Folders picked with "Map another folder", newest first. */
+import { libraryView, shortTitle } from "./pages";
 import { BoardStore } from "../core/state";
 import { readHookStatus, resolveStatus } from "../sessions/status";
 import { addConnection, readConnections, removeConnection, setPaused, setLevel } from "../sharing/connections";
@@ -26,7 +23,7 @@ import { addUsage } from "../core/types";
 import type { ChatDigest, ChatRef, ChatSession, Connection, Status } from "../core/types";
 import type { Tool } from "../core/agents";
 import { NO_USAGE } from "../core/types";
-import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pickElsewhere, registerWindow, takeOpenRequests, unregisterWindow } from "../core/folders";
+import { isTempFolder, pickElsewhere, unregisterWindow } from "../core/folders";
 import { CONTEXT_BUDGET } from "../core/config";
 import { buildContext, buildUpdate, formatDelivery } from "../sharing/delivery";
 import { sameFolder } from "../core/paths";
@@ -36,12 +33,13 @@ import { readAsksFrom } from "../sessions/record/extract";
 import { recordContext, recordPointer, renderAsks, type LinkLevel } from "../sessions/record/render";
 import { agentOf } from "../core/agents";
 import { setClaudeAiCredit } from "../install/agent-hooks";
-import { claudeExtensionInstalled, openClaude, openInTerminal } from "./open";
+import { claudeExtensionInstalled, openClaude } from "./open";
 import { webviewHtml } from "./webview-html";
 import { PlansService } from "./plans-service";
 import { SetupService } from "./setup-service";
 import { libraryMessage } from "./library-page";
 import { MapPageService } from "./map-page";
+import { ChatOpener } from "./chat-opener";
 import { contextSize, setWriting, syncConfig, writingView } from "./settings";
 
 const POLL_MS = 10_000;
@@ -55,12 +53,6 @@ const ELSEWHERE_MS = 30_000;
  */
 const QUICK_BYTES = 2 * 1024 * 1024;
 const SLICE_BYTES = 4 * 1024 * 1024;
-/**
- * "Open in its folder": how long the other window's Airband gets to take the request once that window
- * is in front (it takes it at once when current), and the most Airband waits for a window to appear.
- */
-const OPEN_ANSWER_MS = 700;
-const OPEN_GIVE_UP_MS = 10_000;
 /** A non-Claude chat quiet this long has finished its reply: its update can go out. */
 const QUIET_MS = 15_000;
 
@@ -79,7 +71,7 @@ export class Controller implements vscode.Disposable {
     claudeExtension: false,
     loading: true,
   };
-  private byId = new Map<string, ChatSession>();
+  byId = new Map<string, ChatSession>();
   private readonly lastStatus = new Map<string, Status>();
   private readonly digests = new Map<string, ChatDigest>();
   private readonly disposables: vscode.Disposable[] = [];
@@ -95,12 +87,13 @@ export class Controller implements vscode.Disposable {
   readonly setup = new SetupService(this);
   readonly plansService = new PlansService(this);
   readonly mapPage = new MapPageService(this);
+  readonly opener = new ChatOpener(this);
 
   constructor(readonly ctx: vscode.ExtensionContext) {
-    this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => (this.rewatch(), this.noteWindow())));
+    this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => (this.rewatch(), this.opener.noteWindow())));
     // A note of this window's folders, so the desktop app opens a chat here when its folder is open.
-    this.noteWindow();
-    const note = setInterval(() => this.noteWindow(), 60_000);
+    this.opener.noteWindow();
+    const note = setInterval(() => this.opener.noteWindow(), 60_000);
     this.disposables.push({ dispose: () => (clearInterval(note), unregisterWindow()) });
     this.disposables.push(vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration("airband") && syncConfig()));
     this.setup.moveFromOldNames();
@@ -109,11 +102,11 @@ export class Controller implements vscode.Disposable {
     syncConfig();
     this.rewatch();
     // A window opened to show a Claude chat opens it now, not after every folder's chats are read.
-    void this.takeOpens();
+    void this.opener.takeOpens();
     // A window brought forward by another one ("open in its folder") looks for the chat it was
     // asked to open, whether or not the file watcher fired.
     const w = vscode.window as unknown as { onDidChangeWindowState?: vscode.Event<{ focused: boolean }> };
-    const focus = w.onDidChangeWindowState?.((st) => st.focused && void this.takeOpens());
+    const focus = w.onDidChangeWindowState?.((st) => st.focused && void this.opener.takeOpens());
     if (focus) this.disposables.push(focus);
     // Last, so nothing above can leave a timer running if it throws.
     const poll = setInterval(() => this.refresh(), POLL_MS);
@@ -176,7 +169,7 @@ export class Controller implements vscode.Disposable {
     if (gone.length && !quiet) {
       const names = [...new Set(gone.flatMap((c) => [this.ref(c.from).title, this.ref(c.to).title]))];
       this.toast(
-        names.length === 2 ? `${short(names[0])} · ${short(names[1])}` : `${gone.length} channels`,
+        names.length === 2 ? `${shortTitle(names[0])} · ${shortTitle(names[1])}` : `${gone.length} channels`,
         "ok",
         view,
         { title: "Channel closed", icon: "unlink", undo: { type: "connectMany", pairs: gone.map((c) => [c.from.id, c.to.id]) } },
@@ -198,7 +191,7 @@ export class Controller implements vscode.Disposable {
     if (remove.length) this.unlink(remove, view, true);
     const A = this.session(a).title;
     const B = this.session(b).title;
-    const text = want === "both" ? `${short(A)} ⇄ ${short(B)}` : want === "ab" ? `${short(A)} → ${short(B)}` : `${short(B)} → ${short(A)}`;
+    const text = want === "both" ? `${shortTitle(A)} ⇄ ${shortTitle(B)}` : want === "ab" ? `${shortTitle(A)} → ${shortTitle(B)}` : `${shortTitle(B)} → ${shortTitle(A)}`;
     this.toast(text, "ok", view, { title: want === "both" ? "Both ways" : "One way", icon: "link" });
     await this.refresh();
   }
@@ -361,7 +354,7 @@ export class Controller implements vscode.Disposable {
       error: errors.length ? `Some chats couldn't be read (${errors.join("; ")})` : undefined,
     };
     this.post({ type: "state", state: this.state });
-    void this.takeOpens();
+    void this.opener.takeOpens();
     if (this.uncounted.size) void this.countInBackground();
     else {
       for (const a of this.adapters) a.saveCache?.();
@@ -449,7 +442,7 @@ export class Controller implements vscode.Disposable {
     return list.map((s) => ({ ...s }));
   }
 
-  private adapter(tool: Tool): Adapter {
+  adapter(tool: Tool): Adapter {
     return this.adapters.find((a) => a.tool === tool)!;
   }
 
@@ -511,7 +504,7 @@ export class Controller implements vscode.Disposable {
       this.lastStatus.set(s.id, s.status);
       if (this.firstLoad || s.status !== "waiting" || before === "waiting") continue;
       void vscode.window.showInformationMessage(`“${s.title}” is waiting for you${s.lastLine ? `: ${s.lastLine}` : ""}`, "Open").then((pick) => {
-        if (pick) void this.open(s.id);
+        if (pick) void this.opener.open(s.id);
       });
     }
     this.firstLoad = false;
@@ -535,7 +528,7 @@ export class Controller implements vscode.Disposable {
     // Another window asking this one to open a chat of this folder.
     try {
       fs.mkdirSync(airbandHome(), { recursive: true });
-      this.watchers.push(fs.watch(airbandHome(), (_e, name) => name === "open-requests.json" && void this.takeOpens()));
+      this.watchers.push(fs.watch(airbandHome(), (_e, name) => name === "open-requests.json" && void this.opener.takeOpens()));
     } catch {
       // Requests are also checked after every refresh.
     }
@@ -554,13 +547,13 @@ export class Controller implements vscode.Disposable {
         case "refresh":
           return this.refresh();
         case "open":
-          return this.open(m.id);
+          return this.opener.open(m.id);
         case "openInFolder":
-          return this.openInFolder(m.id);
+          return this.opener.openInFolder(m.id);
         case "openInTerminal":
-          return this.openTerminal(m.id);
+          return this.opener.openTerminal(m.id);
         case "newChat":
-          return this.newChat(m.tool);
+          return this.opener.newChat(m.tool);
         case "openBoard":
           return this.openBoard(m.tab);
         case "setup":
@@ -583,7 +576,7 @@ export class Controller implements vscode.Disposable {
           const c = readConnections().find((x) => x.id === m.connectionId);
           if (c) {
             this.notice(c.to.id, c.from, m.paused ? `Paused: updates from “${c.from.title}” stop until resumed.` : `Resumed: updates from “${c.from.title}” come again.`, `pause:${c.id}`);
-            this.toast(`${short(this.ref(c.from).title)} → ${short(this.ref(c.to).title)}`, "ok", from, {
+            this.toast(`${shortTitle(this.ref(c.from).title)} → ${shortTitle(this.ref(c.to).title)}`, "ok", from, {
               title: m.paused ? "Paused" : "Resumed",
               icon: m.paused ? "pause" : "play",
               undo: { type: "pause", connectionId: c.id, paused: !m.paused },
@@ -698,7 +691,7 @@ export class Controller implements vscode.Disposable {
     }
   }
 
-  private session(id: string): ChatSession {
+  session(id: string): ChatSession {
     const s = this.byId.get(id);
     if (!s) throw new Error("That chat isn't in the list any more. Refresh and try again.");
     return s;
@@ -714,149 +707,13 @@ export class Controller implements vscode.Disposable {
     return d;
   }
 
-  /**
-   * A chat of another folder, opened where it belongs: that folder's own VS Code window (VS Code
-   * brings it forward when it is open, or opens it), where Airband opens this exact chat in Claude's
-   * panel. Only ever on request; a plain click resumes it in a terminal here.
-   */
-  private async openInFolder(id: string): Promise<void> {
-    const s = this.session(id);
-    if (!s.away || !s.cwd) return this.open(id);
-    addOpenRequest({ id: s.id, tool: s.tool, cwd: s.cwd, at: Date.now(), title: s.title });
-    this.toast(`Opening “${short(s.title)}” in the ${path.basename(s.cwd)} window`, "ok", undefined, { title: path.basename(s.cwd), icon: "info" });
-    await vscode.commands.executeCommand("vscode.openFolder", vscode.Uri.file(s.cwd), { forceNewWindow: true });
-    void this.followOpen(s);
-  }
-
-  /**
-   * Watches the request: done the moment the other window takes it. If that window's Airband doesn't
-   * (it runs an older one), Claude's own link goes as soon as the other window is in front, rather
-   * than after a fixed wait.
-   */
-  private async followOpen(s: ChatSession): Promise<void> {
-    const start = Date.now();
-    let frontSince: number | undefined;
-    while (Date.now() - start < OPEN_GIVE_UP_MS) {
-      await new Promise((r) => setTimeout(r, 100));
-      if (!openRequestWaiting(s.id)) return;
-      if (vscode.window.state?.focused === false) frontSince ??= Date.now();
-      else frontSince = undefined;
-      // Only a Claude chat has a link to fall back on; another agent's waits for that window's Airband.
-      if (s.tool === "Claude" && frontSince !== undefined && Date.now() - frontSince >= OPEN_ANSWER_MS) break;
-    }
-    await this.openFallback(s);
-  }
-
-  /**
-   * The other window didn't take the request (a window opened before Airband was installed or
-   * updated runs the Airband it started with). A Claude chat still opens there: Claude Code's own
-   * "open this chat" link goes to the window in front, which is that one while this window is not.
-   */
-  private async openFallback(s: ChatSession): Promise<void> {
-    if (!dropOpenRequest(s.id)) return;
-    const folder = path.basename(s.cwd ?? "");
-    const otherInFront = vscode.window.state?.focused === false;
-    if (s.tool === "Claude" && otherInFront && vscode.env.openExternal) {
-      try {
-        await vscode.env.openExternal(vscode.Uri.parse(`${vscode.env.uriScheme || "vscode"}://anthropic.claude-code/open?session=${encodeURIComponent(s.id)}`));
-        return;
-      } catch {
-        // Falls through to the note.
-      }
-    }
-    this.toast(`Reload the ${folder} window once (Developer: Reload Window), then try again`, "warn", undefined, { title: `The ${folder} window didn't open it`, icon: "info" });
-  }
-
-  private noteWindow(): void {
-    registerWindow((vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath), vscode.env.appName);
-  }
-
-  private openingRequests = false;
-
-  /** Chats another window asked this one to open (this window has their folder). */
-  private async takeOpens(): Promise<void> {
-    const roots = (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath);
-    if (!roots.length || this.openingRequests) return;
-    this.openingRequests = true;
-    try {
-      // Every request opens at once, by id: Claude's in Claude's panel, another agent's resumed in
-      // a terminal here. Neither waits for this window to list its chats.
-      for (const r of takeOpenRequests(roots, Date.now(), () => true, vscode.env.appName)) {
-        if (r.tool === "Claude") await this.openClaudeChatWhenReady(r.id);
-        else if (this.byId.has(r.id)) await this.open(r.id);
-        else this.chatTerminal({ id: r.id, tool: r.tool, cwd: r.cwd, title: r.title ?? r.tool, status: "idle", lastModified: r.at });
-      }
-    } catch {
-      // A request that can't be met is dropped; the chat is still in the list to open by hand.
-    } finally {
-      this.openingRequests = false;
-    }
-  }
-
-  /**
-   * Opens this exact chat in a window that may have just opened. Claude Code's deep-link command
-   * (the one its own "open this chat" link uses) binds a tab to the chat id: it creates it, or
-   * brings it forward when that chat is already open, so asking twice never makes a second tab.
-   * A window that has just opened also restores the Claude tabs it had before, which can take the
-   * front after the first ask; asking again once that has settled leaves the clicked chat in front.
-   */
-  private async openClaudeChatWhenReady(id: string): Promise<void> {
-    const ext = vscode.extensions?.getExtension?.("anthropic.claude-code");
-    const wasActive = !!ext?.isActive;
-    if (ext && !wasActive) await ext.activate();
-    const show = async () => {
-      try {
-        await vscode.commands.executeCommand("claude-vscode.primaryEditor.open", id);
-      } catch {
-        await openClaude(id);
-      }
-    };
-    await show();
-    // A Claude that has just started restores its old tabs, which can come to the front after the
-    // first ask: asking again once that has settled leaves the clicked chat in front.
-    if (!wasActive) setTimeout(() => void show(), 2500);
-  }
-
-  /** Opens a chat. Context waiting for it goes in with it when the hook can't deliver it. */
-  async open(id: string): Promise<void> {
-    const s = this.session(id);
-    // A Claude chat of this folder opens, itself, in Claude Code's panel. One from another folder,
-    // like a terminal agent's, is resumed in a terminal in its own folder, where its history lives:
-    // this window stays as it is.
-    if (s.tool === "Claude" && !s.away) {
-      const waiting = !this.setup.hooked("Claude") ? this.takeForPaste(id) : undefined;
-      return openClaude(id, waiting);
-    }
-    this.chatTerminal(s);
-    const waiting = this.setup.hooked(s.tool) ? undefined : this.takeForPaste(id);
-    if (waiting) {
-      await vscode.env.clipboard.writeText(waiting);
-      this.toast(`Copied what connected chats did. Paste it into ${s.tool} (⌘V) once it opens.`);
-    }
-  }
-
-  private takeForPaste(id: string): string | undefined {
+  takeForPaste(id: string): string | undefined {
     const items = takeInbox(id);
     if (!items.length) return undefined;
     const now = Date.now();
     for (const i of items) logDelivery({ at: now, connectionId: i.connectionId, from: i.from.id, to: id, chars: i.text.length });
     this.refreshSoon();
     return formatDelivery(items, undefined, this.byId.get(id)?.cwd);
-  }
-
-  private openTerminal(id: string): void {
-    this.chatTerminal(this.session(id));
-  }
-
-  /** The chat resumed in its own terminal (its folder, its exact session); shown again if it is open. */
-  private chatTerminal(s: ChatSession): { terminal: vscode.Terminal; reused: boolean } {
-    const where = s.away && s.cwd ? ` · ${path.basename(s.cwd)}` : "";
-    return openInTerminal(`${s.tool} · ${short(s.title)}${where}`, this.adapter(s.tool).resumeCommand!(s), s.cwd ?? this.root, s.id);
-  }
-
-  private async newChat(tool: Tool): Promise<void> {
-    if (tool === "Claude") return openClaude(undefined);
-    openInTerminal(tool, this.adapter(tool).newCommand!(), this.root);
   }
 
   private async connect(fromId: string, toId: string, both: boolean, view: vscode.Webview): Promise<void> {
@@ -895,7 +752,7 @@ export class Controller implements vscode.Disposable {
       const from = this.session(a0);
       const to = this.session(b0);
       const twoWay = wanted.length === 2 && wanted[1][0] === b0 && wanted[1][1] === a0;
-      const what = wanted.length === 1 ? `${short(from.title)} → ${short(to.title)}` : twoWay ? `${short(from.title)} ⇄ ${short(to.title)}` : `${fresh.length || wanted.length} chats`;
+      const what = wanted.length === 1 ? `${shortTitle(from.title)} → ${shortTitle(to.title)}` : twoWay ? `${shortTitle(from.title)} ⇄ ${shortTitle(to.title)}` : `${fresh.length || wanted.length} chats`;
       const created = readConnections().filter((c) => wanted.some(([x, y]) => c.from.id === x && c.to.id === y));
       this.toast(what, "ok", view, { title: twoWay ? "Channel open both ways" : wanted.length > 2 ? "Channels open" : "Channel open", icon: "link", undo: { type: "disconnectMany", ids: created.map((c) => c.id) } });
       // Quietly, the caller has more to change first and shows the result once.
@@ -997,10 +854,10 @@ export class Controller implements vscode.Disposable {
   private async syncNow(id: string): Promise<void> {
     const s = this.session(id);
     const ask = "Catch up on what my connected chats did, then tell me in a few lines what changed.";
-    if (s.tool !== "Claude" || s.away) return this.open(id);
+    if (s.tool !== "Claude" || s.away) return this.opener.open(id);
     if (this.setup.hooked("Claude")) {
       await openClaude(id, ask);
-      this.toast(`Press Send in ${short(s.title)}`, "ok", undefined, { title: "Ready to sync", icon: "sync" });
+      this.toast(`Press Send in ${shortTitle(s.title)}`, "ok", undefined, { title: "Ready to sync", icon: "sync" });
     } else {
       const waiting = this.takeForPaste(id);
       await openClaude(id, waiting ? `${ask}\n\n${waiting}` : ask);
@@ -1076,7 +933,7 @@ export class Controller implements vscode.Disposable {
   }
 
   newChatCommand(): Promise<void> {
-    return this.newChat("Claude");
+    return this.opener.newChat("Claude");
   }
 
   dispose(): void {
@@ -1086,9 +943,3 @@ export class Controller implements vscode.Disposable {
     this.board?.dispose();
   }
 }
-
-/** A chat's name, cut to fit a one-line notice. */
-function short(title: string, max = 28): string {
-  return title.length > max ? `${title.slice(0, max - 1).trimEnd()}…` : title;
-}
-

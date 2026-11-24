@@ -8,6 +8,7 @@ import type { CodeHitView, CodeMapView, CodeModuleView, LibraryView } from "../c
 import { listHeads, readAsks } from "../sessions/record/store";
 import { agentStates } from "../install/toolkit";
 import { allCommands, PACKS, userLibraryDir } from "../library/index";
+import { shorten } from "../core/text";
 
 /** Projects that can be mapped: this window's folders first, then folders picked to map, then folders
  *  chats ran in that still exist. */
@@ -186,3 +187,6 @@ export function libraryView(): LibraryView {
     folder: userLibraryDir(),
   };
 }
+
+/** A chat's name, cut to fit a one-line notice. */
+export const shortTitle = (title: string) => shorten(title, 28);
