@@ -317,69 +317,6 @@ test(
         assert.deepEqual([...back.board.members].sort(), [...before].sort(), "Undo brings every card back");
       }
 
-      // Switching the model of a chat open in Claude's tab: Claude fills a box only when it opens a
-      // chat, so the tab is closed and the chat opened again with /model in its box.
-      const idle = state.sessions.find((s: any) => !s.away && s.tool === "Claude" && s.status !== "working");
-      if (idle) {
-        const a = idle;
-        const label = a.title.length > 25 ? a.title.substring(0, 24) + "…" : a.title;
-        fake.api.window.tabGroups.all[0].tabs = [
-          { label: "Some other chat", input: { viewType: "mainThreadWebview-claudeVSCodePanel" } },
-          { label, input: { viewType: "mainThreadWebview-claudeVSCodePanel" } },
-        ];
-        const before4 = calls.length;
-        receive({ type: "chatCommand", id: a.id, command: "model", model: "haiku" });
-        const asked = await until(() => calls.slice(before4).find((c) => c.command === "claude-vscode.editor.open"));
-        const order = calls.slice(before4).map((c) => c.command);
-        assert.deepEqual(calls.slice(before4).filter((c) => c.command === "closeTab").map((c) => c.args[0]), [label], "only that chat's tab is closed");
-        assert.ok(order.indexOf("closeTab") < order.indexOf("claude-vscode.editor.open"), "closed first, so Claude opens it fresh");
-        assert.equal(asked.args[0], a.id);
-        assert.equal(asked.args[1], "/model haiku");
-        await until(() => calls.slice(before4).find((c) => c.command === "claude-vscode.focus"));
-        const tip = await until(() => [...posted].reverse().find((m) => m.type === "toast" && /press Enter/.test(m.text)));
-        assert.match(tip.text, /\/model haiku is in its box/);
-        assert.ok(calls.slice(before4).some((c) => c.command === "clipboard" && c.args[0] === "/model haiku"), "and copied, as a backup");
-      }
-
-      // A chat that is replying is never closed: the command waits on the clipboard.
-      const busy = state.sessions.find((s: any) => !s.away && s.tool === "Claude" && s.status === "working");
-      if (busy) {
-        const label = busy.title.length > 25 ? busy.title.substring(0, 24) + "…" : busy.title;
-        fake.api.window.tabGroups.all[0].tabs = [{ label, input: { viewType: "mainThreadWebview-claudeVSCodePanel" } }];
-        const before8 = calls.length;
-        receive({ type: "chatCommand", id: busy.id, command: "compact" });
-        const tip = await until(() => [...posted].reverse().find((m) => m.type === "toast" && /replying/.test(m.text)));
-        assert.match(tip.title, /Copied \/compact/);
-        assert.ok(!calls.slice(before8).some((c) => c.command === "closeTab"), "its tab stays open");
-      }
-
-      // Codex: typed into the terminal the chat already runs in (never sent); otherwise resumed in a
-      // terminal with the command typed once Codex has started.
-      const codex = state.sessions.find((s: any) => s.tool === "Codex" && !s.away);
-      assert.ok(codex, "the test's Codex chat is listed");
-      assert.notEqual(codex.status, "working", `its reply has finished (${codex.status})`);
-      {
-        const running = { exitStatus: undefined, show() {}, sendText: (text: string, enter = true) => calls.push({ command: "runningCodex", args: [text, enter] }) };
-        fake.events.started!({ terminal: running, execution: { commandLine: { value: "codex" } } });
-        const before5 = calls.length;
-        receive({ type: "chatCommand", id: codex.id, command: "compact" });
-        const typed = await until(() => calls.slice(before5).find((c) => c.command === "runningCodex"));
-        assert.deepEqual(typed.args, ["/compact", false], "typed where it runs, Enter left to the person");
-        assert.ok(!calls.slice(before5).some((c) => c.command === "terminal"), "no second copy of the chat");
-        (running as any).exitStatus = { code: 0 };
-
-        const before6 = calls.length;
-        receive({ type: "chatCommand", id: codex.id, command: "model" });
-        const started = await until(() => calls.slice(before6).find((c) => c.command === "terminal"));
-        assert.equal(started.args[1], `codex resume ${codex.id}`);
-        const later = await until(() => calls.slice(before6).find((c) => c.command === "terminal" && c.args[1] === "/model"), 8000);
-        assert.equal(later.args[2], false, "typed, not sent");
-        const before7 = calls.length;
-        receive({ type: "chatCommand", id: codex.id, command: "compact" });
-        const again = await until(() => calls.slice(before7).find((c) => c.command === "terminal"));
-        assert.deepEqual(again.args.slice(1), ["/compact", false], "next time, straight into that terminal");
-      }
-
       receive({ type: "askBranch", id: a.id });
       const info = await until(() => posted.find((m) => m.type === "branchInfo"));
       assert.equal(info.id, a.id);

@@ -32,8 +32,6 @@ export interface ViewState {
   hooks?: Partial<Record<Tool, boolean>>;
   /** The board has the whole window (side panels hidden). */
   focus?: boolean;
-  /** Claude Code compacts chats by itself when they fill up. */
-  autoCompact?: boolean;
   /** Each agent's account and plan limits, as the agent reports them. */
   plans?: Partial<Record<Tool, PlanUsage>>;
   /** Plan limits are being read right now. */
@@ -149,18 +147,9 @@ export type ToWebview =
   | { type: "codeModule"; data: CodeModuleView }
   | { type: "library"; data: LibraryView }
   | { type: "librarySuggest"; q: string; names: string[] }
-  | { type: "writing"; data: WritingView }
-  | { type: "models"; tool: Tool; models: ModelOption[]; error?: string };
+  | { type: "writing"; data: WritingView };
 
 export type BoardTab = "board" | "usage" | "code" | "library" | "writing";
-
-/** A model a tool offers, as the tool itself describes it. */
-export interface ModelOption {
-  value: string;
-  name: string;
-  description: string;
-  resolved?: string;
-}
 
 export type FromWebview =
   | { type: "ready" }
@@ -193,12 +182,9 @@ export type FromWebview =
   | { type: "connect"; from: string; to: string; both?: boolean }
   | { type: "connectMany"; pairs: [string, string][]; handles?: Record<string, { s: string; t: string }> }
   | { type: "syncNow"; id: string }
-  | { type: "chatCommand"; id: string; command: "compact" | "model"; model?: string }
-  | { type: "models"; tool: Tool }
   /** Read every agent's plan limits again now. */
   | { type: "plans" }
   | { type: "fullscreen" }
-  | { type: "autoCompactOn" }
   | { type: "disconnect"; connectionId: string }
   | { type: "disconnectMany"; ids: string[] }
   | { type: "direction"; a: string; b: string; want: "both" | "ab" | "ba" }

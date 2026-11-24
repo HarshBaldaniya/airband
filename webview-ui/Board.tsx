@@ -80,7 +80,7 @@ import {
   Zap,
 } from "./Icons";
 import type { Modal } from "./Modals";
-import { CompactButton, ModelPicker } from "./ChatControls";
+import { ModelPicker } from "./ChatControls";
 import { UsageView } from "./Usage";
 import { CodePage } from "./CodePage";
 import { LibraryPage } from "./LibraryPage";
@@ -953,7 +953,6 @@ const ChatCard = memo(function ChatCard({ data, selected }: NodeProps<CardNode>)
                   <span style={{ width: `${Math.max(2, pct)}%` }} />
                 </span>
                 {pct}%
-                <CompactButton s={s} />
               </dd>
             </>
           )}

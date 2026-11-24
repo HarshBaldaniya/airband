@@ -13,7 +13,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { CodexAdapter } from "../adapters/codex";
 import { GeminiAdapter } from "../adapters/gemini";
 import { claudeProjectFolder, claudeProjectsDir, codexSessionsDir, readJson, airbandFile, airbandHome, statusDir } from "../core/paths";
-import type { BoardTab, ConnectionView, FromWebview, ModelOption, ToWebview, ToolTotals, ViewState, WritingView } from "../core/protocol";
+import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, ViewState, WritingView } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
 import { codeHits, codeMapView, codeModuleView, knownProjects, libraryView } from "./pages";
 import { projectFile } from "../core/writing";
@@ -52,7 +52,7 @@ import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, pruneRecords, readHead, r
 import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";
 import { moveOldHome, moveOldWorkspace } from "../core/migrate";
 import { claudeAiCreditShown, connect, disconnect, findClaude, findNode, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../core/hooks";
-import { claudeExtensionInstalled, openClaude, openInTerminal, ownTerminalFor, typeWhenStarted } from "./open";
+import { claudeExtensionInstalled, openClaude, openInTerminal } from "./open";
 import { webviewHtml } from "./webview-html";
 
 const POLL_MS = 10_000;
@@ -99,7 +99,6 @@ export class Controller implements vscode.Disposable {
   private watchers: fs.FSWatcher[] = [];
   private refreshTimer: NodeJS.Timeout | undefined;
   private refreshing = false;
-  private readonly running = new Map<vscode.Terminal, string>();
   /** Chats whose files are still being counted, a slice at a time. */
   private readonly uncounted = new Set<string>();
   private counting = false;
@@ -120,22 +119,11 @@ export class Controller implements vscode.Disposable {
     this.rewatch();
     // A window opened to show a Claude chat opens it now, not after every folder's chats are read.
     void this.takeOpens();
-    // Terminals running an agent, as shell integration reports them, so a command for a chat can be
-    // typed where that chat already runs. And a window brought forward by another one ("open in its
-    // folder") looks for the chat it was asked to open, whether or not the file watcher fired.
-    const w = vscode.window as unknown as {
-      onDidStartTerminalShellExecution?: vscode.Event<{ terminal: vscode.Terminal; execution?: { commandLine?: { value?: string } } }>;
-      onDidEndTerminalShellExecution?: vscode.Event<{ terminal: vscode.Terminal }>;
-      onDidCloseTerminal?: vscode.Event<vscode.Terminal>;
-      onDidChangeWindowState?: vscode.Event<{ focused: boolean }>;
-    };
-    for (const d of [
-      w.onDidStartTerminalShellExecution?.((e) => this.running.set(e.terminal, e.execution?.commandLine?.value ?? "")),
-      w.onDidEndTerminalShellExecution?.((e) => this.running.delete(e.terminal)),
-      w.onDidCloseTerminal?.((t) => this.running.delete(t)),
-      w.onDidChangeWindowState?.((st) => st.focused && void this.takeOpens()),
-    ])
-      if (d) this.disposables.push(d);
+    // A window brought forward by another one ("open in its folder") looks for the chat it was
+    // asked to open, whether or not the file watcher fired.
+    const w = vscode.window as unknown as { onDidChangeWindowState?: vscode.Event<{ focused: boolean }> };
+    const focus = w.onDidChangeWindowState?.((st) => st.focused && void this.takeOpens());
+    if (focus) this.disposables.push(focus);
     // Last, so nothing above can leave a timer running if it throws.
     const poll = setInterval(() => this.refresh(), POLL_MS);
     this.disposables.push({ dispose: () => clearInterval(poll) });
@@ -376,7 +364,6 @@ export class Controller implements vscode.Disposable {
       hooks,
       claudeExtension,
       focus: this.focusOn,
-      autoCompact: claudeAutoCompact(),
       plans: this.plans,
       plansLoading: this.plansLoading,
       loading: false,
@@ -709,8 +696,6 @@ export class Controller implements vscode.Disposable {
         }
         case "syncNow":
           return this.syncNow(m.id);
-        case "chatCommand":
-          return this.chatCommand(m.id, m.command, m.model);
         case "plans":
           return void this.refreshPlans(true);
         case "codeMap":
@@ -774,19 +759,8 @@ export class Controller implements vscode.Disposable {
         case "writingAiCredit":
           setClaudeAiCredit(m.show);
           return this.post({ type: "writing", data: this.writingView() }, from);
-        case "models":
-          return this.sendModels(m.tool, from);
         case "fullscreen":
           return this.fullscreen();
-        case "autoCompactOn":
-          try {
-            setClaudeAutoCompact(true);
-          } catch {
-            this.toast("Claude Code's settings were busy, so nothing changed. Try again in a moment.", "warn", from, { title: "Auto-compact not changed", icon: "info" });
-            return;
-          }
-          this.toast("Claude compacts chats by itself when they fill up", "ok", from, { title: "Auto-compact on", icon: "info" });
-          return this.refresh();
         case "askBranch":
           return this.askBranch(m.id, from);
         case "branch":
@@ -1232,137 +1206,6 @@ export class Controller implements vscode.Disposable {
   private focusOn = false;
 
   /** Focus: the board gets the whole window (side panels hidden); again to bring them back. */
-  private modelCache: { at: number; list: ModelOption[] } | undefined;
-
-  /**
-   * The models a tool offers, as the tool itself lists them. For Claude this asks
-   * the person's own installed Claude Code (the same list its model picker shows):
-   * nothing is sent to a model, nothing is saved, and Airband never touches the login.
-   * Kept for six hours, in memory and in ~/.airband/models-claude.json.
-   */
-  private async sendModels(tool: Tool, view: vscode.Webview): Promise<void> {
-    if (tool !== "Claude") {
-      this.post({ type: "models", tool, models: [], error: `${tool} doesn't list its models to other apps yet.` }, view);
-      return;
-    }
-    try {
-      this.post({ type: "models", tool, models: await this.claudeModels() }, view);
-    } catch (err) {
-      this.post({ type: "models", tool, models: [], error: err instanceof Error ? err.message : String(err) }, view);
-    }
-  }
-
-  private async claudeModels(): Promise<ModelOption[]> {
-    const SIX_HOURS = 6 * 3600_000;
-    const file = airbandFile("models-claude.json");
-    if (!this.modelCache) {
-      const saved = readJson<{ at: number; list: ModelOption[] } | undefined>(file, undefined);
-      if (saved?.list?.length) this.modelCache = saved;
-    }
-    if (this.modelCache && Date.now() - this.modelCache.at < SIX_HOURS) return this.modelCache.list;
-    const exe = findClaude();
-    if (!exe) throw new Error("Couldn't find Claude Code on this computer.");
-    const abort = new AbortController();
-    const never = (async function* () {
-      await new Promise(() => undefined);
-    })();
-    const q = query({ prompt: never as AsyncIterable<never>, options: { pathToClaudeCodeExecutable: exe, cwd: this.root, persistSession: false, abortController: abort, settingSources: [] } });
-    try {
-      const models = await Promise.race([q.supportedModels(), new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Claude Code didn't answer in time.")), 20_000))]);
-      const list: ModelOption[] = models.map((m) => ({ value: m.value, name: m.displayName, description: m.description, resolved: m.resolvedModel }));
-      this.modelCache = { at: Date.now(), list };
-      writeFileAtomic(file, JSON.stringify(this.modelCache));
-      return list;
-    } finally {
-      abort.abort();
-    }
-  }
-
-  /**
-   * Opens a chat with one of its agent's own commands ready to send: compacting
-   * (/compact in Claude Code and Codex, /compress in Gemini CLI) or the model
-   * (/model, with a choice for Claude, the agent's own picker for the others).
-   */
-  /**
-   * /model or /compact for a chat, put where that chat runs, ready for the person to press Enter
-   * (Airband never sends it). It is also copied, so it is one paste wherever it can't be typed.
-   */
-  private async chatCommand(id: string, command: "compact" | "model", model?: string): Promise<void> {
-    const s = this.session(id);
-    if (model && !/^[A-Za-z0-9._\[\]-]+$/.test(model)) throw new Error("Pick a model.");
-    const word = command === "compact" ? (s.tool === "Gemini" ? "/compress" : "/compact") : model ? `/model ${model}` : "/model";
-    const title = command === "compact" ? `Compact “${short(s.title)}”` : model ? `Switch to ${this.modelCache?.list.find((x) => x.value === model)?.name ?? model}` : `Pick a model in ${s.tool}`;
-    await vscode.env.clipboard.writeText(word);
-    if (s.tool === "Claude" && !s.away) return this.claudeCommand(s, word, title);
-
-    // Codex, Gemini CLI and a Claude chat of another folder run in a terminal: typed into the one
-    // the chat already runs in; otherwise the chat is resumed in a terminal and it is typed there.
-    const live = this.liveTerminal(s);
-    if (live) {
-      live.show();
-      live.sendText(word, false);
-      this.toast(`${word} is typed in its terminal: press Enter to run it`, "ok", undefined, { title, icon: "info" });
-      return;
-    }
-    if (s.status === "working" || s.status === "waiting") {
-      // Running somewhere Airband can't see (another app, a terminal outside VS Code): a second copy would split the chat.
-      this.toast(`It's running outside this window. Paste it there (⌘V), then press Enter`, "ok", undefined, { title: `Copied ${word}`, icon: "info" });
-      return;
-    }
-    const { terminal } = this.chatTerminal(s);
-    typeWhenStarted(terminal, word);
-    this.toast(`It opens in a terminal with ${word} typed in: press Enter to run it`, "ok", undefined, { title, icon: "info" });
-  }
-
-  /**
-   * A Claude chat of this folder. Claude Code fills a chat's box only when it opens the chat (an
-   * open one keeps its box, and it has no command to set a chat's model), so an open, idle chat's
-   * tab is closed and the chat opened again with the command in its box. A chat that is replying
-   * is left alone: the command is on the clipboard for when it is done.
-   */
-  private async claudeCommand(s: ChatSession, word: string, title: string): Promise<void> {
-    const tab = claudeTabFor(s.title);
-    if (s.status === "working") {
-      await openClaude(s.id);
-      this.toast(`It's replying. When it's done, paste it in its box (⌘V) and press Enter`, "ok", undefined, { title: `Copied ${word}`, icon: "info" });
-      return;
-    }
-    if (tab) {
-      try {
-        await vscode.window.tabGroups.close(tab, true);
-        await new Promise((r) => setTimeout(r, 300));
-      } catch {
-        // Left open: the command is on the clipboard.
-      }
-    }
-    await openClaude(s.id, word);
-    try {
-      await new Promise((r) => setTimeout(r, 250));
-      await vscode.commands.executeCommand("claude-vscode.focus");
-    } catch {
-      // An older Claude Code without the command.
-    }
-    this.toast(`${word} is in its box: press Enter to run it. If the box is empty, paste it (⌘V)`, "ok", undefined, { title, icon: "info" });
-  }
-
-  /**
-   * The terminal a chat runs in: the one Airband opened for it, or one shell integration shows
-   * running this chat (its id on the command line), or the only one running this agent when the
-   * chat is that agent's newest here.
-   */
-  private liveTerminal(s: ChatSession): vscode.Terminal | undefined {
-    const own = ownTerminalFor(s.id);
-    if (own) return own;
-    const bin = s.tool === "Codex" ? "codex" : s.tool === "Gemini" ? "gemini" : "claude";
-    const runsAgent = new RegExp(`(^|[\\s/])${bin}(\\s|$)`);
-    const runs = [...this.running].filter(([t, line]) => t.exitStatus === undefined && runsAgent.test(line));
-    const byId = runs.filter(([, line]) => line.includes(s.id));
-    if (byId.length === 1) return byId[0][0];
-    if (runs.length !== 1 || s.away) return undefined;
-    const newest = [...this.byId.values()].filter((x) => x.tool === s.tool && !x.away).sort((a, b) => b.lastModified - a.lastModified)[0];
-    return newest?.id === s.id && !runs[0][1].match(/(resume|--resume|-r)\s/) ? runs[0][0] : undefined;
-  }
-
   private async fullscreen(): Promise<void> {
     this.openBoard("board");
     const run = async (...ids: string[]) => {
@@ -1626,37 +1469,8 @@ export class Controller implements vscode.Disposable {
 }
 
 /** A chat's name, cut to fit a one-line notice. */
-/**
- * Claude Code's editor tab for a chat. Claude names the tab after the chat, cut to 24 characters
- * and "…" past 25; two chats with the same name can't be told apart, so neither is touched.
- */
-function claudeTabFor(title: string): vscode.Tab | undefined {
-  const cut = title.length > 25 ? title.substring(0, 24) + "…" : title;
-  const tabs = (vscode.window.tabGroups?.all ?? []).flatMap((g) => g.tabs);
-  const hits = tabs.filter((t) => /claudeVSCodePanel/.test((t.input as { viewType?: string } | undefined)?.viewType ?? "") && (t.label === cut || t.label === title));
-  return hits.length === 1 ? hits[0] : undefined;
-}
-
 function short(title: string, max = 28): string {
   return title.length > max ? `${title.slice(0, max - 1).trimEnd()}…` : title;
 }
 
-/** Claude Code compacts a chat by itself near full unless switched off (its setting, or an environment variable). */
-function claudeAutoCompact(): boolean {
-  if (process.env.DISABLE_AUTO_COMPACT || process.env.DISABLE_COMPACT) return false;
-  const cfg = readJson<{ autoCompactEnabled?: boolean }>(path.join(os.homedir(), ".claude.json"), {});
-  return cfg.autoCompactEnabled !== false;
-}
-
-/** Switches Claude Code's own auto-compact setting (one key in ~/.claude.json; nothing else is touched). */
-function setClaudeAutoCompact(on: boolean): void {
-  const file = path.join(os.homedir(), ".claude.json");
-  // Read strictly: if the file doesn't parse (Claude Code mid-write), throw and leave it alone rather
-  // than replace the person's whole Claude Code state with one key.
-  const cfg = fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>) : {};
-  if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) throw new Error("unreadable");
-  if (fs.existsSync(file)) fs.copyFileSync(file, `${file}.airband-last`);
-  cfg.autoCompactEnabled = on;
-  writeFileAtomic(file, `${JSON.stringify(cfg, null, 2)}\n`);
-}
 

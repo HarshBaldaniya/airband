@@ -54,26 +54,3 @@ export function openInTerminal(name: string, command: string, cwd?: string, chat
   return { terminal, reused: false };
 }
 
-/** The terminal Airband opened for this chat, while it is still running. */
-export function ownTerminalFor(chatId: string): vscode.Terminal | undefined {
-  const t = chatTerminals.get(chatId);
-  return t && t.exitStatus === undefined && (vscode.window.terminals ?? []).includes(t) ? t : undefined;
-}
-
-/**
- * Types text into a terminal that has just started an agent, without pressing Enter, once the
- * agent has had time to draw its prompt: shell integration says when the command starts; without
- * it, a fixed wait. Typed sooner, the shell or a half-started agent could swallow it.
- */
-export function typeWhenStarted(terminal: vscode.Terminal, text: string, settleMs = 2500, fallbackMs = 4500): void {
-  let done = false;
-  const type = () => {
-    if (done || terminal.exitStatus !== undefined) return;
-    done = true;
-    sub?.dispose();
-    terminal.sendText(text, false);
-  };
-  const onStart = (vscode.window as { onDidStartTerminalShellExecution?: vscode.Event<{ terminal: vscode.Terminal }> }).onDidStartTerminalShellExecution;
-  const sub = onStart?.((e) => e.terminal === terminal && setTimeout(type, settleMs));
-  setTimeout(type, fallbackMs);
-}

@@ -1,6 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
-import type { FromWebview, ModelOption, ToWebview } from "../src/core/protocol";
-import type { Tool } from "../src/core/types";
+import type { FromWebview, ToWebview } from "../src/core/protocol";
 import type { Status, Usage } from "../src/core/types";
 
 declare function acquireVsCodeApi(): { postMessage(msg: unknown): void; getState(): any; setState(s: any): void };
@@ -105,49 +103,6 @@ export function contextPct(c?: { used: number; window: number }): number | undef
 /** The drag payload type for a chat, so drops from elsewhere are ignored. */
 export const DRAG_TYPE = "application/x-airband-chat";
 
-
-// ---- each tool's own model list, asked for once and shared by every picker ----
-
-type ModelEntry = { models?: ModelOption[]; error?: string; asked?: boolean };
-const modelStore = new Map<Tool, ModelEntry>();
-const modelListeners = new Set<() => void>();
-window.addEventListener("message", (e: MessageEvent<ToWebview>) => {
-  if (e.data?.type !== "models") return;
-  modelStore.set(e.data.tool, { models: e.data.error ? undefined : e.data.models, error: e.data.error, asked: true });
-  modelListeners.forEach((f) => f());
-});
-
-/** The models a tool offers, as the tool lists them; asked for the first time a picker opens. */
-export function useModels(tool: Tool, wanted: boolean): ModelEntry {
-  const entry = useSyncExternalStore(
-    (f) => (modelListeners.add(f), () => modelListeners.delete(f)),
-    () => modelStore.get(tool) ?? EMPTY,
-  );
-  useEffect(() => {
-    if (wanted && !modelStore.get(tool)?.asked) {
-      modelStore.set(tool, { asked: true });
-      modelListeners.forEach((f) => f());
-      send({ type: "models", tool });
-    }
-  }, [wanted, tool]);
-  return entry;
-}
-const EMPTY: ModelEntry = {};
-
-
-// ---- flags from the extension that small controls need (e.g. whether Claude auto-compacts) ----
-
-let flags = { autoCompact: true };
-const flagListeners = new Set<() => void>();
-export function setFlags(next: Partial<typeof flags>): void {
-  const merged = { ...flags, ...next };
-  if (merged.autoCompact === flags.autoCompact) return;
-  flags = merged;
-  flagListeners.forEach((f) => f());
-}
-export function useFlags(): typeof flags {
-  return useSyncExternalStore((f) => (flagListeners.add(f), () => flagListeners.delete(f)), () => flags);
-}
 
 /** Where "open in its folder" puts a chat: Claude's panel for Claude, a terminal for the others. */
 export function whereItOpens(tool: string): string {

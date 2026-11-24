@@ -5,7 +5,7 @@ import "./styles.css";
 import type { BoardTab } from "../src/core/protocol";
 import type { ToWebview, ViewState } from "../src/core/protocol";
 import { AlertTriangle, Info, Link2, Pause, Play, RefreshCw, Unlink, X } from "lucide-react";
-import { onMessage, send, setFlags } from "./api";
+import { onMessage, send } from "./api";
 import { Board } from "./Board";
 import { Modals, type Modal } from "./Modals";
 import { Sidebar } from "./Sidebar";
@@ -43,10 +43,7 @@ function App() {
   useEffect(() => {
     let n = 0;
     const off = onMessage((msg) => {
-      if (msg.type === "state") {
-        setState(msg.state);
-        setFlags({ autoCompact: msg.state.autoCompact !== false });
-      }
+      if (msg.type === "state") setState(msg.state);
       if (msg.type === "tab") setTab(msg.tab);
       if (msg.type === "peek") setModal({ kind: "peek", title: msg.title, text: msg.text });
       if (msg.type === "branchInfo")

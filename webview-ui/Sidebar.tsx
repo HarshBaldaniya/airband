@@ -41,7 +41,7 @@ import {
   Zap,
 } from "./Icons";
 import type { Modal } from "./Modals";
-import { CompactButton, ModelPicker } from "./ChatControls";
+import { ModelPicker } from "./ChatControls";
 import { PlanStrip } from "./Plans";
 
 type GroupKey = "needs" | "working" | "today" | "week" | "older";
@@ -563,7 +563,6 @@ function Details({ s, links, waiting, waitingFrom, onPeek, onLink, onBranch }: R
                 </span>
                 {pct}%<span className="ofwin"> of {short(s.context.window)}</span>
               </span>
-              <CompactButton s={s} />
             </div>
           )}
         </div>
