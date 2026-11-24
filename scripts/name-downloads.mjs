@@ -24,8 +24,10 @@ const kinds = [
   { dir: join(target, "x86_64-apple-darwin/release/bundle/macos"), match: /\.app\.tar\.gz\.sig$/, to: `Airband-${version}-Intel.app.tar.gz.sig` },
   { dir: [join(target, "release/bundle/nsis"), join(target, "x86_64-pc-windows-msvc/release/bundle/nsis")], match: /-setup\.exe\.sig$/i, to: `Airband-Setup-${version}.exe.sig` },
 ];
-// Names from an earlier way of building go, so the folder holds only what is current.
-for (const f of existsSync(out) ? readdirSync(out) : []) if (!kinds.some((k) => k.to === f)) rmSync(join(out, f));
+// Names from an earlier way of building go, so the folder holds only what is current (and the
+// engine's signature, which scripts/sign-engine.mjs writes here).
+const keep = (f) => kinds.some((k) => k.to === f) || /^airband-engine-.+\.tgz\.sig$/.test(f);
+for (const f of existsSync(out) ? readdirSync(out) : []) if (!keep(f)) rmSync(join(out, f));
 let any = false;
 for (const k of kinds) {
   const dirs = [k.dir].flat().filter((d) => existsSync(d));

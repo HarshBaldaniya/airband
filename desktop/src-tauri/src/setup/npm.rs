@@ -1,7 +1,9 @@
 //! Airband's engine, the `airband` package on npm.
 use super::download::{download, fetch_text, sha512_b64, untar, Progress, Step};
+use super::signature;
 use crate::engine;
 use crate::error::Result;
+use crate::logging::log;
 use crate::paths::engine_dir;
 
 /// Where npm says what its newest `airband` is.
@@ -51,7 +53,9 @@ pub fn engine_from_npm(progress: Progress) -> Result<String> {
     install(&latest()?, progress)
 }
 
-/// Downloads `release`, checks it against npm's fingerprint, and puts it in place.
+/// Downloads `release`, checks it against npm's fingerprint and against its signature on the
+/// version's GitHub release (signature.rs), and puts it in place. Both the setup tour and the
+/// background engine update come through here.
 pub fn install(release: &NpmRelease, progress: Progress) -> Result<String> {
     let dir = engine_dir();
     std::fs::create_dir_all(&dir)?;
@@ -60,6 +64,11 @@ pub fn install(release: &NpmRelease, progress: Progress) -> Result<String> {
     if sha512_b64(&archive)? != release.integrity {
         let _ = std::fs::remove_file(&archive);
         return Err("the download didn't match npm's fingerprint, so it was thrown away. Try again.".into());
+    }
+    if let Err(e) = signature::check(&std::fs::read(&archive)?, &release.version) {
+        let _ = std::fs::remove_file(&archive);
+        log(&format!("engine {}: not installed, its signature didn't check out: {e}", release.version));
+        return Err("the engine couldn't be verified, so it wasn't installed. Try again later.".into());
     }
     // Unpacked beside the one in use, then swapped in, so a running Station never reads a half.
     let next = dir.join("next");

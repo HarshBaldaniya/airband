@@ -38,7 +38,7 @@ const handled = new Set(
 
 // 2. What build.rs declares.
 const buildRs = read(join(app, "build.rs"));
-const list = /\.commands\(&\[([^\]]*)\]/.exec(buildRs);
+const list = /const COMMANDS: &\[&str\] = &\[([^\]]*)\]/.exec(buildRs) ?? /\.commands\(&\[([^\]]*)\]/.exec(buildRs);
 if (!list) problems.push("no AppManifest::commands(&[...]) list found in build.rs");
 const declared = new Set(all(list?.[1] ?? "", /"([a-z0-9_]+)"/g));
 same("commands", handled, declared, "generate_handler!", "build.rs");

@@ -6,6 +6,7 @@ mod download;
 mod node;
 mod npm;
 mod scan;
+mod signature;
 
 use crate::engine;
 use crate::error::Result;

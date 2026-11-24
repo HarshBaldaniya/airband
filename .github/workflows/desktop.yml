@@ -81,10 +81,42 @@ jobs:
           fi
           gh release upload "$TAG" desktop/release/* --clobber
 
-  # Once every computer's files are on the release: latest.json, which installed apps read to
-  # find a newer version. "releases/latest" always points at the newest release's copy.
+  # The engine's signature: installed apps take an engine from npm only when the release of its
+  # version has airband-engine-<version>.tgz.sig, made with the updater's key from the tarball npm
+  # serves (scripts/sign-engine.mjs). The version must be on npm before the tag is pushed.
+  engine:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: desktop
+      - name: Sign the engine npm serves for this version
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAG: ${{ github.ref_name }}
+        run: node scripts/sign-engine.mjs "${TAG#v}"
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            v="${TAG#v}"
+            awk -v h="## $v" '$0==h{on=1;next} /^## /{on=0} on' CHANGELOG.md > notes.md
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md || true
+          fi
+          gh release upload "$TAG" desktop/release/airband-engine-*.tgz.sig --clobber
+
+  # Once every computer's files and the engine's signature are on the release: latest.json, which
+  # installed apps read to find a newer version. "releases/latest" always points at the newest
+  # release's copy, so an app is offered a version only once that version's engine can be checked.
   updater:
-    needs: build
+    needs: [build, engine]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
