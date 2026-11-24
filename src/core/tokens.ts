@@ -2,7 +2,7 @@
 // writing), the biggest single reads, files read again and again, and what would have saved tokens.
 // Read from the chat's own file, a slice at a time; nothing is sent anywhere.
 import * as fs from "node:fs";
-import type { RecordTool } from "./record";
+import type { AgentId } from "./agents";
 
 export type Kind = "finding" | "doing" | "other";
 
@@ -79,7 +79,7 @@ function eachLine(file: string, fn: (line: string) => void, maxBytes = 512 * 102
   }
 }
 
-export function tokenReport(tool: RecordTool, file: string): TokenReport {
+export function tokenReport(tool: AgentId, file: string): TokenReport {
   const r: TokenReport = {
     input: 0,
     output: 0,

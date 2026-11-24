@@ -9,8 +9,8 @@ import * as path from "node:path";
 import { airbandFile, guardRealHome, writeFileAtomic } from "./paths";
 import { claudeSettingsPath } from "./hooks";
 import { builtinCommands, renderCommand, type LibraryCommand } from "../library/index";
+import type { AgentId } from "./agents";
 
-export type AgentId = "claude" | "codex" | "gemini";
 
 export interface AgentState {
   id: AgentId;

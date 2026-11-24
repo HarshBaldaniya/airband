@@ -19,7 +19,7 @@ import { claudeAppChats, claudeAppHost, claudeAppLink, codexAppLink } from "../c
 import { addOpenRequest, windowFor } from "../core/folders";
 import { findCommand } from "../core/hooks";
 import { claudeHome, safeId } from "../core/paths";
-import { toolName } from "../core/record";
+import { toolOf } from "../core/agents";
 import type { LiveChat } from "./chats";
 
 const CANT_RESUME = "That chat's id isn't one Airband types into a terminal. Open it in its own app.";
@@ -265,7 +265,7 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" |
   const showIn = (app: string, folder: string, withLink = true) => {
     // The folder's window first; then Claude Code's own link shows this very chat in it. One shell,
     // so the link waits for the window; the values go in as arguments, never as part of the command.
-    addOpenRequest({ id: chat.id, tool: toolName(chat.agent), cwd: chat.cwd!, at: now, title: chat.title, app: appName(app) });
+    addOpenRequest({ id: chat.id, tool: toolOf(chat.agent), cwd: chat.cwd!, at: now, title: chat.title, app: appName(app) });
     const link = withLink && chat.agent === "claude" ? claudeChatLink(app, chat.id) : undefined;
     return link ? run("sh", ["-c", 'open -a "$1" "$2" && sleep 0.4 && open "$3"', "airband-open", app, folder, link]) : run("open", ["-a", app, folder]);
   };
@@ -302,7 +302,7 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" |
       const win = windowFor(chat.cwd, now);
       const cli = win && !/cursor|windsurf/i.test(win.app ?? "") ? findCommand("code") : undefined;
       if (cli && win) {
-        addOpenRequest({ id: chat.id, tool: toolName(chat.agent), cwd: chat.cwd, at: now, title: chat.title, ...(win.app ? { app: win.app } : {}) });
+        addOpenRequest({ id: chat.id, tool: toolOf(chat.agent), cwd: chat.cwd, at: now, title: chat.title, ...(win.app ? { app: win.app } : {}) });
         if (run(cli, [win.root])) return `Showing it in ${win.app ?? "VS Code"}.`;
       }
     }

@@ -12,7 +12,7 @@ import { backUp, restore } from "../core/backup";
 import { renderTokenReport, tokenReport } from "../core/tokens";
 import { allCommands, suggest } from "../library/index";
 import { agentSummary, doctor, installedVersion, latestVersion, needsSetup, newer, NPM_PACKAGE, remove, setup, updateChecksOff, VERSION, type AgentSummary } from "../core/setup";
-import type { AgentId } from "../core/toolkit";
+import { isAgentId } from "../core/agents";
 import { aboutInfo, bugUrl, CHANGELOG, DOCS, openUrl, REPO } from "./about";
 import { closest, commandInfo, completion, renderCommandHelp, renderHelp, SHELLS, type Shell } from "./help";
 import { globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, pmCommand, startedBy, type OurCommand, type PackageManager } from "./package-managers";
@@ -441,7 +441,7 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   async function runSetup(rest: string[], all: string[]): Promise<number> {
-    const agents = option(rest, "--agents")?.split(",").map((a) => a.trim().toLowerCase()).filter((a): a is AgentId => a === "claude" || a === "codex" || a === "gemini");
+    const agents = option(rest, "--agents")?.split(",").map((a) => a.trim().toLowerCase()).filter(isAgentId);
     if (!all.includes("--json")) out(`\n  ${paint.bold(`Airband ${VERSION}`)}  ${paint.dim("setting up your agents")}`);
     // The version that was set up before this one, to say what changed once it's done.
     const before = installedVersion();

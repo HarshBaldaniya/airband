@@ -1,4 +1,5 @@
 // Shapes shared by the extension, the webviews, the hook and the MCP server.
+import type { AgentId } from "./agents";
 
 export type Tool = "Claude" | "Codex" | "Gemini";
 
@@ -153,7 +154,7 @@ export interface HookStatus {
   cwd?: string;
   message?: string;
   /** The agent and the chat's own file, so Roger can list a new chat before its record exists. */
-  tool?: "claude" | "codex" | "gemini";
+  tool?: AgentId;
   file?: string;
   /** The person's latest ask, while the chat works on it (a new chat's title until then). */
   ask?: string;

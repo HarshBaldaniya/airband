@@ -12,7 +12,8 @@ import { readHead } from "../core/record";
 import { appendInbox } from "../core/store";
 import type { Status } from "../core/types";
 import { VERSION } from "../core/setup";
-import { AGENT_NAME, forgetReads, liveChats, titleOf, type Agent, type LiveChat } from "./chats";
+import { AGENTS, type AgentId } from "../core/agents";
+import { forgetReads, liveChats, titleOf, type LiveChat } from "./chats";
 import { CatchUp } from "./catchup";
 import { ChatWatch } from "./watch";
 import { DECISION_MS, NONCE_HEADER, PROOF_HEADER, readStationInfo, stationFile, stationProof, type StationInfo } from "./client";
@@ -27,7 +28,7 @@ const DEFAULT_PORT = 47821;
 
 export interface PendingView {
   id: string;
-  agent: Agent;
+  agent: AgentId;
   agentName: string;
   chatId?: string;
   chatTitle: string;
@@ -51,7 +52,7 @@ export interface FinishedView {
   chatId: string;
   title: string;
   project: string;
-  agent: Agent;
+  agent: AgentId;
   agentName: string;
   did?: string;
   open?: string;
@@ -283,7 +284,7 @@ export class Station extends EventEmitter {
       // done, and only just stopped, it finished now too.
       const justNew = was === undefined && now - c.since < JUST_FINISHED_MS;
       if (!first && c.status === "done" && (was === "working" || was === "waiting" || justNew)) {
-        this.finished.set(c.id, { chatId: c.id, title: c.title, project: c.project, agent: c.agent, agentName: AGENT_NAME[c.agent], ...(c.lastDid ? { did: c.lastDid } : {}), ...(c.open ? { open: c.open } : {}), ...(c.lastBrief ? { brief: c.lastBrief } : {}), ...(c.yours ? { yours: true } : {}), at: now });
+        this.finished.set(c.id, { chatId: c.id, title: c.title, project: c.project, agent: c.agent, agentName: AGENTS[c.agent].name, ...(c.lastDid ? { did: c.lastDid } : {}), ...(c.open ? { open: c.open } : {}), ...(c.lastBrief ? { brief: c.lastBrief } : {}), ...(c.yours ? { yours: true } : {}), at: now });
         this.emit("finished", this.finished.get(c.id));
       }
       if (c.status === "working" || c.status === "waiting") this.finished.delete(c.id);
@@ -350,9 +351,9 @@ export class Station extends EventEmitter {
       const view: Waiting = {
         id,
         agent,
-        agentName: AGENT_NAME[agent],
+        agentName: AGENTS[agent].name,
         ...(sid ? { chatId: sid } : {}),
-        chatTitle: chat?.title ?? (head ? titleOf(head) : cwd ? path.basename(cwd) : AGENT_NAME[agent]),
+        chatTitle: chat?.title ?? (head ? titleOf(head) : cwd ? path.basename(cwd) : AGENTS[agent].name),
         project: cwd ? path.basename(cwd) : "no folder",
         ...(cwd ? { cwd } : {}),
         ...(b.tool_name ? { toolName: b.tool_name } : {}),

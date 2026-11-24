@@ -8,9 +8,10 @@ import { ClaudeAdapter } from "../adapters/claude";
 import { CodexAdapter } from "../adapters/codex";
 import { GeminiAdapter } from "../adapters/gemini";
 import type { Adapter } from "../adapters/adapter";
-import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, readHead, recordBehind, setRecordTitle, toolOf } from "../core/record";
+import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, readHead, recordBehind, setRecordTitle } from "../core/record";
 import { readHookStatus } from "../core/status";
 import type { ChatSession } from "../core/types";
+import { agentOf } from "../core/agents";
 
 /** Chats active within this long are kept caught up. */
 const CATCH_UP_WINDOW_MS = 24 * 3600e3;
@@ -24,7 +25,7 @@ export function needsCatchUp(sessions: ChatSession[], now = Date.now(), windowMs
   return sessions
     .filter((s) => {
       if (!s.file || now - s.lastModified > windowMs) return false;
-      const behind = recordBehind(s.id, toolOf(s.tool), s.file);
+      const behind = recordBehind(s.id, agentOf(s.tool), s.file);
       if (behind <= 0) return false;
       // A chat replying now records its own ask as the reply ends; a quiet one, a big one, or a
       // record far behind is ours.
@@ -54,7 +55,7 @@ export class CatchUp {
         }
       }
       for (const s of needsCatchUp(sessions, now)) {
-        await catchUpRecord(s.id, toolOf(s.tool), s.file!, { cwd: s.cwd, title: s.title });
+        await catchUpRecord(s.id, agentOf(s.tool), s.file!, { cwd: s.cwd, title: s.title });
         setRecordTitle(s.id, s.title, s.cwd);
         done++;
       }

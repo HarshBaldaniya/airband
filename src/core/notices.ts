@@ -10,12 +10,13 @@ import { listHeads, type RecordHead } from "./record";
 import { readConnections } from "./store";
 import type { InboxItem } from "./types";
 import { readConfig, sameFolder } from "./updates";
+import { agentName } from "./agents";
 
 /** How far back "other chats worked here" looks. */
 const RECENT_MS = 12 * 3600e3;
 
-const AGENT: Record<string, string> = { claude: "Claude Code", codex: "Codex", gemini: "Gemini CLI", Claude: "Claude Code", Codex: "Codex", Gemini: "Gemini CLI" };
-const agentName = (tool: string | undefined) => AGENT[tool ?? ""] ?? tool ?? "an agent";
+/** The agent as people know it; an unknown one as it was given. */
+const agentLabel = (tool: string | undefined) => agentName(tool) ?? tool ?? "an agent";
 
 /** A chat's name as people see it: its title, else what it set out to do, short. */
 function chatName(title: string | undefined, fallback?: string): string {
@@ -56,7 +57,7 @@ export function startNotice(o: { sessionId?: string; cwd?: string; now?: number 
   const linked = id ? readConnections().filter((c) => !c.paused && (c.from.id === id || c.to.id === id)) : [];
   const others = linked.map((c) => (c.from.id === id ? c.to : c.from));
   const seen = new Set<string>();
-  const peers = others.filter((p) => !seen.has(p.id) && seen.add(p.id)).map((p) => `${chatName(p.title)} (${agentName(p.tool)})`);
+  const peers = others.filter((p) => !seen.has(p.id) && seen.add(p.id)).map((p) => `${chatName(p.title)} (${agentLabel(p.tool)})`);
   parts.push(peers.length ? `sharing with ${list(peers)}` : "other chats can catch up on this one");
   const lines = [parts.join(" · ")];
 
@@ -66,7 +67,7 @@ export function startNotice(o: { sessionId?: string; cwd?: string; now?: number 
       .filter((h: RecordHead) => h.id !== id && !seen.has(h.id) && h.n > 0 && h.cwd && sameFolder(h.cwd, o.cwd!) && now - h.updatedAt < RECENT_MS)
       .sort((a, b) => b.updatedAt - a.updatedAt);
     if (recent.length) {
-      const names = recent.map((h) => `${chatName(h.title, h.goal)} (${agentName(h.tool)})`);
+      const names = recent.map((h) => `${chatName(h.title, h.goal)} (${agentLabel(h.tool)})`);
       const one = recent.length === 1;
       lines.push(`  ${one ? "Another chat" : `${recent.length} other chats`} worked here in the last 12 hours: ${list(names)}. Say “catch up” to hear what ${one ? "it" : "they"} did.`);
     }
@@ -80,7 +81,7 @@ export function deliveryNotice(items: InboxItem[]): string | undefined {
   const work = items.filter((i) => i.kind !== "notice");
   const changes = items.length - work.length;
   const seen = new Set<string>();
-  const from = work.filter((i) => !seen.has(i.from.id) && seen.add(i.from.id)).map((i) => `${chatName(i.from.title)} (${agentName(i.from.tool)})`);
+  const from = work.filter((i) => !seen.has(i.from.id) && seen.add(i.from.id)).map((i) => `${chatName(i.from.title)} (${agentLabel(i.from.tool)})`);
   if (!from.length) return `↪ Airband passed on ${changes === 1 ? "a channel change" : `${changes} channel changes`}`;
   return `↪ Airband added what ${list(from)} did to this message`;
 }

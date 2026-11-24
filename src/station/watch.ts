@@ -9,7 +9,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { claudeProjectsDir, codexSessionsDir, safeId, statusDir, writeFileAtomic } from "../core/paths";
-import { catchUpRecord, readHead, type RecordTool } from "../core/record";
+import type { AgentId } from "../core/agents";
+import { catchUpRecord, readHead } from "../core/record";
 import { readHookStatus } from "../core/status";
 import type { HookStatus, Status } from "../core/types";
 
@@ -23,7 +24,7 @@ const NEW_MS = 10 * 60_000;
 const FORGET_MS = 30 * 60_000;
 
 interface Seen {
-  tool: RecordTool;
+  tool: AgentId;
   id: string;
   /** Bytes looked at so far. */
   size: number;
@@ -34,7 +35,7 @@ interface Seen {
 }
 
 /** The chat a changed file belongs to, or undefined for anything else in those folders. */
-export function chatOfFile(file: string, claudeDir = claudeProjectsDir(), codexDir = codexSessionsDir()): { tool: RecordTool; id: string } | undefined {
+export function chatOfFile(file: string, claudeDir = claudeProjectsDir(), codexDir = codexSessionsDir()): { tool: AgentId; id: string } | undefined {
   if (!file.endsWith(".jsonl")) return undefined;
   const inside = (dir: string) => {
     const rel = path.relative(dir, file);
@@ -52,7 +53,7 @@ export function chatOfFile(file: string, claudeDir = claudeProjectsDir(), codexD
 }
 
 /** What the newly written part of a chat file says: a reply was written, the turn ended, its folder. */
-export function readWritten(tool: RecordTool, text: string): { replied: boolean; ended: boolean; cwd?: string } {
+export function readWritten(tool: AgentId, text: string): { replied: boolean; ended: boolean; cwd?: string } {
   let replied = false;
   let ended = false;
   let cwd: string | undefined;

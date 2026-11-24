@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { handle, type HookTool } from "../src/hook/airband-hook";
+import { handle } from "../src/hook/airband-hook";
+import { AGENT_IDS, type AgentId } from "../src/core/agents";
 import { addConnection, readConnections, readInbox, setCursor, setLevel } from "../src/core/store";
 import { endOf } from "../src/hook/airband-hook";
 
@@ -16,14 +17,14 @@ const j = (o: unknown) => JSON.stringify(o) + "\n";
 const day = new Date().toISOString();
 const NAME = { claude: "Claude", codex: "Codex", gemini: "Gemini" } as const;
 /** Each agent's names for "a message arrived" and "a reply ended". */
-const EVENTS: Record<HookTool, { ask: string; stop: string }> = {
+const EVENTS: Record<AgentId, { ask: string; stop: string }> = {
   claude: { ask: "UserPromptSubmit", stop: "Stop" },
   codex: { ask: "UserPromptSubmit", stop: "Stop" },
   gemini: { ask: "BeforeAgent", stop: "AfterAgent" },
 };
 
 /** A chat file in the agent's own format, with what was said in it. */
-function chatFile(tool: HookTool, id: string, root: string) {
+function chatFile(tool: AgentId, id: string, root: string) {
   let file: string;
   let n = 0;
   if (tool === "gemini") {
@@ -54,7 +55,7 @@ function chatFile(tool: HookTool, id: string, root: string) {
   return { file, say };
 }
 
-const TOOLS: HookTool[] = ["claude", "codex", "gemini"];
+const TOOLS = AGENT_IDS;
 const LEVELS = ["ping", "brief", "full"] as const;
 
 for (const from of TOOLS)

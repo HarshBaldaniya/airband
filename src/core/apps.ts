@@ -6,6 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { claudeHome } from "./paths";
+import type { AgentId } from "./agents";
 
 export type ChatApp = "claude-app" | "codex-app" | "vscode" | "terminal";
 
@@ -47,7 +48,7 @@ const cache = new Map<string, { size: number; app: ChatApp | undefined }>();
 
 /** Where a chat ran last: for Claude Code, the newest line that says (a chat can move from VS Code
  *  to the Claude app and back); for Codex, the program that started it. Read once per file size. */
-export function chatApp(tool: "claude" | "codex" | "gemini", file: string | undefined): ChatApp | undefined {
+export function chatApp(tool: AgentId, file: string | undefined): ChatApp | undefined {
   if (!file || tool === "gemini") return tool === "gemini" ? "terminal" : undefined;
   let size: number;
   try {

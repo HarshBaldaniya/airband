@@ -8,8 +8,9 @@ import * as path from "node:path";
 import { airbandFile, airbandHome, guardRealHome, writeFileAtomic } from "./paths";
 import { moveOldHome } from "./migrate";
 import { connect, disconnect, findClaude, findNode, hookCommandFor, hookTargets, installedHookPath, isToolConnected, staleHookTargets } from "./hooks";
-import { agentStates, installToolkit, removeToolkit, type AgentId } from "./toolkit";
+import { agentStates, installToolkit, removeToolkit } from "./toolkit";
 import { installSkills, removeSkills, SKILLS, skillsState, type SkillAgent } from "./skills";
+import { agentOf, toolOf, type AgentId } from "./agents";
 
 export const VERSION = __AIRBAND_VERSION__;
 /** The npm package: `npx airband` sets everything up; `npm i -g airband` installs the
@@ -124,14 +125,14 @@ export async function setup(o: SetupOptions): Promise<SetupResult> {
     const skillAgents = agents.filter((a): a is SkillAgent => (a === "claude" && !viaPlugin) || a === "codex");
     if (skillAgents.length) {
       installSkills(skillAgents);
-      lines.push(`Skills: ${SKILLS.map((k) => k.name).join(", ")} for ${skillAgents.map(agentName).join(" and ")}.`);
+      lines.push(`Skills: ${SKILLS.map((k) => k.name).join(", ")} for ${skillAgents.map(toolOf).join(" and ")}.`);
     }
   }
   let codexTrust = false;
   if (o.sharing !== false) {
-    const want = new Set(agents.map(agentName));
+    const want = new Set(agents.map(toolOf));
     for (const t of hookTargets()) {
-      if (!t.present() || !want.has(agentName(t.tool.toLowerCase() as AgentId))) continue;
+      if (!t.present() || !want.has(toolOf(agentOf(t.tool)))) continue;
       const was = isToolConnected(t);
       connect(hookCommandFor(node, t.tool), t.file, t.events, t.timeout, t.timeouts);
       if (t.tool === "Codex" && !was) codexTrust = true;
@@ -160,7 +161,6 @@ export async function remove(o: { purge?: boolean; claudeCli?: string | null } =
 /** A path as people read it: ~ for the home folder. */
 const tilde = (p: string) => (p.startsWith(os.homedir()) ? `~${p.slice(os.homedir().length)}` : p);
 
-const agentName = (a: AgentId) => (a === "claude" ? "Claude" : a === "codex" ? "Codex" : "Gemini");
 
 // ---------------------------------------------------------------- doctor
 
@@ -219,7 +219,7 @@ export function doctor(latest?: string, self = "airband"): Check[] {
             : { ok: true, what: `${name}: ${s.installed} skills` },
       );
     }
-    const t = hookTargets().find((h) => h.tool === agentName(a.id));
+    const t = hookTargets().find((h) => h.tool === toolOf(a.id));
     if (t) {
       const on = isToolConnected(t);
       checks.push(
@@ -326,7 +326,7 @@ export function agentSummary(): AgentSummary[] {
     .filter((a) => a.present)
     .map((a) => {
       const viaPlugin = a.id === "claude" && plugin;
-      const t = hookTargets().find((h) => h.tool === agentName(a.id));
+      const t = hookTargets().find((h) => h.tool === toolOf(a.id));
       const skills = a.id === "gemini" || viaPlugin ? null : skillsState(a.id).installed > 0;
       return { id: a.id, name: a.name, tools: a.tools || viaPlugin, plugin: viaPlugin, skills, sharing: !!t && isToolConnected(t) };
     });

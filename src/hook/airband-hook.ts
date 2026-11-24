@@ -18,7 +18,7 @@
 // event that waits, and only while the app runs: at most 110 s, then the agent
 // asks in its own terminal.
 import * as path from "node:path";
-import type { ChatMessage, HookStatus, InboxItem, Status, Tool } from "../core/types";
+import type { ChatMessage, HookStatus, InboxItem, Status } from "../core/types";
 import { safeId, statusDir, writeFileAtomic } from "../core/paths";
 import {
   addConnection,
@@ -47,8 +47,7 @@ import { askStation } from "../station/client";
 import { readHookStatus } from "../core/status";
 import { describeRequest, permissionReply } from "../station/reply";
 import { briefFor, checkOutgoing, checkWrittenDoc, forgetGiven, holdOnce, notYetGiven, outgoingText, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
-
-export type HookTool = "claude" | "codex" | "gemini";
+import { toolOf, type AgentId } from "../core/agents";
 
 export interface HookInput {
   session_id?: string;
@@ -72,15 +71,13 @@ export interface HookInput {
 }
 
 /** Each tool's event names, as the one set Airband works with. */
-const EVENT_ALIASES: Record<HookTool, Record<string, string>> = {
+const EVENT_ALIASES: Record<AgentId, Record<string, string>> = {
   claude: { PermissionRequest: "Notification" },
   codex: { PermissionRequest: "Notification" },
   gemini: { BeforeAgent: "UserPromptSubmit", AfterAgent: "Stop", AfterTool: "PostToolUse", BeforeTool: "PreToolUse" },
 };
 
-const TOOL_NAME: Record<HookTool, Tool> = { claude: "Claude", codex: "Codex", gemini: "Gemini" };
-
-export function normalise(input: HookInput, tool: HookTool): HookInput {
+export function normalise(input: HookInput, tool: AgentId): HookInput {
   const name = input.hook_event_name ?? "";
   // Gemini CLI hands over the reply that just ended as prompt_response: one name for it everywhere.
   const reply = input.last_assistant_message ?? input.prompt_response;
@@ -109,7 +106,7 @@ export function statusFor(input: HookInput): Status | undefined {
 }
 
 /** What a chat's status keeps from one event to the next: its agent, its file and the ask it works on. */
-function carried(id: string, input: HookInput, tool: HookTool | undefined, status: Status): Pick<HookStatus, "tool" | "file" | "ask"> {
+function carried(id: string, input: HookInput, tool: AgentId | undefined, status: Status): Pick<HookStatus, "tool" | "file" | "ask"> {
   const was = readHookStatus(id);
   const said = input.prompt ? cleanText(input.prompt).replace(/\s+/g, " ").trim() : "";
   const ask = status === "idle" ? undefined : said ? said.slice(0, 200) : was?.ask;
@@ -119,7 +116,7 @@ function carried(id: string, input: HookInput, tool: HookTool | undefined, statu
 }
 
 /** The chat's Stop was answered with a "block": it carries on, so it counts as working. */
-function continued(input: HookInput, now: number, tool: HookTool): void {
+function continued(input: HookInput, now: number, tool: AgentId): void {
   const id = input.session_id;
   if (!id || !safeId(id)) return;
   try {
@@ -134,7 +131,7 @@ function continued(input: HookInput, now: number, tool: HookTool): void {
 export const CONTINUED = "Continued";
 export const STARTING = "Starting";
 
-export function record(input: HookInput, now = Date.now(), tool?: HookTool): void {
+export function record(input: HookInput, now = Date.now(), tool?: AgentId): void {
   const id = input.session_id;
   const status = statusFor(input);
   if (!id || !status || !safeId(id)) return;
@@ -153,7 +150,7 @@ export function record(input: HookInput, now = Date.now(), tool?: HookTool): voi
  * Codex append JSON lines (the cursor is a byte offset); Gemini CLI's file also
  * edits and rewinds earlier messages, so it is read whole (the cursor is a message count).
  */
-export function readSince(tool: HookTool, file: string, cursor: number, seen?: string[]): { messages: ChatMessage[]; files: string[]; next: number; seen?: string[] } {
+export function readSince(tool: AgentId, file: string, cursor: number, seen?: string[]): { messages: ChatMessage[]; files: string[]; next: number; seen?: string[] } {
   if (tool === "gemini") {
     const chat = loadGeminiChat(file);
     if (!chat) return { messages: [], files: [], next: cursor, ...(seen ? { seen } : {}) };
@@ -168,13 +165,13 @@ export function readSince(tool: HookTool, file: string, cursor: number, seen?: s
 const GEMINI_HOOK_MAX = 32 * 1024 * 1024;
 
 /** Where a chat's file ends now, in its tool's cursor units. */
-export function endOf(tool: HookTool, file: string): number {
+export function endOf(tool: AgentId, file: string): number {
   if (tool !== "gemini") return fileSize(file);
   return loadGeminiChat(file)?.messages?.length ?? 0;
 }
 
 /** Moves a chat's bookmark to the end of its file: nothing said so far is sent on. */
-function markRead(id: string, tool: HookTool, file: string): void {
+function markRead(id: string, tool: AgentId, file: string): void {
   if (tool !== "gemini") return setCursor(id, fileSize(file));
   const all = loadGeminiChat(file)?.messages ?? [];
   setCursor(id, all.length, geminiSeen(all, all.length));
@@ -184,7 +181,7 @@ function markRead(id: string, tool: HookTool, file: string): void {
  * After a reply: what this chat did since last time goes to every chat it is linked to, at each
  * link's level: a line per ask (the default), a short summary, or the words themselves.
  */
-export function sendUpdates(input: HookInput, now = Date.now(), tool: HookTool = "claude"): number {
+export function sendUpdates(input: HookInput, now = Date.now(), tool: AgentId = "claude"): number {
   const id = input.session_id;
   const file = input.transcript_path;
   if (!id || !file) return 0;
@@ -244,7 +241,7 @@ export function sendUpdates(input: HookInput, now = Date.now(), tool: HookTool =
  * Keeps this chat's record (one short line per ask) current. A chat too big to read at a reply's
  * end is left to the extension, which catches it up in the background.
  */
-export function keepRecord(input: HookInput, tool: HookTool = "claude"): void {
+export function keepRecord(input: HookInput, tool: AgentId = "claude"): void {
   const id = input.session_id;
   const file = input.transcript_path;
   if (!id || !file) return;
@@ -287,7 +284,7 @@ export function withLatestReply(id: string, messages: ChatMessage[], input: Hook
 }
 
 /** A new chat Airband opened for a task: connect it and give it the old chat's context. */
-export function bindBranch(input: HookInput, now = Date.now(), tool: HookTool = "claude"): void {
+export function bindBranch(input: HookInput, now = Date.now(), tool: AgentId = "claude"): void {
   const id = input.session_id;
   if (!id || !input.prompt) return;
   const p = matchPending(input.prompt, input.cwd, now);
@@ -295,7 +292,7 @@ export function bindBranch(input: HookInput, now = Date.now(), tool: HookTool = 
   removePending(p.id);
   if (p.context) appendInbox(id, { from: p.from, at: now, kind: "context", text: p.context });
   // Airband set the old chat's cursor when it opened the branch, so its updates start from then.
-  if (p.keepConnected) addConnection(p.from, { id, tool: TOOL_NAME[tool], title: p.title }, now);
+  if (p.keepConnected) addConnection(p.from, { id, tool: toolOf(tool), title: p.title }, now);
 }
 
 /** Everything waiting for this chat, as context for the message it just got, and what it came from. */
@@ -324,14 +321,14 @@ export function personWaiting(id: string | undefined): boolean {
 
 /** The hook's answer in the shape the tool expects: context for the model, and a line for the person
  *  (systemMessage, which the model never sees). Codex can't show a line, so it gets none. */
-function out(tool: HookTool, event: "UserPromptSubmit" | "SessionStart", context: string | undefined, notice: string | undefined): string | undefined {
+function out(tool: AgentId, event: "UserPromptSubmit" | "SessionStart", context: string | undefined, notice: string | undefined): string | undefined {
   const o: Record<string, unknown> = {};
   if (context) o.hookSpecificOutput = { hookEventName: tool === "gemini" && event === "UserPromptSubmit" ? "BeforeAgent" : event, additionalContext: context };
   if (notice && tool !== "codex") o.systemMessage = notice;
   return Object.keys(o).length ? JSON.stringify(o) : undefined;
 }
 
-export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claude"): string | undefined {
+export function handle(raw: HookInput, now = Date.now(), tool: AgentId = "claude"): string | undefined {
   // The app's own questions to Claude Code (what its companion looks up) are not chats of yours.
   if (process.env.AIRBAND_COMPANION) return undefined;
   const input = normalise(raw, tool);
@@ -446,7 +443,7 @@ export function writingRules(input: HookInput): { kinds: WritingKind[]; text: st
  * After an agent writes or edits a doc file (Claude Code, Gemini CLI): what in the new text breaks
  * the docs rules, for the agent to fix, and a line for the person. Nothing when it reads clean.
  */
-export function docCheck(input: HookInput, tool: HookTool): string | undefined {
+export function docCheck(input: HookInput, tool: AgentId): string | undefined {
   if (tool === "codex") return undefined;
   try {
     const doc = writtenDoc(input.tool_name, input.tool_input);
@@ -474,7 +471,7 @@ export function docCheck(input: HookInput, tool: HookTool): string | undefined {
  * the rules, the send is held once with what to fix. The same words sent again go through, so a
  * wording the person asked for is never stuck.
  */
-export function sendCheck(input: HookInput, tool: HookTool): string | undefined {
+export function sendCheck(input: HookInput, tool: AgentId): string | undefined {
   if (tool === "codex") return undefined;
   try {
     const o = outgoingText(input.tool_name, input.tool_input, input.cwd);
@@ -503,7 +500,7 @@ export function sendCheck(input: HookInput, tool: HookTool): string | undefined 
  * A permission request: the chat shows as needing you, and the request goes to the Airband app.
  * The reply is the person's click in the shape the agent reads, or nothing (the terminal asks).
  */
-export async function permission(raw: HookInput, tool: HookTool, now = Date.now()): Promise<string | undefined> {
+export async function permission(raw: HookInput, tool: AgentId, now = Date.now()): Promise<string | undefined> {
   try {
     handle(raw, now, tool);
   } catch {
@@ -524,7 +521,7 @@ export async function permission(raw: HookInput, tool: HookTool, now = Date.now(
 
 export function main(): void {
   const arg = (process.argv[2] ?? "claude").toLowerCase();
-  const tool: HookTool = arg === "codex" || arg === "gemini" ? arg : "claude";
+  const tool: AgentId = arg === "codex" || arg === "gemini" ? arg : "claude";
   let raw = "";
   process.stdin.setEncoding("utf8");
   process.stdin.on("data", (chunk) => (raw += chunk));

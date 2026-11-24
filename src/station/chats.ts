@@ -2,18 +2,17 @@
 // now: read from Airband's own records (the flightlog) and the status each chat's hook writes.
 import * as fs from "node:fs";
 import { airbandHome, safeId, statusDir } from "../core/paths";
-import { listHeads, readAsks, setRecordTitle, type RecordHead, type RecordTool } from "../core/record";
+import { AGENTS, type AgentId } from "../core/agents";
+import { listHeads, readAsks, setRecordTitle, type RecordHead } from "../core/record";
 import { chatApp, type ChatApp } from "../core/apps";
 import { agentSummary } from "../core/setup";
 import { readHookStatus, resolveStatus } from "../core/status";
 import type { HookStatus, Status } from "../core/types";
 
-export type Agent = RecordTool;
-export const AGENT_NAME: Record<Agent, string> = { claude: "Claude Code", codex: "Codex", gemini: "Gemini CLI" };
 
 export interface LiveChat {
   id: string;
-  agent: Agent;
+  agent: AgentId;
   title: string;
   project: string;
   cwd?: string;
@@ -169,7 +168,7 @@ export function projectOf(cwd: string | undefined): string {
 /** Whether a chat's file holds a reply made after `at`: its newest lines, read again when it grows. */
 const REPLY_TAIL = 128 * 1024;
 const replies = new Map<string, { size: number; at: number; after: boolean }>();
-function repliedAfter(tool: RecordTool, file: string | undefined, at: number): boolean {
+function repliedAfter(tool: AgentId, file: string | undefined, at: number): boolean {
   if (!file || tool === "gemini") return false;
   let size: number;
   try {
@@ -277,7 +276,7 @@ function startingChats(listed: Set<string>, now: number, windowMs: number): Live
     const id = name.slice(0, -5);
     if (listed.has(id) || !safeId(id)) continue;
     const hook = readHookStatus(id) as HookStatus | undefined;
-    if (!hook?.tool || !AGENT_NAME[hook.tool] || (hook.status !== "working" && hook.status !== "waiting")) continue;
+    if (!hook?.tool || !AGENTS[hook.tool] || (hook.status !== "working" && hook.status !== "waiting")) continue;
     if (now - hook.at > Math.min(windowMs, hook.event === "Starting" ? STARTED_MS : STARTING_MS)) continue;
     const r = resolveStatus(mtime(hook.file) ?? hook.at, hook, now);
     if (r.status !== "working" && r.status !== "waiting") continue;
@@ -316,7 +315,7 @@ export function matchChats(chats: LiveChat[], text: string): { chat: LiveChat; s
   const out: { chat: LiveChat; score: number }[] = [];
   for (const c of chats) {
     const name = new Set([...words(c.title), ...words(c.project)]);
-    const more = new Set([...words(AGENT_NAME[c.agent]), ...words(c.lastAsk ?? "")]);
+    const more = new Set([...words(AGENTS[c.agent].name), ...words(c.lastAsk ?? "")]);
     let score = terms.filter((t) => has(name, t)).length * 3 + terms.filter((t) => has(more, t)).length;
     const q = terms.join(" ");
     if (c.project.toLowerCase() === q || c.title.toLowerCase() === q) score += 10;

@@ -8,9 +8,9 @@ import { geminiUsage, loadGeminiChat } from "../adapters/gemini";
 import { listHeads, readAsks, type RecordAsk, type RecordHead } from "./record";
 import { addUsage, readLinesFrom } from "./transcript";
 import { NO_USAGE, type ChatSession, type Usage } from "./types";
+import { AGENTS } from "./agents";
 
 const DAY = 24 * 3600e3;
-const AGENT = { claude: "Claude Code", codex: "Codex", gemini: "Gemini CLI" } as const;
 
 /** Midnight (local time) `days - 1` days ago: 1 is today, 2 is yesterday and today. */
 export function sinceDays(days: number, now = Date.now()): number {
@@ -57,7 +57,7 @@ export function workSince(since: number, root?: string): WorkChat[] {
     if (!asks.length) continue;
     const refs = [...new Set(asks.flatMap((a) => a.refs))];
     const last = asks[asks.length - 1];
-    out.push({ id: h.id, agent: AGENT[h.tool], title: nameOf(h), project: project(h), asks, refs, ...(last.open ? { open: last.open } : {}) });
+    out.push({ id: h.id, agent: AGENTS[h.tool].name, title: nameOf(h), project: project(h), asks, refs, ...(last.open ? { open: last.open } : {}) });
   }
   return out.sort((a, b) => a.project.localeCompare(b.project) || b.asks[b.asks.length - 1].at - a.asks[a.asks.length - 1].at);
 }
@@ -112,7 +112,7 @@ export function spendSince(since: number, root?: string): SpendChat[] {
       continue;
     }
     if (!totalOf(usage)) continue;
-    out.push({ id: h.id, agent: AGENT[h.tool], title: nameOf(h), project: project(h), usage, refs: shares(readAsks(h.id).filter((a) => a.at >= since)) });
+    out.push({ id: h.id, agent: AGENTS[h.tool].name, title: nameOf(h), project: project(h), usage, refs: shares(readAsks(h.id).filter((a) => a.at >= since)) });
   }
   claude.saveCache();
   return out.sort((a, b) => totalOf(b.usage) - totalOf(a.usage));

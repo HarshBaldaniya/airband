@@ -21,6 +21,7 @@ import spend from "../../skills/airband-spend/SKILL.md";
 import writeDocs from "../../skills/airband-write-docs/SKILL.md";
 import writeMessages from "../../skills/airband-write-messages/SKILL.md";
 import { guardRealHome, writeFileAtomic } from "./paths";
+import type { AgentId } from "./agents";
 
 export const SKILLS: { name: string; text: string }[] = [
   { name: "airband-find-code", text: findCode },
@@ -64,7 +65,8 @@ function retireOldSkills(agents: SkillAgent[]): number {
   return n;
 }
 
-export type SkillAgent = "claude" | "codex";
+/** The agents that read skills: Gemini CLI has none. */
+export type SkillAgent = Extract<AgentId, "claude" | "codex">;
 
 /** Where each agent reads a person's own skills. */
 export function skillsDir(agent: SkillAgent): string {

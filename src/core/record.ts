@@ -13,9 +13,9 @@ import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../adap
 import { claudeProjectsDir, codexSessionsDir, airbandFile, geminiTmpDir, readJson, safeId, writeFileAtomic } from "./paths";
 import { claudeMessages, fileSize, readLinesFrom } from "./transcript";
 import { fullPath, relativeTo } from "./updates";
-import type { ChatMessage, Tool } from "./types";
+import type { ChatMessage } from "./types";
+import { toolOf, type AgentId } from "./agents";
 
-export type RecordTool = "claude" | "codex" | "gemini";
 
 export interface RecordAsk {
   n: number;
@@ -39,7 +39,7 @@ export interface RecordAsk {
 
 export interface RecordHead {
   id: string;
-  tool: RecordTool;
+  tool: AgentId;
   title?: string;
   cwd?: string;
   /** The agent's own chat file. */
@@ -68,8 +68,6 @@ const dir = () => airbandFile("flightlogs");
 const headFile = (id: string) => path.join(dir(), `${id}.json`);
 const asksFile = (id: string) => path.join(dir(), `${id}.jsonl`);
 
-export const toolOf = (t: Tool | string): RecordTool => (/codex/i.test(t) ? "codex" : /gemini/i.test(t) ? "gemini" : "claude");
-export const toolName = (t: RecordTool): Tool => (t === "codex" ? "Codex" : t === "gemini" ? "Gemini" : "Claude");
 
 export function readHead(id: string): RecordHead | undefined {
   if (!safeId(id)) return undefined;
@@ -250,7 +248,7 @@ function timeOf(line: string): number | undefined {
  * is read on its own, so every file and ref lands on the ask it belongs to. A reply with no ask
  * before it (the end of an ask already recorded) comes back with an empty ask.
  */
-function exchangesInLines(tool: RecordTool, lines: string[], offset: number, now: number): Exchange[] {
+function exchangesInLines(tool: AgentId, lines: string[], offset: number, now: number): Exchange[] {
   const out: Exchange[] = [];
   let pos = offset;
   let cur: Exchange | undefined;
@@ -443,7 +441,7 @@ function toAsk(e: Exchange, n: number): RecordAsk {
  * gets before the agent has written it to the file.
  */
 export function readAsksFrom(
-  tool: RecordTool,
+  tool: AgentId,
   file: string,
   cursor: number,
   firstN: number,
@@ -499,7 +497,7 @@ export function readAsksFrom(
  */
 export function updateRecord(
   id: string,
-  tool: RecordTool,
+  tool: AgentId,
   file: string,
   opts: { cwd?: string; title?: string; maxBytes?: number; lastReply?: string; startMax?: number; now?: number; holdOpen?: boolean } = {},
 ): RecordAsk[] {
@@ -526,7 +524,7 @@ export function updateRecord(
 }
 
 /** How much of a chat's file the record hasn't read yet. */
-export function recordBehind(id: string, tool: RecordTool, file: string): number {
+export function recordBehind(id: string, tool: AgentId, file: string): number {
   if (tool === "gemini") return readHead(id) ? 0 : 1;
   const size = fileSize(file);
   const at = readHead(id)?.cursor ?? 0;
@@ -534,7 +532,7 @@ export function recordBehind(id: string, tool: RecordTool, file: string): number
 }
 
 /** Reads a big chat's file into its record a slice at a time, letting everything else run between slices. */
-export async function catchUpRecord(id: string, tool: RecordTool, file: string, opts: { cwd?: string; title?: string; slice?: number; quietMs?: number } = {}): Promise<void> {
+export async function catchUpRecord(id: string, tool: AgentId, file: string, opts: { cwd?: string; title?: string; slice?: number; quietMs?: number } = {}): Promise<void> {
   const slice = opts.slice ?? 8 * 1024 * 1024;
   for (let i = 0; i < 100_000 && recordBehind(id, tool, file) > 0; i++) {
     const before = readHead(id)?.cursor;
@@ -597,7 +595,7 @@ export function exchangeText(id: string, n: number, max = 20_000): string | unde
     const lines = readRange(head.file, start, end).split("\n");
     messages = (head.tool === "codex" ? codexMessages(lines) : claudeMessages(lines)).messages;
   }
-  const text = redact(messages.map((m) => `**${m.who === "you" ? "You" : toolName(head.tool)}:** ${m.text.trim()}`).join("\n\n"));
+  const text = redact(messages.map((m) => `**${m.who === "you" ? "You" : toolOf(head.tool)}:** ${m.text.trim()}`).join("\n\n"));
   return text.length > max ? `${text.slice(0, max)}\n\n… (${(text.length - max).toLocaleString("en-US")} more characters)` : text;
 }
 

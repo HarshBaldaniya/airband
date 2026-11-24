@@ -48,7 +48,8 @@ import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } fro
 import { recentRollouts } from "../adapters/codex";
 import { readTail } from "../core/transcript";
 import { CONTEXT_BUDGET, buildContext, buildUpdate, formatDelivery, oldConversationsDir, sameFolder, type ContextSize } from "../core/updates";
-import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, pruneRecords, readHead, recordBehind, readAsks, readAsksFrom, recordContext, recordPointer, renderAsks, setRecordTitle, toolOf, type LinkLevel } from "../core/record";
+import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, pruneRecords, readHead, recordBehind, readAsks, readAsksFrom, recordContext, recordPointer, renderAsks, setRecordTitle, type LinkLevel } from "../core/record";
+import { agentOf } from "../core/agents";
 import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";
 import { moveOldHome, moveOldWorkspace } from "../core/migrate";
 import { claudeAiCreditShown, connect, disconnect, findClaude, findNode, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../core/hooks";
@@ -393,7 +394,7 @@ export class Controller implements vscode.Disposable {
       const linked = new Set(readConnections().flatMap((c) => [c.from.id, c.to.id]));
       const wanted = [...this.byId.values()].filter((s) => s.file && (!s.away || linked.has(s.id)));
       for (const s of wanted) {
-        const tool = toolOf(s.tool);
+        const tool = agentOf(s.tool);
         const behind = recordBehind(s.id, tool, s.file!);
         // A chat replying now is the hook's (it records the ask as the reply ends); a quiet one
         // with no record yet, or a record far behind, is caught up here.
@@ -586,12 +587,12 @@ export class Controller implements vscode.Disposable {
       if (a.end(s) === cursor || now - s.lastModified < QUIET_MS) continue;
       // Hundreds of MB since the bookmark (sharing was off for long): skip ahead rather than read it
       // all on the extension host, which would freeze every extension. The flightlog has it.
-      if (s.file && toolOf(s.tool) !== "gemini" && a.end(s) - cursor > HOOK_STEP_MAX) {
+      if (s.file && agentOf(s.tool) !== "gemini" && a.end(s) - cursor > HOOK_STEP_MAX) {
         setCursor(id, a.end(s));
         continue;
       }
       const words = conns.some((c) => c.level === "full") || !s.file ? a.since(s, cursor) : undefined;
-      const read = s.file ? readAsksFrom(toolOf(s.tool), s.file, cursor, 1) : undefined;
+      const read = s.file ? readAsksFrom(agentOf(s.tool), s.file, cursor, 1) : undefined;
       setCursor(id, words?.next ?? read!.next);
       const root = s.cwd ?? this.root;
       for (const c of conns) {
@@ -1066,7 +1067,7 @@ export class Controller implements vscode.Disposable {
   /** A chat's record, caught up (a big chat is read a slice at a time, without holding anything up). */
   private async ensureRecord(s: ChatSession): Promise<void> {
     if (!s.file) return;
-    await catchUpRecord(s.id, toolOf(s.tool), s.file, { cwd: s.cwd, title: s.title });
+    await catchUpRecord(s.id, agentOf(s.tool), s.file, { cwd: s.cwd, title: s.title });
     setRecordTitle(s.id, s.title, s.cwd);
   }
 
