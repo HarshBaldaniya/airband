@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { main } from "../src/cli/main";
+import { HANDLERS, main } from "../src/cli/main";
 import { closest, commandInfo, COMMANDS, completion, renderCommandHelp, renderHelp, SHELLS } from "../src/cli/help";
 import { findOnPath, globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, startedBy, temporary } from "../src/cli/package-managers";
 import { bugUrl } from "../src/cli/about";
@@ -185,4 +185,8 @@ test("what's new: the releases between two versions, from the changelog built in
   assert.deepEqual(changesSince("0.0.2", "0.1.0", log).map((r) => r.version), ["0.1.0", "0.0.3"]);
   assert.equal(changesSince("0.0.2", "0.0.3", log)[0].notes, "- small");
   assert.ok(releases().some((r) => r.version === "0.0.1"), "the real changelog is built in");
+});
+
+test("every command in the help table has a handler, and every handler a line in the table", () => {
+  assert.deepEqual(COMMANDS.map((c) => c.name).sort(), Object.keys(HANDLERS).sort());
 });
