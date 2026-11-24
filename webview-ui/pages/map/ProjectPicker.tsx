@@ -1,7 +1,7 @@
 // The project on the Map: its name, and with more than one, a short list to switch.
 import { useRef, useState } from "react";
 import { Check, ChevronsUpDown, FolderGit2, FolderPlus } from "lucide-react";
-import type { CodeMapView } from "../../../src/core/protocol";
+import type { CodeMapView } from "../../../src/vscode/protocol";
 import { useDismiss } from "../../lib/useDismiss";
 import { send } from "../../lib/vscode";
 import { I } from "../../components/Icons";

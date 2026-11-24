@@ -2,7 +2,7 @@
 // write, and what is checked before anything goes out.
 import { useEffect, useState } from "react";
 import { BadgeCheck, FileText, MessageSquare, Reply, Send } from "lucide-react";
-import type { WritingView } from "../../../src/core/protocol";
+import type { WritingView } from "../../../src/vscode/protocol";
 import { onMessage, send } from "../../lib/vscode";
 import { I } from "../../components/Icons";
 

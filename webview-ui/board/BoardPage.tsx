@@ -2,7 +2,7 @@
 // and the sheet of shortcuts (? on any page).
 import { useState } from "react";
 import { Orbit, PenLine, SquareSlash } from "lucide-react";
-import type { BoardTab } from "../../src/core/protocol";
+import type { BoardTab } from "../../src/vscode/protocol";
 import { useViewState } from "../app/ViewStateContext";
 import { BarChart3, I, Keyboard, LayoutGrid, Zap } from "../components/Icons";
 import { KeySheet } from "../components/KeySheet";

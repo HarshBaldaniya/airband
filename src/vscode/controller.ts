@@ -1,8 +1,8 @@
-// The extension's centre: keeps the list of chats (from every tool) current,
-// answers the webviews, and turns their requests (connect, branch, open) into
-// connections, context and chats.
+// The extension's centre: it starts each service, owns the views (the sidebar and the board),
+// and builds the state they show on every refresh. Each request from a view goes through the
+// message router to the service that answers it.
 import * as vscode from "vscode";
-import type { BoardTab, ConnectionView, FromWebview, ToWebview, ViewState } from "../core/protocol";
+import type { BoardTab, ConnectionView, FromWebview, ToWebview, ViewState } from "./protocol";
 import { CodeMap } from "../codemap/index";
 import { BoardStore } from "../core/state";
 import { readConnections } from "../sharing/connections";
@@ -43,7 +43,7 @@ export class Controller implements vscode.Disposable {
 
   readonly chats = new ChatIndex(this);
   readonly setup = new SetupService(this);
-  readonly plansService = new PlansService(this);
+  readonly plans = new PlansService(this);
   readonly mapPage = new MapPageService(this);
   readonly opener = new ChatOpener(this);
   readonly sharing = new Sharing(this);
@@ -195,8 +195,8 @@ export class Controller implements vscode.Disposable {
     }
 
     this.chats.notifyWaiting(sessions);
-    this.plansService.follow();
-    void this.plansService.refresh();
+    this.plans.follow();
+    void this.plans.refresh();
     this.state = {
       root,
       tools: present.map((a) => a.tool),
@@ -209,8 +209,8 @@ export class Controller implements vscode.Disposable {
       hooks,
       claudeExtension,
       focus: this.focusOn,
-      plans: this.plansService.plans,
-      plansLoading: this.plansService.loading,
+      plans: this.plans.current,
+      plansLoading: this.plans.loading,
       loading: false,
       error: errors.length ? `Some chats couldn't be read (${errors.join("; ")})` : undefined,
     };

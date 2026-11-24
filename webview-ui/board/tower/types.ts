@@ -1,7 +1,7 @@
 // The Tower's nodes and lines, as React Flow holds them.
 import { createContext } from "react";
 import type { Edge, Node } from "@xyflow/react";
-import type { ConnectionView } from "../../../src/core/protocol";
+import type { ConnectionView } from "../../../src/vscode/protocol";
 import type { ChatSession } from "../../../src/core/types";
 import type { Lane } from "./layout";
 

@@ -1,13 +1,13 @@
 // Every request from the sidebar and the board, handed to the service that answers it. A request
 // that fails shows its reason as a toast in the view that sent it.
 import * as vscode from "vscode";
-import type { FromWebview } from "../core/protocol";
+import type { FromWebview } from "./protocol";
 import { setLevel } from "../sharing/connections";
 import { setClaudeAiCredit } from "../install/agent-hooks";
 import { BOARD_MESSAGES, boardMessage, type BoardMessage } from "./board-actions";
 import type { Controller } from "./controller";
 import { libraryMessage } from "./library-page";
-import { libraryView } from "./pages";
+import { libraryView } from "./view-models";
 import { setWriting, writingView } from "./settings";
 
 export async function route(app: Controller, m: FromWebview, from: vscode.Webview): Promise<void> {
@@ -53,7 +53,7 @@ export async function route(app: Controller, m: FromWebview, from: vscode.Webvie
       case "syncNow":
         return app.sharing.syncNow(m.id);
       case "plans":
-        return void app.plansService.refresh(true);
+        return void app.plans.refresh(true);
       case "codeMap":
         return void app.mapPage.send(from, m.rebuild, m.root);
       case "codeMapFolder":

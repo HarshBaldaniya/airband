@@ -1,5 +1,5 @@
 // Every page's keyboard shortcuts, in one place, for the sheet on the top bar (? on any page).
-import type { BoardTab } from "../../src/core/protocol";
+import type { BoardTab } from "../../src/vscode/protocol";
 
 type Keys = [string[], string][];
 export interface KeySection {

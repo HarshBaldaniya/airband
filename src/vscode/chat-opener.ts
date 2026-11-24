@@ -7,7 +7,7 @@ import { addOpenRequest, dropOpenRequest, openRequestWaiting, registerWindow, ta
 import type { ChatSession } from "../core/types";
 import type { Controller } from "./controller";
 import { openClaude, openInTerminal } from "./open";
-import { shortTitle } from "./pages";
+import { shortTitle } from "./view-models";
 
 /**
  * "Open in its folder": how long the other window's Airband gets to take the request once that window

@@ -1,6 +1,6 @@
 // Messages between the extension and its webviews (the sidebar and the board).
-import type { BoardArrange, BoardPosition, BoardState, ChatSession, Connection, PlanUsage, Usage } from "./types";
-import type { Tool } from "./agents";
+import type { BoardArrange, BoardPosition, BoardState, ChatSession, Connection, PlanUsage, Usage } from "../core/types";
+import type { Tool } from "../core/agents";
 
 export interface ConnectionView extends Connection {
   /** Pieces of context that reached the target. */

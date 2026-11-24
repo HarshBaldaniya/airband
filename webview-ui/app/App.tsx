@@ -1,7 +1,7 @@
 // The page the extension shows: the sidebar, or the board with its tabs. It keeps what the
 // extension last said, and the one dialog open at a time.
 import { useCallback, useEffect, useState } from "react";
-import type { BoardTab, ViewState } from "../../src/core/protocol";
+import type { BoardTab, ViewState } from "../../src/vscode/protocol";
 import { BoardPage } from "../board/BoardPage";
 import { Modals, type Modal } from "../components/Modals";
 import { TooltipLayer } from "../components/Tooltip";

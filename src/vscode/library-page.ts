@@ -3,10 +3,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import type { FromWebview, ToWebview } from "../core/protocol";
+import type { FromWebview, ToWebview } from "./protocol";
 import { allCommands, STARTER_DESCRIPTION, suggest, userLibraryDir } from "../library/index";
 import { openClaude } from "./open";
-import { libraryView } from "./pages";
+import { libraryView } from "./view-models";
 
 type LibraryMessage = Extract<FromWebview, { type: "library" | "librarySuggest" | "libraryRun" | "libraryCopy" | "libraryOpen" | "libraryNew" }>;
 

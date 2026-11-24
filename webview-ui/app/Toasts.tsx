@@ -2,7 +2,7 @@
 // Each goes by itself after a few seconds, and a new one replaces the last.
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Info, Link2, Pause, Play, RefreshCw, Unlink, X } from "lucide-react";
-import type { ToWebview } from "../../src/core/protocol";
+import type { ToWebview } from "../../src/vscode/protocol";
 import { onMessage, send } from "../lib/vscode";
 import { useSetModal } from "./ModalContext";
 

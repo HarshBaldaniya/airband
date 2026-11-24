@@ -1,5 +1,5 @@
 // How the sidebar groups chats (by what needs attention, or by folder), and who each chat shares with.
-import type { ConnectionView } from "../../src/core/protocol";
+import type { ConnectionView } from "../../src/vscode/protocol";
 import type { ChatSession } from "../../src/core/types";
 import type { Tool } from "../../src/core/agents";
 import { folderHints, folderName, folderOf } from "../lib/folders";

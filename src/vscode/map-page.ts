@@ -3,7 +3,7 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { CodeMap } from "../codemap/index";
-import { codeHits, codeMapView, codeModuleView, knownProjects } from "./pages";
+import { codeHits, codeMapView, codeModuleView, knownProjects } from "./view-models";
 import { openClaude } from "./open";
 import type { Controller } from "./controller";
 

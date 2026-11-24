@@ -4,7 +4,7 @@
 // (orange). Built by a parser on this computer, no AI.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutGrid, Maximize2, Minus, Plus, Search, X } from "lucide-react";
-import type { CodeHitView, CodeMapView } from "../../../src/core/protocol";
+import type { CodeHitView, CodeMapView } from "../../../src/vscode/protocol";
 import { useViewState } from "../../app/ViewStateContext";
 import { LAYER, useKeys } from "../../lib/useKeys";
 import { onMessage, remember, remembered, send } from "../../lib/vscode";

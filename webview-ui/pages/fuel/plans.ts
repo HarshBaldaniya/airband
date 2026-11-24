@@ -1,6 +1,6 @@
 // Plan limits, as each agent reports them. Nothing here is worked out by Airband: every number is
 // the agent's own. These only pick which to show, and say when a limit resets.
-import type { ViewState } from "../../../src/core/protocol";
+import type { ViewState } from "../../../src/vscode/protocol";
 import type { PlanUsage, PlanWindow } from "../../../src/core/types";
 import type { Tool } from "../../../src/core/agents";
 

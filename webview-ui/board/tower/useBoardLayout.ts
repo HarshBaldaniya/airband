@@ -2,7 +2,7 @@
 // follows the data; "free" is the person's own layout after a drag.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEdgesState, useNodesInitialized, useNodesState, useReactFlow, useStore, type Node } from "@xyflow/react";
-import type { ViewState } from "../../../src/core/protocol";
+import type { ViewState } from "../../../src/vscode/protocol";
 import type { BoardPosition, ChatSession } from "../../../src/core/types";
 import { send } from "../../lib/vscode";
 import { cardLinks, lineEdges } from "./edges";

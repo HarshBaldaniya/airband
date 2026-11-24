@@ -10,7 +10,7 @@ import { GeminiAdapter } from "../adapters/gemini";
 import { agentOf, type Tool } from "../core/agents";
 import { isTempFolder, pickElsewhere } from "../core/folders";
 import { airbandFile, airbandHome, claudeProjectFolder, claudeProjectsDir, sameFolder, statusDir } from "../core/paths";
-import type { ToolTotals, ViewState } from "../core/protocol";
+import type { ToolTotals, ViewState } from "./protocol";
 import { BoardStore } from "../core/state";
 import { addUsage, NO_USAGE, type ChatRef, type ChatSession, type Status } from "../core/types";
 import { HOOK_START_MAX, HOOK_STEP_MAX, readHead, setRecordTitle } from "../sessions/record/store";

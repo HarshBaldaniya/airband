@@ -20,7 +20,8 @@ const PLANS_MS = 5 * 60_000;
 const CLAUDE_ANSWER_MS = 20_000;
 
 export class PlansService {
-  plans: Partial<Record<Tool, PlanUsage>> = {};
+  /** The latest each agent reported. */
+  current: Partial<Record<Tool, PlanUsage>> = {};
   loading = false;
   private at = 0;
   private codexMtime = 0;
@@ -52,7 +53,7 @@ export class PlansService {
       }
       if (present.has("Codex")) next.Codex = this.codexPlan();
       if (present.has("Gemini")) next.Gemini = geminiPlan();
-      this.plans = next;
+      this.current = next;
     } finally {
       this.loading = false;
       this.app.refreshSoon(0);
@@ -86,7 +87,7 @@ export class PlansService {
     if (this.loading || !this.app.chats.adapters.some((a) => a.tool === "Codex" && a.present())) return;
     const newest = recentRollouts(codexSessionsDir(), 1)[0]?.mtime ?? 0;
     if (!newest || newest <= this.codexMtime) return;
-    this.plans = { ...this.plans, Codex: this.codexPlan() };
+    this.current = { ...this.current, Codex: this.codexPlan() };
   }
 
   private async claudePlan(exe: string): Promise<PlanUsage> {

@@ -2,7 +2,7 @@
 // when one grows, and a dropped card kept one unit clear of the others.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { ConnectionView } from "../src/core/protocol";
+import type { ConnectionView } from "../src/vscode/protocol";
 import type { ChatSession } from "../src/core/types";
 import { autoLayout, CARD_H, CARD_W, clearOf, LANE_HEAD, LANE_PAD, laneLayout, spreadDown, UNIT } from "../webview-ui/board/tower/layout";
 

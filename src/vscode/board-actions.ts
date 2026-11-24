@@ -1,7 +1,7 @@
 // What the Tower's cards do to the board kept with the workspace: added, moved, taken off, cleared
 // and put back, laid out, and where the view was left.
 import type * as vscode from "vscode";
-import type { FromWebview } from "../core/protocol";
+import type { FromWebview } from "./protocol";
 import type { Controller } from "./controller";
 
 export type BoardMessage = Extract<FromWebview, { type: "boardAdd" | "boardRemove" | "move" | "boardClear" | "boardRestore" | "viewport" | "boardArrange" | "scope" | "arrange" }>;

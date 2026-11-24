@@ -1,6 +1,6 @@
 // Where the Tower's cards go, in board units. Pure: no React, no React Flow, so it is tested on its
 // own (test/board-layout.test.ts).
-import type { ConnectionView } from "../../../src/core/protocol";
+import type { ConnectionView } from "../../../src/vscode/protocol";
 import type { BoardPosition, ChatSession } from "../../../src/core/types";
 import { folderName, folderOf } from "../../lib/folders";
 

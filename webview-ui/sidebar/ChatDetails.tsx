@@ -1,6 +1,6 @@
 // A chat's details under its row: folder, model and context, its channels, the updates on their
 // way, and the ways to open it.
-import type { ConnectionView } from "../../src/core/protocol";
+import type { ConnectionView } from "../../src/vscode/protocol";
 import { contextPct, tokens, whereItOpens } from "../lib/format";
 import { folderName } from "../lib/folders";
 import { send } from "../lib/vscode";

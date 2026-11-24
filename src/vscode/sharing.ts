@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 import { agentOf } from "../core/agents";
 import { CONTEXT_BUDGET } from "../core/config";
 import { sameFolder } from "../core/paths";
-import type { FromWebview } from "../core/protocol";
+import type { FromWebview } from "./protocol";
 import type { ChatDigest, ChatRef, ChatSession, Connection } from "../core/types";
 import { HOOK_STEP_MAX, readAsks } from "../sessions/record/store";
 import { readAsksFrom } from "../sessions/record/extract";
@@ -19,7 +19,7 @@ import { appendInbox, readInbox, takeInbox } from "../sharing/inbox";
 import { addPending } from "../sharing/pending";
 import type { Controller } from "./controller";
 import { openClaude } from "./open";
-import { shortTitle } from "./pages";
+import { shortTitle } from "./view-models";
 import { contextSize } from "./settings";
 
 /** A non-Claude chat quiet this long has finished its reply: its update can go out. */

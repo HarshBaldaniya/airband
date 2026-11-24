@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { CodeMap } from "../codemap/index";
 import { memberName } from "../codemap/graph";
-import type { CodeHitView, CodeMapView, CodeModuleView, LibraryView } from "../core/protocol";
+import type { CodeHitView, CodeMapView, CodeModuleView, LibraryView } from "./protocol";
 import { listHeads, readAsks } from "../sessions/record/store";
 import { agentStates } from "../install/toolkit";
 import { allCommands, PACKS, userLibraryDir } from "../library/index";

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useViewState } from "../app/ViewStateContext";
 import { LAYER, useKeys } from "../lib/useKeys";
-import type { Ask } from "../../src/core/protocol";
+import type { Ask } from "../../src/vscode/protocol";
 import type { Tool } from "../../src/core/agents";
 import { charsToTokens, tokens } from "../lib/format";
 import { send } from "../lib/vscode";

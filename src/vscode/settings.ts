@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 import { CONTEXT_BUDGET, type ContextSize } from "../core/config";
 import { readJson } from "../core/json";
 import { airbandFile, writeFileAtomic } from "../core/paths";
-import type { WritingView } from "../core/protocol";
+import type { WritingView } from "./protocol";
 import { claudeAiCreditShown } from "../install/agent-hooks";
 import { projectFile } from "../writing/settings";
 

@@ -1,6 +1,6 @@
 // The page's line to the extension: messages both ways, and the small memory VS Code keeps for a
 // webview while it is hidden (filters, folded groups, the last tab).
-import type { FromWebview, ToWebview } from "../../src/core/protocol";
+import type { FromWebview, ToWebview } from "../../src/vscode/protocol";
 
 declare function acquireVsCodeApi(): { postMessage(msg: unknown): void; getState(): any; setState(s: any): void };
 

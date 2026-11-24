@@ -1,6 +1,6 @@
 // What the Tower's lines join, and where each one leaves and enters its cards.
 import { Position, type InternalNode } from "@xyflow/react";
-import type { ConnectionView } from "../../../src/core/protocol";
+import type { ConnectionView } from "../../../src/vscode/protocol";
 import type { BoardState } from "../../../src/core/types";
 import { CARD_H, CARD_W } from "./layout";
 import type { CardLink, LineEdge } from "./types";

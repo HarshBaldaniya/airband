@@ -3,7 +3,7 @@
 // centre. Parts of one folder pull together into a soft cloud; parts that import each other pull
 // gently closer. Parts can be dragged and stay where they are put.
 import { forceCollide, forceLink, forceSimulation, forceX, forceY, type Simulation, type SimulationNodeDatum } from "d3-force";
-import type { CodeMapView } from "../../../src/core/protocol";
+import type { CodeMapView } from "../../../src/vscode/protocol";
 
 export interface Dot {
   i: number;

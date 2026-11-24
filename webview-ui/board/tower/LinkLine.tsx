@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, useInternalNode, type EdgeProps } from "@xyflow/react";
-import type { ConnectionView } from "../../../src/core/protocol";
+import type { ConnectionView } from "../../../src/vscode/protocol";
 import { charsToTokens, tokens } from "../../lib/format";
 import { useDismiss } from "../../lib/useDismiss";
 import { send } from "../../lib/vscode";

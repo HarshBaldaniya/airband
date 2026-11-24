@@ -3,7 +3,7 @@
 // screen the list and the details take turns.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, Copy, Search, X } from "lucide-react";
-import type { LibraryView } from "../../../src/core/protocol";
+import type { LibraryView } from "../../../src/vscode/protocol";
 import type { Tool } from "../../../src/core/agents";
 import { typing } from "../../lib/keys";
 import { LAYER, useKeys } from "../../lib/useKeys";

@@ -1,6 +1,6 @@
 // What the extension last said about every chat, channel and plan, for any part of the page.
 import { createContext, useContext } from "react";
-import type { ViewState } from "../../src/core/protocol";
+import type { ViewState } from "../../src/vscode/protocol";
 
 export const EMPTY_STATE: ViewState = {
   tools: [],
