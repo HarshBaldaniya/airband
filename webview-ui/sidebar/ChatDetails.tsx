@@ -8,7 +8,7 @@ import { ContextBar } from "../components/ContextBar";
 import { ArrowLeft, ArrowLeftRight, ArrowRight, FolderOpen, GitBranch, I, LayoutGrid, Link2, Pause, Play, SquareTerminal, ToolMark, Unlink } from "../components/Icons";
 import { Incoming } from "../components/Incoming";
 import { ModelName } from "../components/ModelName";
-import type { RowProps } from "./ChatRow";
+import type { RowProps } from "./types";
 import type { MergedLink } from "./grouping";
 
 export function ChatDetails({ s, links, waiting, waitingFrom, onLink, onBranch }: RowProps) {

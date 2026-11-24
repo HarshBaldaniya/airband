@@ -26,7 +26,8 @@ import {
 import { PlanStrip } from "../pages/fuel/PlanStrip";
 import { useSetModal } from "../app/ModalContext";
 import { useViewState } from "../app/ViewStateContext";
-import { ChatRow, type RowProps } from "./ChatRow";
+import { ChatRow } from "./ChatRow";
+import type { RowProps } from "./types";
 import { EmptyState } from "./EmptyState";
 import { FolderPicker } from "./FolderPicker";
 import { folderList, groupBy, groupByFolder, groupChats, mergeLinks, type Group } from "./grouping";
