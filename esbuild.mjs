@@ -48,7 +48,7 @@ const node = {
 const configs = tour
   ? // The desktop app's first-run window. It runs before anything is checked, so it asks the least
     // of the webview: es2020.
-    [{ ...browser({ dev: watch }), target: "es2020", entryPoints: ["desktop/tour/setup.tsx"], outfile: "desktop/ui/setup.js" }]
+    [{ ...browser({ dev: watch }), target: "es2020", entryPoints: ["desktop/tour/main.tsx"], outfile: "desktop/ui/setup.js" }]
   : tests
   ? [
       {
