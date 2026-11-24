@@ -7,6 +7,7 @@ import { extract, type Decl } from "./extract";
 import { memberName, type Edge } from "./graph";
 import type { CodeMap } from "./index";
 import { langOf } from "./parser";
+import { plural } from "../core/text";
 
 /** A ref as git takes it; nothing that could pass for an option. */
 const REF = /^[A-Za-z0-9][A-Za-z0-9._/@~^{}-]*$/;
@@ -233,7 +234,6 @@ function reach(map: CodeMap, file: string, name: string): { callers: Edge[]; tes
   return { callers, tests: [...tests], fileTests };
 }
 
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 function callerList(edges: Edge[], n: number): string {
   const seen = new Set<string>();

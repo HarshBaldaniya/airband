@@ -10,6 +10,7 @@ import { langOf } from "./parser";
 import { makeResolver, type Resolver } from "./resolve";
 import { isLowValuePath, SearchIndex, words, type Doc, type Hit } from "./search";
 import { contentHash, listFiles, loadEntries, MAX_FILE_BYTES, readMeta, saveEntries, storeDir, type FileEntry } from "./store";
+import { CHARS_PER_TOKEN, tokensFor } from "../core/text";
 
 export interface CodeMapStats {
   files: number;
@@ -30,7 +31,8 @@ export interface FindOptions {
 }
 
 /** About four characters a token: the usual rule of thumb for code and English. */
-export const tokensOf = (text: string) => Math.ceil(text.length / 4);
+/** Roughly how many tokens a text costs. */
+export const tokensOf = (text: string) => tokensFor(text.length);
 
 const LIST_EVERY_MS = 30_000;
 
@@ -688,7 +690,7 @@ function dedupe(edges: Edge[], side: "from" | "to"): Edge[] {
 }
 
 function clip(text: string, budget: number): string {
-  const max = budget * 4;
+  const max = budget * CHARS_PER_TOKEN;
   if (text.length <= max) return text;
   const cut = text.lastIndexOf("\n", max - 20);
   return `${text.slice(0, cut > 0 ? cut : max - 20)}\n… (cut to fit; ask about one part for more)`;

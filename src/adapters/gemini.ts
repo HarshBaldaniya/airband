@@ -17,6 +17,7 @@ import { geminiTmpDir, safeId } from "../core/paths";
 import { addUsage, cleanText } from "../core/transcript";
 import type { Adapter } from "./adapter";
 import { today } from "./adapter";
+import { oneLine } from "../core/text";
 
 const WRITE_TOOLS = /^(write_file|replace|edit|write_new_file)$/;
 /** What Gemini CLI itself puts in a chat as if the person said it (its opening workspace summary). */
@@ -315,10 +316,6 @@ function textOf(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) return content.map((p) => (typeof p === "string" ? p : typeof p?.text === "string" ? p.text : "")).join("\n");
   return "";
-}
-
-function oneLine(t: string): string {
-  return t.replace(/\s+/g, " ").trim();
 }
 
 /** How many of the last message ids read are kept, to find a chat's place again after a rewind. */

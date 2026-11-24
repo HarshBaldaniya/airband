@@ -11,10 +11,11 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import { airbandFile } from "../core/paths";
 import { findClaude, findNode } from "../core/hooks";
-import { matchChats, plain, type LiveChat } from "./chats";
+import { matchChats, type LiveChat } from "./chats";
 import { DEFAULT_COMPANION } from "./companion";
 import { knowledge } from "./knowledge";
 import type { Decision } from "./reply";
+import { plainText, plural } from "../core/text";
 
 export interface PendingBrief {
   id?: string;
@@ -25,7 +26,6 @@ export interface PendingBrief {
   detail?: string;
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const HOUR = 3600e3;
 
 /** One line for the top of the companion's panel. */
@@ -69,7 +69,7 @@ async function today(now = Date.now()): Promise<string> {
   const top = [...byProject.entries()].sort((a, b) => b[1].reduce((n, w) => n + w.asks.length, 0) - a[1].reduce((n, w) => n + w.asks.length, 0)).slice(0, 3);
   for (const [project, chats] of top) {
     const busiest = [...chats].sort((a, b) => b.asks.length - a.asks.length)[0];
-    const did = plain(busiest.asks[busiest.asks.length - 1]?.did ?? "");
+    const did = plainText(busiest.asks[busiest.asks.length - 1]?.did ?? "");
     lines.push(`${project}: ${did ? (did.length > 90 ? `${did.slice(0, 89)}…` : did) : busiest.title}`);
   }
   return lines.join("\n");

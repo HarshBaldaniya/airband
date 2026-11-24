@@ -3,6 +3,7 @@
 // body, an impl block, a namespace), what counts as public, and how imports and calls are written.
 import type { SyntaxNode } from "./parser";
 import type { Decl, DeclKind, FileFacts, Import, IsLocal } from "./extract";
+import { shorten } from "../core/text";
 
 export type TableLang = "go" | "rust" | "java" | "csharp" | "ruby" | "php";
 
@@ -298,10 +299,6 @@ const TABLES: Record<TableLang, Table> = {
 
 const MAX_REFS = 60;
 const MAX_DOC = 120;
-const squash = (t: string, max: number) => {
-  const s = t.replace(/\s+/g, " ").trim();
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
 
 /** The doc comment above a node: the run of comment lines right above it, first meaningful line. */
 function docAbove(node: SyntaxNode): string | undefined {
@@ -320,7 +317,7 @@ function docAbove(node: SyntaxNode): string | undefined {
         .replace(/\*\/\s*$/, "")
         .replace(/<\/?[a-z]+[^>]*>/gi, "")
         .trim();
-      if (l && !l.startsWith("@") && !/^(TODO|FIXME|-{3,}|={3,})/.test(l)) return squash(l, MAX_DOC);
+      if (l && !l.startsWith("@") && !/^(TODO|FIXME|-{3,}|={3,})/.test(l)) return shorten(l, MAX_DOC);
     }
   }
   return undefined;

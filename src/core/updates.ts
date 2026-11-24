@@ -84,8 +84,8 @@ function exchanges(messages: ChatMessage[]): Exchange[] {
 
 function renderExchange(e: Exchange, tool: string, askMax = ASK_MAX, replyMax = REPLY_MAX): string {
   const parts: string[] = [];
-  if (e.ask) parts.push(`**You:** ${clip(redact(e.ask.text.trim()), askMax)}`);
-  if (e.reply) parts.push(`**${tool}:** ${clip(redact(e.reply.text.trim()), replyMax)}`);
+  if (e.ask) parts.push(`**You:** ${clipToFlightlog(redact(e.ask.text.trim()), askMax)}`);
+  if (e.reply) parts.push(`**${tool}:** ${clipToFlightlog(redact(e.reply.text.trim()), replyMax)}`);
   return parts.join("\n\n");
 }
 
@@ -187,7 +187,8 @@ export function formatDelivery(items: InboxItem[], max = deliveryMax(), here?: s
   return [`${intro}${note}`, changes, kept.join("\n\n")].filter(Boolean).join("\n\n");
 }
 
-function clip(text: string, max: number): string {
+/** Cut to `max`, with a note that the whole text is in the flightlog. */
+function clipToFlightlog(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}… _(the rest: airband_flightlog with its n)_` : text;
 }
 

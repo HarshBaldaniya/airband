@@ -8,12 +8,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { fenced, fenceNote, newFenceTag } from "../core/fence";
 import { listNotes, readNote, saveNote } from "../core/notes";
-import { catchUpRecord, exchangeText, listHeads, readAsks, recordBehind, type RecordAsk, type RecordHead } from "../core/record";
+import { catchUpRecord, exchangeText, listHeads, readAsks, recordBehind, recordName, type RecordAsk, type RecordHead } from "../core/record";
 import { CodeMap } from "../codemap/index";
 import { diffReport, renderDiff } from "../codemap/diff";
 import { findProject } from "../codemap/where";
 import { renderTokenReport, tokenReport } from "../core/tokens";
 import { allCommands, renderCommand, userLibraryDir, type LibraryCommand } from "../library/index";
+import { plural, shorten } from "../core/text";
 
 const root = process.env.AIRBAND_ROOT || process.cwd();
 
@@ -112,11 +113,6 @@ server.registerTool(
 // ---- flightlogs: what any chat on this computer was asked and did, a line per ask ----
 
 const when = (at: number) => new Date(at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-const short = (t: string, max: number) => {
-  const s = t.replace(/\s+/g, " ").trim();
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
-const nameOf = (h: RecordHead) => h.title ?? (h.goal ? short(h.goal, 60) : h.id.slice(0, 8));
 
 /** The records a chat name, id or part of either points to; this folder's first. */
 function findRecords(chat: string): RecordHead[] {
@@ -128,8 +124,8 @@ function findRecords(chat: string): RecordHead[] {
 }
 
 function askLine(a: RecordAsk): string {
-  const extra = [a.files.length ? `${a.files.length} file${a.files.length === 1 ? "" : "s"}` : "", ...a.refs].filter(Boolean).join(", ");
-  return `#${a.n} · ${when(a.at)} · ${short(a.ask, 160)} → ${short(a.did || "(no reply)", 220)}${extra ? ` (${extra})` : ""}`;
+  const extra = [a.files.length ? `${plural(a.files.length, "file")}` : "", ...a.refs].filter(Boolean).join(", ");
+  return `#${a.n} · ${when(a.at)} · ${shorten(a.ask, 160)} → ${shorten(a.did || "(no reply)", 220)}${extra ? ` (${extra})` : ""}`;
 }
 
 server.registerTool(
@@ -149,7 +145,7 @@ server.registerTool(
     if (tokens) {
       const h = chat ? findRecords(chat)[0] : listHeads().filter((x) => x.cwd === root).sort((a, b) => b.updatedAt - a.updatedAt)[0];
       if (!h?.file) return text("No chat file to read: name the chat.", true);
-      return text(renderTokenReport(tokenReport(h.tool, h.file), nameOf(h)));
+      return text(renderTokenReport(tokenReport(h.tool, h.file), recordName(h)));
     }
     if (!chat && query) return data(await recall(query));
     if (!chat) {
@@ -157,7 +153,7 @@ server.registerTool(
       if (!heads.length) return text("No flightlogs yet. Airband starts one for each chat as it replies.");
       return data(
         heads.length
-          ? heads.map((h) => `${nameOf(h)} · ${h.cwd ? path.basename(h.cwd) : "?"} · ${h.n} asks · ${when(h.updatedAt)} · id ${h.id.slice(0, 8)}`).join("\n")
+          ? heads.map((h) => `${recordName(h)} · ${h.cwd ? path.basename(h.cwd) : "?"} · ${h.n} asks · ${when(h.updatedAt)} · id ${h.id.slice(0, 8)}`).join("\n")
           : "No flightlogs yet. Airband starts one for each chat as it replies.",
       );
     }
@@ -168,7 +164,7 @@ server.registerTool(
       return words ? data(words) : text(`No ask #${n} in a flightlog matching "${chat}".`, true);
     }
     if (found.length > 1 && !found.some((h) => h.id === chat)) {
-      const list = found.slice(0, 10).map((h) => `${nameOf(h)} · ${h.cwd ? path.basename(h.cwd) : "?"} · ${h.n} asks · id ${h.id.slice(0, 8)}`);
+      const list = found.slice(0, 10).map((h) => `${recordName(h)} · ${h.cwd ? path.basename(h.cwd) : "?"} · ${h.n} asks · id ${h.id.slice(0, 8)}`);
       if (found.length > 10) list.push(`… ${found.length - 10} more`);
       return data(`Several chats match; name one by id:\n${list.join("\n")}`);
     }
@@ -187,10 +183,10 @@ server.registerTool(
     const shown = asks.slice(-count);
     const fresh = readAsks(h.id, 1)[0];
     const lines = [
-      `${nameOf(h)} (${h.tool}, ${h.cwd ?? "folder unknown"}): ${h.n} asks, last ${when(h.updatedAt)}.`,
-      h.goal ? `It set out to: ${short(h.goal, 240)}` : "",
+      `${recordName(h)} (${h.tool}, ${h.cwd ?? "folder unknown"}): ${h.n} asks, last ${when(h.updatedAt)}.`,
+      h.goal ? `It set out to: ${shorten(h.goal, 240)}` : "",
       fresh?.open ? `Still open: ${fresh.open}` : "",
-      query ? `${asks.length} ask${asks.length === 1 ? "" : "s"} mention "${query}"${asks.length > count ? `; the newest ${count}` : ""}:` : asks.length > count ? `The newest ${count} (ask with last for more):` : "",
+      query ? `${plural(asks.length, "ask")} mention "${query}"${asks.length > count ? `; the newest ${count}` : ""}:` : asks.length > count ? `The newest ${count} (ask with last for more):` : "",
       ...shown.map(askLine),
     ].filter(Boolean);
     return data(lines.join("\n"), undefined, "The exact words of an ask: airband_flightlog with its n.");
@@ -224,7 +220,7 @@ async function recall(query: string): Promise<string> {
   found.sort((x, y) => y.score - x.score);
   return found
     .slice(0, 12)
-    .map(({ h, a }) => `${nameOf(h)} (id ${h.id.slice(0, 8)}) ${askLine(a)}`)
+    .map(({ h, a }) => `${recordName(h)} (id ${h.id.slice(0, 8)}) ${askLine(a)}`)
     .join("\n");
 }
 

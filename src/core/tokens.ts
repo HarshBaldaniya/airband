@@ -3,6 +3,7 @@
 // Read from the chat's own file, a slice at a time; nothing is sent anywhere.
 import * as fs from "node:fs";
 import type { AgentId } from "./agents";
+import { tokensFor } from "./text";
 
 export type Kind = "finding" | "doing" | "other";
 
@@ -30,7 +31,6 @@ export interface TokenReport {
 
 const SEARCH_CMD = /^\s*(cd [^&;]+(&&|;)\s*)?(grep|rg|ag|ack|find|fd|ls|tree|git (grep|ls-files))\b/;
 const READ_CMD = /^\s*(cd [^&;]+(&&|;)\s*)?(cat|head|tail|sed -n|less|bat|nl|wc|git (show|log|diff|blame))\b/;
-const tokensOf = (chars: number) => Math.round(chars / 4);
 
 function kindOf(name: string, input: Record<string, unknown>): Kind {
   if (/^(Read|Grep|Glob|LS|NotebookRead)$/.test(name) || /airband_map|map_find|search/i.test(name)) return "finding";
@@ -101,7 +101,7 @@ export function tokenReport(tool: AgentId, file: string): TokenReport {
   const addResult = (id: string | undefined, text: string) => {
     const call = id ? calls.get(id) : undefined;
     const name = call?.name ?? "?";
-    const t = tokensOf(text.length);
+    const t = tokensFor(text.length);
     r.byKind[call ? kindOf(name, call.input) : "other"] += t;
     const pt = perTool.get(name) ?? { tokens: 0, calls: 0 };
     pt.tokens += t;

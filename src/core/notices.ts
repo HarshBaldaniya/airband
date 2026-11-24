@@ -11,6 +11,7 @@ import { readConnections } from "./store";
 import type { InboxItem } from "./types";
 import { readConfig, sameFolder } from "./updates";
 import { agentName } from "./agents";
+import { tokensFor } from "./text";
 
 /** How far back "other chats worked here" looks. */
 const RECENT_MS = 12 * 3600e3;
@@ -177,9 +178,9 @@ export function toolNotice(toolName: string | undefined, toolInput: unknown, too
   else if (input.check) what = input.check === "unused" ? "checked for unused code" : "checked the docs for stale names";
   else what = "the project overview";
 
-  const cost = Math.ceil(answer.length / 4);
+  const cost = tokensFor(answer.length);
   const named = root ? filesNamed(answer, root) : { count: 0, bytes: 0 };
-  const instead = Math.ceil(named.bytes / 4);
+  const instead = tokensFor(named.bytes);
   const saving = named.count >= 1 && instead >= cost * 2 && instead - cost >= 500;
   const tail = saving ? ` · ${about(cost)} tokens instead of ${about(instead)} to read the ${named.count === 1 ? "file" : `${named.count} files`}` : "";
   return `↪ Airband${where}: ${what}${tail}`;

@@ -10,6 +10,7 @@ import { codexSessionsDir, safeId } from "../core/paths";
 import { cleanText, fileSize, readLinesFrom, readTail } from "../core/transcript";
 import type { Adapter } from "./adapter";
 import { today } from "./adapter";
+import { oneLine } from "../core/text";
 
 const SCAN_FILES = 400;
 const NOISE = /^(<environment_context>|<user_instructions>|<permissions|# AGENTS\.md|<user_shell_command>)/;
@@ -268,8 +269,4 @@ function parse(line: string): Line | undefined {
   } catch {
     return undefined;
   }
-}
-
-function oneLine(t: string): string {
-  return t.replace(/\s+/g, " ").trim();
 }

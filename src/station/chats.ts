@@ -8,6 +8,7 @@ import { chatApp, type ChatApp } from "../core/apps";
 import { agentSummary } from "../core/setup";
 import { readHookStatus, resolveStatus } from "../core/status";
 import type { HookStatus, Status } from "../core/types";
+import { plainText, shorten } from "../core/text";
 
 
 export interface LiveChat {
@@ -35,24 +36,8 @@ export interface LiveChat {
 }
 
 const ORDER: Record<Status, number> = { waiting: 0, working: 1, done: 2, idle: 3 };
-/** Words fit for a small screen: no Markdown marks, no escaped line breaks, one line. */
-export function plain(t: string): string {
-  return t
-    .replace(/\\[nrt]/g, " ")
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/\*\*|__|`|^#+\s*/gm, "")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/\s*\(?https?:\/\/\S+\)?/g, "")
-    .replace(/[:,]\s*$/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-const short = (t: string | undefined, max: number) => {
-  if (!t) return undefined;
-  const s = plain(t);
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
+/** Words for a small screen: plain, one line, cut to `max`. */
+const short = (t: string | undefined, max: number) => (t ? shorten(plainText(t), max) : undefined);
 
 export function titleOf(h: Pick<RecordHead, "id" | "title" | "goal">): string {
   return short(h.title, 70) ?? short(h.goal, 70) ?? h.id.slice(0, 8);

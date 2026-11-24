@@ -15,6 +15,7 @@ import { claudeMessages, fileSize, readLinesFrom } from "./transcript";
 import { fullPath, relativeTo } from "./updates";
 import type { ChatMessage } from "./types";
 import { toolOf, type AgentId } from "./agents";
+import { plainText, shorten } from "./text";
 
 
 export interface RecordAsk {
@@ -68,6 +69,9 @@ const dir = () => airbandFile("flightlogs");
 const headFile = (id: string) => path.join(dir(), `${id}.json`);
 const asksFile = (id: string) => path.join(dir(), `${id}.jsonl`);
 
+
+/** A record's name as people read it: its title, else what it set out to do, else its id. */
+export const recordName = (h: Pick<RecordHead, "id" | "title" | "goal">): string => h.title ?? (h.goal ? shorten(h.goal, 60) : h.id.slice(0, 8));
 
 export function readHead(id: string): RecordHead | undefined {
   if (!safeId(id)) return undefined;
@@ -307,19 +311,14 @@ function clipAsk(text: string): string {
   return `${t.slice(0, ASK_MAX - 60).trimEnd()} … [+${(t.length - (ASK_MAX - 60)).toLocaleString("en-US")} characters]`;
 }
 
-function clip(text: string, max: number): string {
-  const t = text.replace(/\s+/g, " ").trim();
-  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
-}
-
 /** The reply's first real paragraph: Airband's replies, and most agents', lead with the outcome. */
 function firstParagraph(reply: string): string {
   for (const p of reply.split(/\n\s*\n/)) {
     const t = p.trim();
     if (!t || /^#{1,6}\s/.test(t) || /^\|/.test(t) || /^```/.test(t)) continue;
-    return clip(t, DID_MAX);
+    return shorten(t, DID_MAX);
   }
-  return clip(reply, DID_MAX);
+  return shorten(reply, DID_MAX);
 }
 
 /** A "Next:" line or a question the reply ended on: what is still open. */
@@ -327,18 +326,8 @@ function openItem(reply: string): string | undefined {
   const paras = reply.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   const last = paras[paras.length - 1];
   if (!last || paras.length < 2) return undefined;
-  if (/^(\*\*)?next\b/i.test(last) || /\?\s*$/.test(last)) return clip(last.replace(/^\*\*next:?\*\*:?\s*/i, "Next: "), OPEN_MAX);
+  if (/^(\*\*)?next\b/i.test(last) || /\?\s*$/.test(last)) return shorten(last.replace(/^\*\*next:?\*\*:?\s*/i, "Next: "), OPEN_MAX);
   return undefined;
-}
-
-/** Markdown marks taken out, for a summary read on a phone. */
-function mdPlain(t: string): string {
-  return t
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[*_`]{1,3}([^*_`]+)[*_`]{1,3}/g, "$1")
-    .replace(/^#{1,6}\s+/, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 /** Cut at the end of a sentence near `max`, else at a word, never mid-word. */
@@ -358,7 +347,7 @@ const BRIEF_MAX = 300;
  */
 export function briefOf(reply: string, yours = false): string {
   const paras = reply.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean);
-  const outcome = mdPlain(paras.find((x) => !/^(#{1,6}\s|\||```|[-*•]\s|\d+\.\s|>)/.test(x)) ?? "");
+  const outcome = plainText(paras.find((x) => !/^(#{1,6}\s|\||```|[-*•]\s|\d+\.\s|>)/.test(x)) ?? "");
   let out = sentenceClip(outcome, 200);
   // Handed back: what the person is to do comes next, before anything else.
   const step = yours ? yourStep(reply) : undefined;
@@ -378,13 +367,13 @@ function keyPoints(reply: string): string[] {
   for (const line of reply.split("\n")) {
     const item = /^\s{0,3}(?:[-*•]|\d+\.)\s+(.+)$/.exec(line);
     if (item) {
-      const point = sentenceClip(mdPlain(item[1]), 90);
+      const point = sentenceClip(plainText(item[1]), 90);
       if (point.length >= 12) points.push(point);
       continue;
     }
     const row = /^\|(.+)\|\s*$/.exec(line.trim());
     if (row && !/^[\s|:-]+$/.test(row[1])) {
-      const cells = row[1].split("|").map((c) => mdPlain(c)).filter(Boolean);
+      const cells = row[1].split("|").map((c) => plainText(c)).filter(Boolean);
       if (cells.length >= 2) rows.push(sentenceClip(`${cells[0]}: ${cells.slice(1).join(", ")}`, 90));
     }
   }
@@ -399,12 +388,12 @@ function yourStep(reply: string): string | undefined {
   if (at >= 0) {
     const rest = lines.slice(at + 1).join("\n");
     const code = /```[a-z]*\n([^\n]+)/.exec(rest)?.[1]?.trim();
-    const words = rest.replace(/```[\s\S]*?```/g, "").split(/\n\s*\n/).map((x) => mdPlain(x)).find((x) => x && !/^#{1,6}\s/.test(x));
+    const words = rest.replace(/```[\s\S]*?```/g, "").split(/\n\s*\n/).map((x) => plainText(x)).find((x) => x && !/^#{1,6}\s/.test(x));
     const say = words ? words.replace(/^Then\s/, "then ") : "";
     if (code) return `run ${code}${say ? `. ${say.charAt(0).toUpperCase()}${say.slice(1)}` : "."}`;
     if (say) return say;
   }
-  const asked = mdPlain(reply).split(/(?<=[.!?])\s+/).find((x) => YOURS.test(x) || /\?$/.test(x));
+  const asked = plainText(reply).split(/(?<=[.!?])\s+/).find((x) => YOURS.test(x) || /\?$/.test(x));
   return asked;
 }
 
@@ -518,7 +507,7 @@ export function updateRecord(
     fs.mkdirSync(dir(), { recursive: true });
     fs.appendFileSync(asksFile(id), asks.map((a) => JSON.stringify(a)).join("\n") + "\n");
   }
-  const goal = head.goal ?? (asks[0] ? clip(asks[0].ask, 240) : undefined);
+  const goal = head.goal ?? (asks[0] ? shorten(asks[0].ask, 240) : undefined);
   writeHead({ ...head, file, goal, cwd: opts.cwd ?? head.cwd, title: opts.title ?? head.title, cursor: next, n: head.n + asks.length, ...(seen ? { seen } : {}), updatedAt: asks.length || next !== head.cursor ? now : head.updatedAt });
   return asks;
 }
@@ -613,7 +602,7 @@ function fileNames(files: string[], root: string | undefined, absolute: boolean,
 /** The first sentence, for a one-line headline. */
 function firstSentence(text: string, max: number): string {
   const m = /^(.{20,}?[.!?])(\s|$)/.exec(text);
-  return clip(m ? m[1] : text, max);
+  return shorten(m ? m[1] : text, max);
 }
 
 export function renderAsk(a: RecordAsk, level: Exclude<LinkLevel, "full">, opts: { root?: string; absolute?: boolean } = {}): string {
@@ -621,7 +610,7 @@ export function renderAsk(a: RecordAsk, level: Exclude<LinkLevel, "full">, opts:
   const refs = a.refs.length ? a.refs.join(", ") : "";
   if (level === "ping") {
     const extra = [files && `files: ${files}`, refs].filter(Boolean).join(" · ");
-    return `• ${clip(a.ask, 160)} → ${firstSentence(a.did || "(no reply yet)", 220)}${extra ? ` (${extra})` : ""}`;
+    return `• ${shorten(a.ask, 160)} → ${firstSentence(a.did || "(no reply yet)", 220)}${extra ? ` (${extra})` : ""}`;
   }
   return [
     `**Asked:** ${a.ask.replace(/\n+/g, " ")}`,

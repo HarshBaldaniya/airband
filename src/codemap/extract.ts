@@ -1,6 +1,7 @@
 // What one file declares, imports and refers to, read from its syntax tree by code alone.
 import { parse, query, type LangId, type SyntaxNode } from "./parser";
 import { extractWithTable, type TableLang } from "./langs";
+import { shorten } from "../core/text";
 
 const TABLE_LANGS = new Set<LangId>(["go", "rust", "java", "csharp", "ruby", "php"]);
 
@@ -62,10 +63,6 @@ export type IsLocal = (source: string) => boolean;
 const MAX_REFS = 60;
 const MAX_DOC = 120;
 
-const squash = (t: string, max: number) => {
-  const s = t.replace(/\s+/g, " ").trim();
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
 const unquote = (t: string) => t.replace(/^[`'"]|[`'"]$/g, "");
 const isPascal = (n: string) => /^[A-Z][A-Za-z0-9]*$/.test(n);
 const isHook = (n: string) => /^use[A-Z0-9]/.test(n);
@@ -81,7 +78,7 @@ function docAbove(node: SyntaxNode): string | undefined {
     .split("\n")
     .map((l) => l.replace(/^\s*(\/\*\*?|\*\/|\*|\/\/+|#)\s?/, "").replace(/\*\/\s*$/, "").trim())
     .filter((l) => l && !l.startsWith("@") && !/^(eslint|prettier|@ts-|TODO\b|FIXME\b|-{3,}|={3,})/.test(l));
-  return lines[0] ? squash(lines[0], MAX_DOC) : undefined;
+  return lines[0] ? shorten(lines[0], MAX_DOC) : undefined;
 }
 
 // ---------------------------------------------------------------- TypeScript and JavaScript
@@ -321,7 +318,7 @@ function pyDocstring(def: SyntaxNode): string | undefined {
     .split("\n")
     .map((l) => l.trim())
     .find(Boolean);
-  return line ? squash(line, MAX_DOC) : undefined;
+  return line ? shorten(line, MAX_DOC) : undefined;
 }
 
 const ROUTE = /^@\s*[\w.]*\.(get|post|put|patch|delete|head|options|route|websocket|api_route)\s*\(\s*(?:[rbuf]?["']([^"']*)["'])?/i;

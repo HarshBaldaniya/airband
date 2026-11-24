@@ -5,10 +5,11 @@ import * as path from "node:path";
 import { ClaudeAdapter } from "../adapters/claude";
 import { codexUsage } from "../adapters/codex";
 import { geminiUsage, loadGeminiChat } from "../adapters/gemini";
-import { listHeads, readAsks, type RecordAsk, type RecordHead } from "./record";
+import { listHeads, readAsks, recordName, type RecordAsk, type RecordHead } from "./record";
 import { addUsage, readLinesFrom } from "./transcript";
 import { NO_USAGE, type ChatSession, type Usage } from "./types";
 import { AGENTS } from "./agents";
+import { plural, shorten } from "./text";
 
 const DAY = 24 * 3600e3;
 
@@ -20,13 +21,7 @@ export function sinceDays(days: number, now = Date.now()): number {
 }
 
 const project = (h: RecordHead) => (h.cwd ? path.basename(h.cwd) : "(no folder)");
-const nameOf = (h: RecordHead) => h.title ?? (h.goal ? short(h.goal, 60) : h.id.slice(0, 8));
-const short = (t: string, max: number) => {
-  const s = t.replace(/\s+/g, " ").trim();
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-};
 const dateText = (at: number) => new Date(at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 /** Only this project's chats, when a folder is given (its subfolders count too). */
 function inScope(h: RecordHead, root?: string): boolean {
@@ -57,7 +52,7 @@ export function workSince(since: number, root?: string): WorkChat[] {
     if (!asks.length) continue;
     const refs = [...new Set(asks.flatMap((a) => a.refs))];
     const last = asks[asks.length - 1];
-    out.push({ id: h.id, agent: AGENTS[h.tool].name, title: nameOf(h), project: project(h), asks, refs, ...(last.open ? { open: last.open } : {}) });
+    out.push({ id: h.id, agent: AGENTS[h.tool].name, title: recordName(h), project: project(h), asks, refs, ...(last.open ? { open: last.open } : {}) });
   }
   return out.sort((a, b) => a.project.localeCompare(b.project) || b.asks[b.asks.length - 1].at - a.asks[a.asks.length - 1].at);
 }
@@ -74,8 +69,8 @@ export function renderWork(chats: WorkChat[], since: number, perChat = 5): strin
       out.push(`  “${c.title}” (${c.agent}, ${plural(c.asks.length, "ask")}, id ${c.id.slice(0, 8)})${c.refs.length ? ` · ${c.refs.slice(0, 6).join(", ")}` : ""}`);
       const shown = c.asks.slice(-perChat);
       if (c.asks.length > shown.length) out.push(`    … ${c.asks.length - shown.length} earlier`);
-      for (const a of shown) out.push(`    - ${short(a.ask, 90)} → ${short(a.did || "(no reply)", 140)}`);
-      if (c.open) out.push(`    Open: ${short(c.open, 160)}`);
+      for (const a of shown) out.push(`    - ${shorten(a.ask, 90)} → ${shorten(a.did || "(no reply)", 140)}`);
+      if (c.open) out.push(`    Open: ${shorten(c.open, 160)}`);
     }
   }
   return out.join("\n");
@@ -112,7 +107,7 @@ export function spendSince(since: number, root?: string): SpendChat[] {
       continue;
     }
     if (!totalOf(usage)) continue;
-    out.push({ id: h.id, agent: AGENTS[h.tool].name, title: nameOf(h), project: project(h), usage, refs: shares(readAsks(h.id).filter((a) => a.at >= since)) });
+    out.push({ id: h.id, agent: AGENTS[h.tool].name, title: recordName(h), project: project(h), usage, refs: shares(readAsks(h.id).filter((a) => a.at >= since)) });
   }
   claude.saveCache();
   return out.sort((a, b) => totalOf(b.usage) - totalOf(a.usage));
@@ -173,7 +168,7 @@ export function renderSpend(chats: SpendChat[], since: number, top = 8): string 
   table("By agent", sumBy(chats, (c) => [{ name: c.agent, part: 1 }]));
   table("By ticket or PR (estimated: a chat's tokens split over its asks, an ask's over what it names)", sumBy(chats, (c) => c.refs));
   out.push("", "Biggest chats");
-  for (const c of chats.slice(0, top)) out.push(`  ${fmtTokens(totalOf(c.usage)).padStart(7)}  “${short(c.title, 50)}” (${c.agent}, ${c.project}, id ${c.id.slice(0, 8)})`);
+  for (const c of chats.slice(0, top)) out.push(`  ${fmtTokens(totalOf(c.usage)).padStart(7)}  “${shorten(c.title, 50)}” (${c.agent}, ${c.project}, id ${c.id.slice(0, 8)})`);
   out.push("", "Cache reads are billed at about a tenth of new input. Where one chat's tokens went: airband_flightlog with its id and tokens.");
   return out.join("\n");
 }
