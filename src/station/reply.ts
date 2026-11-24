@@ -6,6 +6,8 @@
 // The reply shapes follow Claude Code's documented PermissionRequest output, which Codex shares.
 // Coucou (MIT, github.com/louis-cfm/coucou) showed which agents read which shape.
 
+import { createHash } from "node:crypto";
+
 /** What the person chose. "terminal" means: let the agent ask in its own window. */
 export type Decision = "allow" | "always" | "deny" | "terminal";
 
@@ -114,9 +116,23 @@ export function describeRequest(toolName: string | undefined, input: unknown): {
   return { title: `Wants to use ${name}` };
 }
 
-/** What "always allow" remembers: the same tool for the same command or file, in the same folder. */
+/**
+ * What "always allow" remembers: the same tool with exactly the same input, in the same folder. The
+ * whole input counts, not one field of it. A tool with no command or file (an MCP tool, a Task, a
+ * search) would otherwise share one key for every call, and one "always" would allow them all.
+ */
 export function ruleKey(agent: string, cwd: string | undefined, toolName: string | undefined, input: unknown): string {
-  const i = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
-  const what = typeof i.command === "string" ? i.command : typeof i.file_path === "string" ? i.file_path : typeof i.url === "string" ? i.url : "";
+  const what = createHash("sha256").update(canonicalJson(input ?? null)).digest("base64url");
   return JSON.stringify([agent, cwd ?? "", toolName ?? "", what]);
+}
+
+/** JSON with every object's keys in order, so the same input always reads the same. */
+export function canonicalJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map((x) => canonicalJson(x === undefined ? null : x)).join(",")}]`;
+  if (v && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    const keys = Object.keys(o).filter((k) => o[k] !== undefined).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(o[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
 }

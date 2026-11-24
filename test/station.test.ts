@@ -12,7 +12,7 @@ import { readInbox } from "../src/core/store";
 import { readHookStatus } from "../src/core/status";
 import { DETAIL_MAX, pickLanAddress, Station } from "../src/station/server";
 import { askStation, readStationInfo } from "../src/station/client";
-import { answersFit, describeRequest, permissionReply, questionsOf } from "../src/station/reply";
+import { answersFit, describeRequest, permissionReply, questionsOf, ruleKey } from "../src/station/reply";
 import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/station/manager";
 import { knowledge } from "../src/station/knowledge";
 import { cleanDesign, cleanName, DEFAULT_COMPANION } from "../src/station/companion";
@@ -134,6 +134,16 @@ test("always allow lets the same command in the same folder through without aski
   const other = askStation({ agent: "codex", cwd: "/p/my-app", tool_name: "shell", tool_input: { command: "npm test" } });
   s.decide((await held(s)).id, { decision: "terminal" });
   assert.equal((await other)?.decision, "terminal");
+});
+
+test("always allow is kept for the whole input: one tool with no command never allows every call", () => {
+  const mcp = (input: unknown) => ruleKey("claude", "/p/a", "mcp__github__create_issue", input);
+  assert.notEqual(mcp({ title: "a" }), mcp({ title: "b" }), "an MCP tool's calls differ by their input");
+  assert.notEqual(ruleKey("claude", "/p/a", "Task", { prompt: "x" }), ruleKey("claude", "/p/a", "Task", { prompt: "y" }));
+  assert.notEqual(ruleKey("claude", "/p/a", "NotebookEdit", { notebook_path: "a.ipynb" }), ruleKey("claude", "/p/a", "NotebookEdit", { notebook_path: "b.ipynb" }));
+  assert.notEqual(ruleKey("codex", "/p/a", "shell", { command: ["bash", "-lc", "ls"] }), ruleKey("codex", "/p/a", "shell", { command: ["bash", "-lc", "rm -rf ."] }));
+  assert.notEqual(ruleKey("claude", "/p/a", "Bash", { command: "ls" }), ruleKey("claude", "/p/a", "Bash", { command: "ls", run_in_background: true }), "every field counts");
+  assert.equal(ruleKey("claude", "/p/a", "X", { a: 1, b: [2, { c: 3, d: 4 }] }), ruleKey("claude", "/p/a", "X", { b: [2, { d: 4, c: 3 }], a: 1 }), "key order does not matter");
 });
 
 test("the hook's permission step: the chat shows as needing you, then gets the person's answer", async () => {
