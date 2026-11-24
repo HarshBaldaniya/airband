@@ -24,9 +24,9 @@ import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/noti
 import { safeId } from "../core/paths";
 import { setSentReply, setStopBlock, takeStopBlock, type StopBlock } from "../core/store";
 import { cleanText } from "../adapters/chat-text";
-import { briefFor } from "../core/writing/rules";
-import { forgetGiven } from "../core/writing/given";
-import { writingSettings } from "../core/writing/settings";
+import { briefFor } from "../writing/rules";
+import { forgetGiven } from "../writing/given";
+import { writingSettings } from "../writing/settings";
 import { hookOutput, normalise, type HookInput } from "./input";
 import { bindBranch, deliver, keepRecord, markRead, PERSON_ASK, personWaiting, sendUpdates } from "./sharing";
 import { continued, record } from "./status";

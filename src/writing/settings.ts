@@ -8,9 +8,9 @@
 // `.airband.json` at the project's root, committed with the code, wins where it says something.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { readConfig } from "../config";
-import { readJson } from "../json";
-import { writeFileAtomic } from "../paths";
+import { readConfig } from "../core/config";
+import { readJson } from "../core/json";
+import { writeFileAtomic } from "../core/paths";
 
 export type WritingKind = "docs" | "messages" | "replies";
 export const WRITING_KINDS: WritingKind[] = ["docs", "messages", "replies"];

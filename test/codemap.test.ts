@@ -59,7 +59,7 @@ const helper = () => 1;
 `,
   "features/upload/TransferTray.tsx": `import { useEditRights } from "@/features/account";
 import UploadCounter from "./UploadCounter";
-import * as api from "./api.js";
+import * as api from "./api";
 
 // The tray in the corner that lists uploads in progress.
 export default function TransferTray() {

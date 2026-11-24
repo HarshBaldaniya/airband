@@ -1,6 +1,6 @@
 // Once per chat: the rules stay in a chat's context, so they are not sent to it again.
-import { readJson } from "../json";
-import { airbandFile, writeFileAtomic } from "../paths";
+import { readJson } from "../core/json";
+import { airbandFile, writeFileAtomic } from "../core/paths";
 import type { WritingKind } from "./settings";
 
 const seenFile = () => airbandFile("writing-seen.json");

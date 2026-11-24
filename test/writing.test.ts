@@ -7,12 +7,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { handle } from "../src/hook/handle";
 import { setConfig } from "../src/core/config";
-import { briefFor, DOCS_BRIEF, MESSAGES_BRIEF, REPLIES_BRIEF, writingFor } from "../src/core/writing/rules";
-import { checkOutgoing, holdOnce, outgoingText } from "../src/core/writing/outgoing";
-import { checkWriting, summarise } from "../src/core/writing/check";
-import { forgetGiven, notYetGiven } from "../src/core/writing/given";
-import { setProjectWriting, writingSettings } from "../src/core/writing/settings";
-import { writtenDoc } from "../src/core/writing/docs";
+import { briefFor, DOCS_BRIEF, MESSAGES_BRIEF, REPLIES_BRIEF, writingFor } from "../src/writing/rules";
+import { checkOutgoing, holdOnce, outgoingText } from "../src/writing/outgoing";
+import { checkWriting, summarise } from "../src/writing/check";
+import { forgetGiven, notYetGiven } from "../src/writing/given";
+import { setProjectWriting, writingSettings } from "../src/writing/settings";
+import { writtenDoc } from "../src/writing/docs";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 let project = "";

@@ -3,12 +3,12 @@
 import * as path from "node:path";
 import type { AgentId } from "../core/agents";
 import { noticesOn } from "../core/notices";
-import { briefFor, writingFor } from "../core/writing/rules";
-import { checkOutgoing, holdOnce, outgoingText } from "../core/writing/outgoing";
-import { checkWrittenDoc, writtenDoc } from "../core/writing/docs";
-import { notYetGiven } from "../core/writing/given";
-import { renderFindings, summarise } from "../core/writing/check";
-import { writingSettings, type WritingKind } from "../core/writing/settings";
+import { briefFor, writingFor } from "../writing/rules";
+import { checkOutgoing, holdOnce, outgoingText } from "../writing/outgoing";
+import { checkWrittenDoc, writtenDoc } from "../writing/docs";
+import { notYetGiven } from "../writing/given";
+import { renderFindings, summarise } from "../writing/check";
+import { writingSettings, type WritingKind } from "../writing/settings";
 import type { HookInput } from "./input";
 
 /** The writing rules this ask needs and this chat has not had yet. */

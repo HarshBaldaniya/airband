@@ -2,8 +2,8 @@
 // when its words break the rules.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { readJson } from "../json";
-import { airbandFile, writeFileAtomic } from "../paths";
+import { readJson } from "../core/json";
+import { airbandFile, writeFileAtomic } from "../core/paths";
 import { checkWriting, type WritingFinding } from "./check";
 
 export interface Outgoing {
