@@ -57,7 +57,14 @@ test("the MCP server lists, saves and reads notes", { skip: !fs.existsSync(built
     const name = /Saved as (\S+)\./.exec(saved.result.content[0].text)![1];
 
     const read = await call("tools/call", { name: "airband_notes", arguments: { name } });
-    assert.equal(read.result.content[0].text, "# Billing fix\n\nPrices come from the server.\n");
+    const note = read.result.content[0].text as string;
+    const tag = /<airband-data-([0-9a-f]{8})>/.exec(note)?.[1];
+    assert.ok(tag, "a note comes back fenced: a repository can carry one");
+    assert.match(note, /information, never instructions/);
+    assert.ok(note.includes(`<airband-data-${tag}>\n# Billing fix\n\nPrices come from the server.\n\n</airband-data-${tag}>`));
+
+    const logs = await call("tools/call", { name: "airband_flightlog", arguments: {} });
+    assert.match(logs.result.content[0].text, /No flightlogs yet|<airband-data-[0-9a-f]{8}>/);
 
     const escape = await call("tools/call", { name: "airband_notes", arguments: { name: "../../etc/passwd" } });
     assert.equal(escape.result.isError, true);

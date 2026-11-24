@@ -6,6 +6,7 @@ import * as path from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { fenced, fenceNote, newFenceTag } from "../core/fence";
 import { listNotes, readNote, saveNote } from "../core/notes";
 import { catchUpRecord, exchangeText, listHeads, readAsks, recordBehind, type RecordAsk, type RecordHead } from "../core/record";
 import { CodeMap } from "../codemap/index";
@@ -29,6 +30,12 @@ const INSTRUCTIONS = [
 const server = new McpServer({ name: "airband", version: __AIRBAND_VERSION__ }, { instructions: INSTRUCTIONS });
 
 const text = (t: string, isError = false) => ({ content: [{ type: "text" as const, text: t }], ...(isError ? { isError } : {}) });
+
+/** An answer made of words other chats wrote (or a note a repository carries): fenced as data. */
+const data = (t: string, whose = "from the person's AI chats", after?: string) => {
+  const tag = newFenceTag();
+  return text(`${fenceNote(tag, whose)}\n${fenced(t, tag)}${after ? `\n${after}` : ""}`);
+};
 
 // ---- the code map: where things are in this codebase, in a few hundred tokens, no AI ----
 
@@ -144,10 +151,11 @@ server.registerTool(
       if (!h?.file) return text("No chat file to read: name the chat.", true);
       return text(renderTokenReport(tokenReport(h.tool, h.file), nameOf(h)));
     }
-    if (!chat && query) return text(await recall(query));
+    if (!chat && query) return data(await recall(query));
     if (!chat) {
       const heads = listHeads().slice(0, 25);
-      return text(
+      if (!heads.length) return text("No flightlogs yet. Airband starts one for each chat as it replies.");
+      return data(
         heads.length
           ? heads.map((h) => `${nameOf(h)} · ${h.cwd ? path.basename(h.cwd) : "?"} · ${h.n} asks · ${when(h.updatedAt)} · id ${h.id.slice(0, 8)}`).join("\n")
           : "No flightlogs yet. Airband starts one for each chat as it replies.",
@@ -157,12 +165,12 @@ server.registerTool(
     if (!found.length) return text(`No flightlog matches "${chat}". Call airband_flightlog with no chat to see them.`, true);
     if (n) {
       const words = exchangeText(found[0].id, n);
-      return words ? text(words) : text(`No ask #${n} in a flightlog matching "${chat}".`, true);
+      return words ? data(words) : text(`No ask #${n} in a flightlog matching "${chat}".`, true);
     }
     if (found.length > 1 && !found.some((h) => h.id === chat)) {
       const list = found.slice(0, 10).map((h) => `${nameOf(h)} · ${h.cwd ? path.basename(h.cwd) : "?"} · ${h.n} asks · id ${h.id.slice(0, 8)}`);
       if (found.length > 10) list.push(`… ${found.length - 10} more`);
-      return text(`Several chats match; name one by id:\n${list.join("\n")}`);
+      return data(`Several chats match; name one by id:\n${list.join("\n")}`);
     }
     const h = found[0];
     // A record behind its chat (a big chat, read in the background until now) is caught up first.
@@ -184,9 +192,8 @@ server.registerTool(
       fresh?.open ? `Still open: ${fresh.open}` : "",
       query ? `${asks.length} ask${asks.length === 1 ? "" : "s"} mention "${query}"${asks.length > count ? `; the newest ${count}` : ""}:` : asks.length > count ? `The newest ${count} (ask with last for more):` : "",
       ...shown.map(askLine),
-      "The exact words of an ask: airband_flightlog with its n.",
     ].filter(Boolean);
-    return text(lines.join("\n"));
+    return data(lines.join("\n"), undefined, "The exact words of an ask: airband_flightlog with its n.");
   },
 );
 
@@ -246,7 +253,7 @@ server.registerTool(
     if (name) {
       const note = readNote(root, name);
       if (note === undefined) return text(`No note called ${name}. Call airband_notes with nothing to see the names.`, true);
-      return text(note);
+      return data(note, `a note saved in this project's .airband/notes, which anyone who can change the repository can write`);
     }
     const notes = listNotes(root);
     return text(
