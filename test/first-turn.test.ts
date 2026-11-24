@@ -73,3 +73,50 @@ test("the Claude app's id for a chat its agent runs now", () => {
   assert.equal(claudeAppHost("cli-chat", dir), undefined, "a chat in a terminal has no app id");
   assert.equal(claudeAppHost(ID, path.join(dir, "missing")), undefined);
 });
+
+test("the ask is what the person wrote: the app's hidden reminder in front of it is left out", () => {
+  record({ session_id: ID, hook_event_name: "UserPromptSubmit", cwd: "/work/shop", transcript_path: file, prompt: "<system-reminder>\nYou are operating in a git worktree.\n</system-reminder>\nHi there" }, Date.now(), "claude");
+  assert.equal(readHookStatus(ID)?.ask, "Hi there");
+});
+
+test("a new Claude app chat is working from its start, while its startup hooks still run; a terminal's start is nothing", () => {
+  const was = process.env.CLAUDE_CODE_ENTRYPOINT;
+  try {
+    const now = Date.now();
+    process.env.CLAUDE_CODE_ENTRYPOINT = "cli";
+    record({ session_id: ID, hook_event_name: "SessionStart", source: "startup", cwd: "/work/shop", transcript_path: file }, now, "claude");
+    assert.equal(readHookStatus(ID), undefined, "a terminal starts Claude Code before anything is asked");
+
+    process.env.CLAUDE_CODE_ENTRYPOINT = "claude-desktop";
+    record({ session_id: ID, hook_event_name: "SessionStart", source: "resume", cwd: "/work/shop", transcript_path: file }, now, "claude");
+    assert.equal(readHookStatus(ID), undefined, "the app opening an old chat is not work");
+    record({ session_id: ID, hook_event_name: "SessionStart", source: "startup", cwd: "/work/shop", transcript_path: file }, now, "claude");
+    const listed = liveChats(now).find((c) => c.id === ID);
+    assert.equal(listed?.status, "working");
+    assert.equal(listed?.title, "New chat");
+    assert.equal(liveChats(now + 3 * 60_000).some((c) => c.id === ID), false, "a start with nothing after it does not stay working");
+  } finally {
+    if (was === undefined) delete process.env.CLAUDE_CODE_ENTRYPOINT;
+    else process.env.CLAUDE_CODE_ENTRYPOINT = was;
+  }
+});
+
+test("done stays done while the app writes its own lines after the turn; a new reply after it is work", () => {
+  const hooks = path.join(tmp("airband-first-settings-"), "settings.json");
+  process.env.AIRBAND_CLAUDE_SETTINGS = hooks;
+  const { connect } = require("../src/core/hooks") as typeof import("../src/core/hooks");
+  connect('"/usr/bin/node" "/h/.airband/airband-hook.js"', hooks);
+  const at = Date.now() - 30_000;
+  const stamp = (ms: number) => new Date(ms).toISOString();
+  fs.appendFileSync(file, j({ type: "assistant", timestamp: stamp(at - 100), message: { id: "m1", role: "assistant", content: [{ type: "text", text: "Hi." }] } }));
+  updateRecord(ID, "claude", file, { cwd: "/work/shop" });
+  record({ session_id: ID, hook_event_name: "Stop", cwd: "/work/shop", transcript_path: file }, at, "claude");
+  // Seconds later the app writes a summary of its Stop hooks and its own notes: not work.
+  fs.appendFileSync(file, j({ type: "system", subtype: "stop_hook_summary", timestamp: stamp(at + 15_000) }) + j({ type: "session-owner" }));
+  forgetReads();
+  assert.equal(liveChats().find((c) => c.id === ID)?.status, "done");
+  // Another Stop hook sent it back to work: a reply made after the Stop.
+  fs.appendFileSync(file, j({ type: "assistant", timestamp: stamp(Date.now()), message: { id: "m2", role: "assistant", content: [{ type: "text", text: "Also fixed the tax." }] } }));
+  forgetReads();
+  assert.equal(liveChats().find((c) => c.id === ID)?.status, "working");
+});

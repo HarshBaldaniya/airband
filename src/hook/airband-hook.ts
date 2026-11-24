@@ -93,6 +93,11 @@ export function statusFor(input: HookInput): Status | undefined {
       return "done";
     case "SessionEnd":
       return "idle";
+    case "SessionStart":
+      // The Claude app starts a new chat's agent when its first message is sent, and the chat's
+      // startup hooks may take a while before that message reaches it: it is working already. A
+      // terminal starts Claude Code before anything is asked, so there it means nothing.
+      return input.source === "startup" && process.env.CLAUDE_CODE_ENTRYPOINT === "claude-desktop" ? "working" : undefined;
     default:
       return undefined;
   }
@@ -101,17 +106,35 @@ export function statusFor(input: HookInput): Status | undefined {
 /** What a chat's status keeps from one event to the next: its agent, its file and the ask it works on. */
 function carried(id: string, input: HookInput, tool: HookTool | undefined, status: Status): Pick<HookStatus, "tool" | "file" | "ask"> {
   const was = readHookStatus(id);
-  const ask = status === "idle" ? undefined : input.prompt?.trim() ? input.prompt.trim().slice(0, 200) : was?.ask;
+  const said = input.prompt ? cleanText(input.prompt).replace(/\s+/g, " ").trim() : "";
+  const ask = status === "idle" ? undefined : said ? said.slice(0, 200) : was?.ask;
   const file = input.transcript_path ?? was?.file;
   const t = tool ?? was?.tool;
   return { ...(t ? { tool: t } : {}), ...(file ? { file } : {}), ...(ask ? { ask } : {}) };
 }
 
+/** The chat's Stop was answered with a "block": it carries on, so it counts as working. */
+function continued(input: HookInput, now: number, tool: HookTool): void {
+  const id = input.session_id;
+  if (!id || !safeId(id)) return;
+  try {
+    const entry: HookStatus = { status: "working", at: now, event: CONTINUED, cwd: input.cwd, ...carried(id, input, tool, "working") };
+    writeFileAtomic(path.join(statusDir(), `${id}.json`), JSON.stringify(entry));
+  } catch {
+    // Only a status.
+  }
+}
+
+/** The status events the hook writes itself: a chat sent back to work, and a Claude app chat starting. */
+export const CONTINUED = "Continued";
+export const STARTING = "Starting";
+
 export function record(input: HookInput, now = Date.now(), tool?: HookTool): void {
   const id = input.session_id;
   const status = statusFor(input);
   if (!id || !status || !safeId(id)) return;
-  const entry: HookStatus = { status, at: now, event: input.hook_event_name!, cwd: input.cwd, ...carried(id, input, tool, status) };
+  const event = input.hook_event_name === "SessionStart" ? STARTING : input.hook_event_name!;
+  const entry: HookStatus = { status, at: now, event, cwd: input.cwd, ...carried(id, input, tool, status) };
   if (status === "waiting" && input.message) entry.message = input.message.slice(0, 200);
   else if (status === "waiting" && input.tool_name) {
     const d = describeRequest(input.tool_name, input.tool_input);
@@ -302,6 +325,11 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
     case "Stop": {
       // The person's own message, sent through the app while the chat worked: it goes in before
       // the chat stops, so the turn carries on with it (in every agent, the hook's "block").
+      // A "block" sends the chat back to work: it is working, not done, until its next Stop.
+      const goOn = (reply: string) => {
+        continued(input, now, tool);
+        return reply;
+      };
       if (personWaiting(input.session_id)) {
         if (!input.stop_hook_active) {
           keepRecord(input, tool);
@@ -310,7 +338,7 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
         const d = deliver(input, now);
         if (d) {
           const notice = tool === "claude" && noticesOn() ? deliveryNotice(d.items) : undefined;
-          return JSON.stringify({ decision: "block", reason: `${d.text}\n\n${PERSON_ASK}`, ...(notice ? { systemMessage: notice } : {}) });
+          return goOn(JSON.stringify({ decision: "block", reason: `${d.text}\n\n${PERSON_ASK}`, ...(notice ? { systemMessage: notice } : {}) }));
         }
       }
       if (input.stop_hook_active) {
@@ -330,7 +358,7 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
       const d = deliver(input, now);
       if (!d) return undefined;
       const notice = tool === "claude" && noticesOn() ? deliveryNotice(d.items) : undefined;
-      return JSON.stringify({ decision: "block", reason: `${d.text}\n\n${AUTO_DELIVERY_ASK}`, ...(notice ? { systemMessage: notice } : {}) });
+      return goOn(JSON.stringify({ decision: "block", reason: `${d.text}\n\n${AUTO_DELIVERY_ASK}`, ...(notice ? { systemMessage: notice } : {}) }));
     }
     case "UserPromptSubmit": {
       bindBranch(input, now, tool);

@@ -1,6 +1,12 @@
 # Changelog
 
 ## Unreleased
+- **Done means done, and working means working.** A finished chat showed as working again for a
+  while, because the Claude app writes notes to the chat after a turn ends. Those no longer count.
+  A chat that a Stop hook sends back to work now shows as working, not done.
+- **A new Claude app chat shows the moment you send.** The app starts a chat's agent when you send
+  its first message, and slow startup hooks can hold that message for many seconds. Roger shows
+  the chat as working from the start, and its title is your words, not the app's hidden notes.
 - **A new chat shows as working from its first message.** Roger listed a chat only once its first
   turn had ended, so a new chat appeared already done. It now shows as working on your first ask,
   with that ask as its title.

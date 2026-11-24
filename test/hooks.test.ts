@@ -146,6 +146,8 @@ test("with delivery at once turned on, updates go in as a chat finishes, once, w
   assert.match(out.reason, /A finished X/);
   assert.match(out.reason, /Noted the updates from connected chats/);
   assert.equal(readInbox("bbb").length, 0);
+  const status = JSON.parse(fs.readFileSync(path.join(process.env.AIRBAND_HOME!, "status", "bbb.json"), "utf8"));
+  assert.equal(status.status, "working", "sent back to work: Roger shows it working, not done");
 
   // Claude's acknowledgement ends with stop_hook_active: nothing more is delivered or forwarded.
   const A = { id: "aaa", tool: "Claude" as const, title: "A" };
@@ -156,6 +158,7 @@ test("with delivery at once turned on, updates go in as a chat finishes, once, w
   assert.equal(handle({ session_id: "bbb", hook_event_name: "Stop", transcript_path: transcript, stop_hook_active: true }), undefined);
   assert.equal(readInbox("aaa").length, 0, "the acknowledgement is not sent to linked chats");
   assert.equal(getCursor("bbb"), fs.statSync(transcript).size);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(process.env.AIRBAND_HOME!, "status", "bbb.json"), "utf8")).status, "done", "and done once it really stops");
 });
 
 test("linked again after a break: only what is new is sent, never what was said in between", () => {

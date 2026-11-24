@@ -96,6 +96,7 @@ export function forgetReads(): void {
   heads = undefined;
   lastAsk.clear();
   names.clear();
+  replies.clear();
 }
 
 // A chat renamed in its agent (Claude Code's "rename"): the agent writes the new name into the chat's
@@ -166,6 +167,46 @@ export function projectOf(cwd: string | undefined): string {
   return (m ? m[1] : cwd).split(/[\\/]+/).filter(Boolean).pop() ?? cwd;
 }
 
+/** Whether a chat's file holds a reply made after `at`: its newest lines, read again when it grows. */
+const REPLY_TAIL = 128 * 1024;
+const replies = new Map<string, { size: number; at: number; after: boolean }>();
+export function repliedAfter(tool: RecordTool, file: string | undefined, at: number): boolean {
+  if (!file || tool === "gemini") return false;
+  let size: number;
+  try {
+    size = fs.statSync(file).size;
+  } catch {
+    return false;
+  }
+  const hit = replies.get(file);
+  if (hit && hit.size === size && hit.at === at) return hit.after;
+  let after = false;
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(file, "r");
+    const start = Math.max(0, size - REPLY_TAIL);
+    const buf = Buffer.alloc(size - start);
+    fs.readSync(fd, buf, 0, buf.length, start);
+    for (const line of buf.toString("utf8").split("\n")) {
+      if (!line.includes('"assistant"')) continue;
+      try {
+        const o = JSON.parse(line) as { type?: string; isSidechain?: boolean; timestamp?: string; payload?: { type?: string; role?: string } };
+        const reply = tool === "codex" ? o.type === "response_item" && o.payload?.type === "message" && o.payload.role === "assistant" : o.type === "assistant" && !o.isSidechain;
+        // A second's margin: the reply that just ended is written as the Stop runs.
+        if (reply && Date.parse(o.timestamp ?? "") > at + 1000) after = true;
+      } catch {
+        // A line cut at the start of the tail.
+      }
+    }
+  } catch {
+    // Unread: the hook's word stands.
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+  replies.set(file, { size, at, after });
+  return after;
+}
+
 /** The agents whose chats tell Airband what they do (its hook is on), looked at once a minute. */
 let hooked: { at: number; tools: Set<string> } | undefined;
 function hookedTools(now: number): Set<string> {
@@ -190,7 +231,11 @@ export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60):
     if (now - last > windowMs) continue;
     // With the hook on, a chat that works says so: its file being touched (an agent writes a title
     // or a note into an old chat now and then) is not work. Without it, the file is all there is.
-    const activity = !hook && told.has(h.tool) ? h.updatedAt : (mtime(h.file) ?? h.updatedAt);
+    // A chat whose hook said it finished stays finished: an app writes lines after a turn ends
+    // (the Claude app a summary of its Stop hooks, seconds later), and they are not work. Only a
+    // reply made after that, as when another Stop hook sends the chat back to work, is.
+    const settled = !!hook && hook.status !== "working" && hook.status !== "waiting" && told.has(h.tool);
+    const activity = settled ? (repliedAfter(h.tool, h.file, hook!.at) ? (mtime(h.file) ?? hook!.at) : hook!.at) : !hook && told.has(h.tool) ? h.updatedAt : (mtime(h.file) ?? h.updatedAt);
     const r = resolveStatus(activity, hook, now);
     const ask = cachedLastAsk(h);
     const renamed = liveName(h);
@@ -219,6 +264,8 @@ export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60):
 /** A new chat gets its record when its first turn ends, so until then the hook's status is all
  *  there is: a chat working on its first ask (or asking you something in it) is listed from it. */
 const STARTING_MS = 30 * 60_000;
+/** A Claude app chat that started and said nothing more counts as working only this long. */
+const STARTED_MS = 2 * 60_000;
 function startingChats(listed: Set<string>, now: number, windowMs: number): LiveChat[] {
   let names: string[];
   try {
@@ -232,14 +279,14 @@ function startingChats(listed: Set<string>, now: number, windowMs: number): Live
     if (listed.has(id) || !safeId(id)) continue;
     const hook = readHookStatus(id) as HookStatus | undefined;
     if (!hook?.tool || !AGENT_NAME[hook.tool] || (hook.status !== "working" && hook.status !== "waiting")) continue;
-    if (now - hook.at > Math.min(windowMs, STARTING_MS)) continue;
+    if (now - hook.at > Math.min(windowMs, hook.event === "Starting" ? STARTED_MS : STARTING_MS)) continue;
     const r = resolveStatus(mtime(hook.file) ?? hook.at, hook, now);
     if (r.status !== "working" && r.status !== "waiting") continue;
     const app = hook.file ? chatApp(hook.tool, hook.file) : undefined;
     out.push({
       id,
       agent: hook.tool,
-      title: short(hook.ask, 70) ?? id.slice(0, 8),
+      title: short(hook.ask, 70) ?? "New chat",
       project: projectOf(hook.cwd),
       ...(hook.cwd ? { cwd: hook.cwd } : {}),
       ...(app ? { app } : {}),
