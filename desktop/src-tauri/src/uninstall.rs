@@ -153,7 +153,7 @@ pub fn start(app: &AppHandle) {
         let uninstaller = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("uninstall.exe")));
         match uninstaller.filter(|u| u.exists()).map(|u| Command::new(u).spawn()) {
             Some(Ok(_)) => {
-                engine::stop(app);
+                engine::stop();
                 app.exit(0);
             }
             _ => log("uninstall: the uninstaller isn't there"),
@@ -166,7 +166,7 @@ pub fn start(app: &AppHandle) {
         if choice == Choice::Cancel {
             return;
         }
-        engine::stop(&app);
+        engine::stop();
         take_out(choice == Choice::Everything);
         {
             use tauri_plugin_autostart::ManagerExt;

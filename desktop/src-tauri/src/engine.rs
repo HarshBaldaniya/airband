@@ -32,11 +32,6 @@ pub fn own_node() -> PathBuf {
     }
 }
 
-/// The computer's own `node`, through the person's login shell (where nvm and Homebrew put it).
-pub fn system_node() -> Option<PathBuf> {
-    find_command("node")
-}
-
 /// A command's full path: on the PATH, or where its installer usually puts it (the engine's
 /// `findCommand` looks in the same places, so the setup tour and Roger agree).
 pub fn find_command(name: &str) -> Option<PathBuf> {
@@ -188,7 +183,7 @@ pub fn node() -> Option<PathBuf> {
     if own.exists() {
         return Some(own);
     }
-    system_node().filter(|p| version_of(p).as_deref().and_then(major).is_some_and(|m| m >= NODE_MIN))
+    find_command("node").filter(|p| version_of(p).as_deref().and_then(major).is_some_and(|m| m >= NODE_MIN))
 }
 
 static READY: AtomicBool = AtomicBool::new(false);
@@ -343,7 +338,7 @@ pub fn restart() {
     }
 }
 
-pub fn stop(_app: &AppHandle) {
+pub fn stop() {
     if let Some(mut c) = CHILD.lock().unwrap().take() {
         let _ = c.kill();
         let _ = c.wait();

@@ -95,13 +95,9 @@ fn prefs_file() -> PathBuf {
     home().join("app.json")
 }
 
-/// The app's settings. Versions up to 0.0.10 kept them in desktop-lite.json: read once, so an
-/// upgrade keeps them, and the next save writes app.json.
+/// The app's settings, or the defaults when there are none yet.
 fn load_prefs() -> Prefs {
-    [prefs_file(), home().join("desktop-lite.json")]
-        .iter()
-        .find_map(|f| fs::read_to_string(f).ok().and_then(|t| serde_json::from_str(&t).ok()))
-        .unwrap_or_default()
+    fs::read_to_string(prefs_file()).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
 }
 
 pub fn save_prefs(p: &Prefs) {
@@ -138,7 +134,7 @@ pub struct Shared {
 
 pub type State = Arc<Mutex<Shared>>;
 
-/// The prefs the screen knows (the same names as the larger app's).
+/// The prefs the Station's page knows, by the names it uses.
 fn prefs_view(p: &Prefs) -> serde_json::Value {
     serde_json::json!({ "sound": p.sound, "notify": p.notify, "startAtLogin": p.start_at_login, "tucked": p.tucked, "greeted": p.greeted })
 }
@@ -155,8 +151,8 @@ fn companion_name() -> String {
 
 // ---- the window ----
 
-/// What the Station's page is given in place of the larger app's preload: the same bridge, by
-/// invoke and events. Only on the Station's own page, on this computer.
+/// What the Station's page is given to reach the app: `window.airbandDesktop`, by invoke and
+/// events. Only on the Station's own page, on this computer.
 const BRIDGE: &str = r#"
 (() => {
   if (location.hostname !== "127.0.0.1" || !window.__TAURI_INTERNALS__) return;
@@ -165,22 +161,20 @@ const BRIDGE: &str = r#"
   const invoke = (cmd, args) => T.invoke(cmd, args || {}).catch((e) => { if (cmd !== "log_line") T.invoke("log_line", { line: `bridge: ${cmd} refused: ${e}` }).catch(() => {}); });
   const on = (event, cb) => T.invoke("plugin:event|listen", { event, target: { kind: "Any" }, handler: T.transformCallback((e) => cb(e.payload)) });
   window.airbandDesktop = {
+    // Station pages from 0.1.6 and earlier still read these three. Remove once no engine that old can run.
     nativeDrag: true,
     setHit: () => {},
+    qr: async () => undefined,
     setHitAreas: (rects) => invoke("hit_areas", { rects }),
     dragStart: () => invoke("drag"),
-    dragMove: () => {},
-    dragEnd: () => {},
     onPlace: (cb) => on("place", cb),
     onCursor: (cb) => on("cursor", cb),
     onPointer: (cb) => on("pointer", cb),
     onCommand: (cb) => on("command", cb),
     onPrefs: (cb) => on("prefs", cb),
-    qr: async () => undefined,
     prefs: () => invoke("prefs"),
     setPref: (key, on) => invoke("set_pref", { key, on }),
     showMenu: () => invoke("menu"),
-    hide: () => invoke("hide"),
     setAsleep: (asleep) => invoke("asleep", { asleep }),
     comeBack: () => invoke("come_back"),
     update: () => invoke("update_info"),
@@ -559,7 +553,7 @@ fn menu_event(app: &AppHandle, id: &str) {
         "update" => update::install(app),
         "uninstall" => uninstall::start(app),
         "quit" => {
-            engine::stop(app);
+            engine::stop();
             app.exit(0);
         }
         _ => {}
@@ -609,11 +603,6 @@ fn menu(app: AppHandle, window: WebviewWindow) {
     if let Ok(m) = build_menu(&app) {
         let _ = window.popup_menu(&m);
     }
-}
-
-#[tauri::command]
-fn hide(app: AppHandle) {
-    hide_corner(&app);
 }
 
 #[tauri::command]
@@ -790,7 +779,6 @@ fn main() {
             prefs,
             set_pref,
             menu,
-            hide,
             asleep,
             come_back,
             setup::scan,
@@ -849,10 +837,10 @@ fn main() {
         })
         .build(tauri::generate_context!())
         .expect("Airband could not start")
-        .run(|app, e| match e {
+        .run(|_app, e| match e {
             // Closing the setup tour or the corner keeps the app in the menu bar.
             tauri::RunEvent::ExitRequested { api, code, .. } if code.is_none() => api.prevent_exit(),
-            tauri::RunEvent::Exit => engine::stop(app),
+            tauri::RunEvent::Exit => engine::stop(),
             _ => {}
         });
 }

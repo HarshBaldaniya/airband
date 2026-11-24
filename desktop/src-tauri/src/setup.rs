@@ -83,7 +83,7 @@ pub async fn scan() -> Scan {
 
 pub fn look() -> Scan {
     let own = engine::own_node();
-    let node = if own.exists() { Some(own.clone()) } else { engine::system_node() };
+    let node = if own.exists() { Some(own.clone()) } else { find_command("node") };
     let node_version = node.as_deref().and_then(version_of);
     let node_ok = node_version.as_deref().and_then(engine::major).is_some_and(|m| m >= NODE_MIN);
     let agent = |name: &'static str, cmd: &str, link: &'static str| {

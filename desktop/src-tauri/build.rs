@@ -8,7 +8,6 @@ fn main() {
         "prefs",
         "set_pref",
         "menu",
-        "hide",
         "asleep",
         "come_back",
         "log_line",

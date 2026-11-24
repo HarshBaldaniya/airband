@@ -175,7 +175,7 @@ pub fn install(app: &AppHandle) {
                 log(&format!("update: Airband {v} installed, starting it"));
                 set_step(&app, "restarting");
                 std::thread::sleep(Duration::from_millis(700));
-                engine::stop(&app);
+                engine::stop();
                 app.restart();
             }
             Err(e) => {
