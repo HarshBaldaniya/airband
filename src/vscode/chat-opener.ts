@@ -131,11 +131,11 @@ export class ChatOpener {
     // like a terminal agent's, is resumed in a terminal in its own folder, where its history lives:
     // this window stays as it is.
     if (s.tool === "Claude" && !s.away) {
-      const waiting = !this.app.setup.hooked("Claude") ? this.app.takeForPaste(id) : undefined;
+      const waiting = !this.app.setup.hooked("Claude") ? this.app.sharing.takeForPaste(id) : undefined;
       return openClaude(id, waiting);
     }
     this.chatTerminal(s);
-    const waiting = this.app.setup.hooked(s.tool) ? undefined : this.app.takeForPaste(id);
+    const waiting = this.app.setup.hooked(s.tool) ? undefined : this.app.sharing.takeForPaste(id);
     if (waiting) {
       await vscode.env.clipboard.writeText(waiting);
       this.app.toast(`Copied what connected chats did. Paste it into ${s.tool} (⌘V) once it opens.`);
