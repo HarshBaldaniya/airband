@@ -144,8 +144,9 @@ The full list is in [Privacy and security](docs/privacy.md). To report a vulnera
 
 ## Contributing
 
-Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the setup, how the
-repository is laid out and how releases work.
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the setup, how a
+change reaches `main` (a reviewed pull request, with the tests passing), how the repository is laid
+out and how releases work.
 
 ```bash
 npm install
