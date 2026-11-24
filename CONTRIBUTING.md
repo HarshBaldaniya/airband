@@ -31,8 +31,12 @@ when `AIRBAND_TEST_DIR` names a folder that has some; otherwise they are skipped
 | Folder | What lives there |
 |---|---|
 | `src/adapters/` | Reading each agent's own session files (Claude Code, Codex, Gemini CLI) |
-| `src/core/` | Flightlogs, channels and inboxes, plan limits, tokens, writing rules, the agents' setup |
-| `src/hook/` | The small script agents run after each reply |
+| `src/core/` | What everything else builds on: the agent table, paths, JSON, text, units, running programs, settings, the old names (`legacy.ts`) |
+| `src/sessions/` | Flightlogs (`record/`), standups and spend, token reports, plan limits, which app a chat runs in, live status |
+| `src/sharing/` | Channels between chats: connections, inboxes, cursors, what a chat is sent, the notices people see, project notes |
+| `src/writing/` | The writing rules: when a chat gets them, the checker, and holding a message once |
+| `src/install/` | Setting up each agent: tools, hooks, skills, moving an old setup over, backups |
+| `src/hook/` | The small script agents run after each reply: status, sharing, writing checks, permission requests |
 | `src/mcp/` | The three tools agents call |
 | `src/codemap/` | The Map: parsing, imports, search, diffs, modules |
 | `src/library/` | The ready-made commands (`content/*.md` is each command's text) |
