@@ -49,7 +49,8 @@ A short tour sets everything up:
    Gemini CLI, each linked to its official website, and finds one as soon as it is installed.
 2. It checks Node.js. Airband needs version 20 or newer. If yours is missing or older, the tour can
    fetch its own copy from nodejs.org, which leaves yours as it is.
-3. It fetches Airband's engine (the `airband` npm package).
+3. It fetches Airband's engine (the `airband` npm package). It installs it only once it checks out
+   against Airband's signature. If it doesn't, the tour says so, and **Check again** tries again.
 4. It connects your tools.
 
 Every download is checked against its publisher's fingerprint before it runs. Nothing missing stops
@@ -103,6 +104,8 @@ Click Airband's icon in the menu bar (Mac) or the tray (Windows), or right-click
 
 | Item | What it does |
 |---|---|
+| Update to Airband x.y.z | Shown when a newer app is out: downloads it and starts it (see [Updates](#updates)) |
+| Set up Airband… | Shown until the setup tour is finished: opens it |
 | Show / Hide Roger | Same as the shortcut |
 | Tuck Roger away | Small, out of the way |
 | Settings… | His name and look, your phone, sounds |
@@ -110,6 +113,8 @@ Click Airband's icon in the menu bar (Mac) or the tray (Windows), or right-click
 | Roger comes back when a chat needs you | When a chat needs you or finishes, even when hidden |
 | Start at login | On by default |
 | Run the setup tour again… | After installing a new AI tool, say |
+| Uninstall Airband… | Takes Airband out of everything (see [Uninstall](#uninstall)) |
+| Quit Airband | Stops Roger and the engine the app started |
 
 ## Without the app
 
@@ -121,7 +126,9 @@ With no app running, nothing changes: each chat asks in its own terminal, as bef
 Airband keeps itself current:
 
 - **Its engine updates by itself.** Your agents' tools, skills and Roger's screens follow the newest
-  version within a few hours, with nothing to click.
+  version within a few hours, with nothing to click. Each engine is checked twice before it is
+  installed: against npm's fingerprint, and against Airband's own signature on the GitHub release of
+  that version. An engine that fails either check isn't installed.
 - **The app asks once.** When a newer app is out, Airband's menu shows **Update to Airband x.y.z**,
   and Roger's panel shows **Update**. One click downloads it, checks its signature, and starts the new
   version. No warning to click through, and your settings stay as they are.
@@ -130,12 +137,14 @@ Apps from before 0.1.2 can't update themselves: install 0.1.2 once, the same way
 
 ## Files
 
-The app keeps two files in `~/.airband`, next to the rest of Airband's data:
+The app keeps these files in `~/.airband`, next to the rest of Airband's data:
 
 | File | What it holds |
 |---|---|
 | `app.json` | The app's settings |
 | `app.log` | What the app did, for when something goes wrong |
+| `engine.log` | What the engine reported as it ran, for the same |
+| `updated.json` | The version an update put in place, until the new app has said so |
 
 The tour's downloads go to `~/.airband/engine` (the engine) and `~/.airband/runtime/node` (its own
 Node.js, if it fetched one).

@@ -56,10 +56,11 @@ when `AIRBAND_TEST_DIR` names a folder that has some; otherwise they are skipped
 
 ## Releasing
 
-One version lives in `package.json`, `.claude-plugin/plugin.json`, `gemini-extension.json` and the
-desktop app (`desktop/package.json`, `tauri.conf.json` and the Cargo files). Write the notes for the
-next version under `## Unreleased` in CHANGELOG.md as you go: they are built into Airband, and shown
-after an update and by `airband changelog`.
+One version lives in `package.json`. `.claude-plugin/plugin.json`, `gemini-extension.json` and the
+desktop app's Cargo files keep copies, and the desktop app's `tauri.conf.json` reads it from
+`package.json`. `node scripts/check-release.mjs` fails CI when a copy differs. Write the notes for
+the next version under `## Unreleased` in CHANGELOG.md as you go: they are built into Airband, and
+shown after an update and by `airband changelog`.
 
 ```bash
 npm run set-version -- 0.1.0   # sets it everywhere, and turns "## Unreleased" into "## 0.1.0"
@@ -68,14 +69,29 @@ npm run publish:npm             # publishes airband (npm asks you to confirm in 
 git commit -am "0.1.0" && git tag -a v0.1.0 -m "0.1.0" && git push --follow-tags
 ```
 
-Publish to npm before pushing the tag: the plugin and the Gemini extension start the tools through
-`bin/mcp.cjs`, which fetches `airband@<version>` when it isn't on the computer yet, so that version
-has to exist. Check the plugin with `claude plugin validate .`.
+Publish to npm before pushing the tag, for two reasons:
 
-The tag builds the desktop app's downloads (the "Desktop app" workflow) and attaches them to the
-tag's GitHub release, with the signed update files and `latest.json`, which installed apps read to
-update themselves. Signing needs the repository secret `TAURI_SIGNING_PRIVATE_KEY` (see
-[desktop/README.md](desktop/README.md#updates)). To build them on a Mac instead, see [desktop/README.md](desktop/README.md).
+- The plugin and the Gemini extension start the tools through `bin/mcp.cjs`. It fetches
+  `airband@<version>` when it isn't on the computer yet, so that version has to exist.
+- The tag's workflow signs the engine npm serves for that version (below). With nothing on npm, that
+  job fails, and installed apps keep the engine they have.
+
+Check the plugin with `claude plugin validate .`.
+
+The tag runs the "Desktop app" workflow:
+
+1. It builds the desktop app's downloads and attaches them to the tag's GitHub release, with the
+   signed update files.
+2. It signs `airband-<version>.tgz` from npm with the updater's key and attaches
+   `airband-engine-<version>.tgz.sig`. The desktop app installs an engine from npm only when this
+   signature checks out ([desktop/README.md](desktop/README.md#the-engines-signature)).
+3. Once both are up, it attaches `latest.json`, which installed apps read to update themselves.
+
+Signing needs the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (see [desktop/README.md](desktop/README.md#updates)). To sign
+an engine by hand, run `node scripts/sign-engine.mjs <version>` with the key in
+`TAURI_SIGNING_PRIVATE_KEY`, then attach `desktop/release/airband-engine-<version>.tgz.sig` to the
+release. To build the app on a Mac instead, see [desktop/README.md](desktop/README.md).
 After the release's files are up, deploy the website again (`cd site && npm run deploy`): it reads
 the version and the file sizes from the release.
 
