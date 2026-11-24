@@ -4,9 +4,10 @@ mod pointer;
 
 use crate::logging::log;
 use crate::prefs::{apply_start_at_login, PrefKey};
-use crate::state::{hooks, AppState, Side, Vertical};
+use crate::state::{hooks, lock, save_prefs, AppState, Side, Vertical};
 use serde::Serialize;
-use std::time::{Duration, Instant};
+use std::sync::mpsc;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub use pointer::watch_pointer;
@@ -26,7 +27,6 @@ pub const FIG_PAD: f64 = 10.0;
 const SNAP_DISTANCE: f64 = 80.0;
 /// A drag is over once the window has not moved for this long.
 const MOVE_SETTLES_AFTER: Duration = Duration::from_millis(450);
-const MOVE_QUIET: Duration = Duration::from_millis(420);
 /// How long the page takes to fade Roger out before the window goes.
 const FADE_OUT: Duration = Duration::from_millis(260);
 
@@ -106,7 +106,7 @@ fn work_area(w: &WebviewWindow) -> Option<Area> {
 /// Puts the window where it was left, or at the bottom right; keeps it on the screen.
 fn place(w: &WebviewWindow, state: &AppState) {
     let Some(a) = work_area(w) else { return };
-    let at = state.lock().unwrap().prefs.window_at;
+    let at = lock(state).prefs.window_at;
     let (mut x, mut y) = at.unwrap_or((a.x + a.w - WIN_W, a.y + a.h - WIN_H));
     x = x.clamp(a.x - WIN_W + FIG_W + 2.0 * FIG_PAD, a.x + a.w - FIG_W - 2.0 * FIG_PAD);
     y = y.clamp(a.y - WIN_H + FIG_H + 2.0 * FIG_PAD, a.y + a.h - FIG_H - 2.0 * FIG_PAD);
@@ -118,7 +118,7 @@ fn tell_place(w: &WebviewWindow, state: &AppState, x: f64, y: f64, a: Area) {
     let side = if x + WIN_W / 2.0 > a.x + a.w / 2.0 { Side::Right } else { Side::Left };
     let vertical = if y + WIN_H / 2.0 > a.y + a.h / 2.0 { Vertical::Bottom } else { Vertical::Top };
     {
-        let mut s = state.lock().unwrap();
+        let mut s = lock(state);
         s.side = side;
         s.vertical = vertical;
     }
@@ -142,11 +142,8 @@ fn settle(w: &WebviewWindow, state: &AppState) {
         y = a.y;
     }
     let _ = w.set_position(tauri::LogicalPosition::new(x, y));
-    {
-        let mut s = state.lock().unwrap();
-        s.prefs.window_at = Some((x, y));
-        s.prefs.save();
-    }
+    lock(state).prefs.window_at = Some((x, y));
+    save_prefs(state);
     tell_place(w, state, x, y, a);
 }
 
@@ -163,7 +160,7 @@ pub fn open_corner(app: &AppHandle, url: &str) {
         return;
     }
     log(&format!("corner: opening {}", url.split('?').next().unwrap_or(url)));
-    let hidden = state.lock().unwrap().prefs.hidden;
+    let hidden = lock(&state).prefs.hidden;
     let place_state = state.clone();
     let Ok(w) = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(target))
         .title("Airband")
@@ -185,7 +182,7 @@ pub fn open_corner(app: &AppHandle, url: &str) {
         .on_page_load(move |w, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Finished {
                 place(&w, &place_state);
-                let p = place_state.lock().unwrap().prefs.clone();
+                let p = lock(&place_state).prefs.clone();
                 let _ = w.emit(event::PREFS, p.for_page());
                 if !p.hidden {
                     let _ = w.show();
@@ -201,21 +198,19 @@ pub fn open_corner(app: &AppHandle, url: &str) {
         return;
     };
     let _ = w.set_ignore_cursor_events(true);
-    state.lock().unwrap().passing = true;
-    let moved_state = state.clone();
-    let moved_w = w.clone();
+    lock(&state).passing = true;
+    // One thread settles the window once a drag is over: each move starts its wait again.
+    let (moved, moves) = mpsc::channel::<()>();
+    let (settle_w, settle_state) = (w.clone(), state.clone());
+    std::thread::spawn(move || {
+        while moves.recv().is_ok() {
+            while moves.recv_timeout(MOVE_SETTLES_AFTER).is_ok() {}
+            settle(&settle_w, &settle_state);
+        }
+    });
     w.on_window_event(move |e| {
         if let tauri::WindowEvent::Moved(_) = e {
-            moved_state.lock().unwrap().last_move = Some(Instant::now());
-            let (st, win) = (moved_state.clone(), moved_w.clone());
-            std::thread::spawn(move || {
-                std::thread::sleep(MOVE_SETTLES_AFTER);
-                let quiet = st.lock().unwrap().last_move.map(|t| t.elapsed() >= MOVE_QUIET).unwrap_or(false);
-                if quiet {
-                    st.lock().unwrap().last_move = None;
-                    settle(&win, &st);
-                }
-            });
+            let _ = moved.send(());
         }
     });
     if hidden {
@@ -229,15 +224,16 @@ pub fn show(app: &AppHandle, open: bool) {
     let state = app.state::<AppState>().inner().clone();
     let Some(w) = window(app) else { return };
     let was = w.is_visible().unwrap_or(false);
-    {
-        let mut s = state.lock().unwrap();
+    let view = {
+        let mut s = lock(&state);
         s.prefs.hidden = false;
         if open {
             s.prefs.tucked = false;
         }
-        s.prefs.save();
-        let _ = w.emit(event::PREFS, s.prefs.for_page());
-    }
+        s.prefs.for_page()
+    };
+    save_prefs(&state);
+    let _ = w.emit(event::PREFS, view);
     let _ = w.show();
     if !was {
         let _ = w.emit(event::COMMAND, PageCommand::Arrive);
@@ -252,18 +248,15 @@ pub fn show(app: &AppHandle, open: bool) {
 /// Hides Roger: the page fades him out, then the window goes. Never a cut.
 pub fn hide(app: &AppHandle) {
     let state = app.state::<AppState>().inner().clone();
-    {
-        let mut s = state.lock().unwrap();
-        s.prefs.hidden = true;
-        s.prefs.save();
-    }
+    lock(&state).prefs.hidden = true;
+    save_prefs(&state);
     if let Some(w) = window(app) {
         let _ = w.emit(event::COMMAND, PageCommand::Leave);
         let st = state.clone();
         let a = app.clone();
         std::thread::spawn(move || {
             std::thread::sleep(FADE_OUT);
-            if st.lock().unwrap().prefs.hidden {
+            if lock(&st).prefs.hidden {
                 let _ = w.hide();
                 let _ = a.run_on_main_thread({
                     let a = a.clone();
@@ -278,11 +271,11 @@ pub fn hide(app: &AppHandle) {
 pub fn set_pref(app: &AppHandle, key: PrefKey, on: bool) {
     let state = app.state::<AppState>().inner().clone();
     let view = {
-        let mut s = state.lock().unwrap();
+        let mut s = lock(&state);
         s.prefs.set(key, on);
-        s.prefs.save();
         s.prefs.for_page()
     };
+    save_prefs(&state);
     if key == PrefKey::StartAtLogin {
         apply_start_at_login(app, on);
     }

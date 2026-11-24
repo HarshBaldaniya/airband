@@ -5,7 +5,7 @@
 use crate::logging::log;
 use crate::paths::{self, engine_dir, runtime_dir, ENGINE_LOG};
 use crate::process::{command, find_command, is_alive, major, version_of};
-use crate::state::hooks;
+use crate::state::{hooks, lock};
 use crate::station::StationFile;
 use std::path::PathBuf;
 use std::process::{Child, Stdio};
@@ -120,7 +120,7 @@ pub fn start(app: &AppHandle) {
             };
             log(&format!("engine: started (process {})", child.id()));
             let started = std::time::Instant::now();
-            *CHILD.lock().unwrap() = Some(child);
+            *lock(&CHILD) = Some(child);
             let mut opened = false;
             for _ in 0..STATION_WAIT.as_millis() / STATION_POLL.as_millis() {
                 std::thread::sleep(STATION_POLL);
@@ -129,8 +129,7 @@ pub fn start(app: &AppHandle) {
                     opened = true;
                     break;
                 }
-                let exited =
-                    CHILD.lock().unwrap().as_mut().map(|c| c.try_wait().ok().flatten().is_some()).unwrap_or(true);
+                let exited = lock(&CHILD).as_mut().map(|c| c.try_wait().ok().flatten().is_some()).unwrap_or(true);
                 if exited {
                     break;
                 }
@@ -138,7 +137,7 @@ pub fn start(app: &AppHandle) {
             // Watch it: if it stops on its own, start it again (a few times, then stop trying).
             loop {
                 std::thread::sleep(WATCH_EVERY);
-                let mut guard = CHILD.lock().unwrap();
+                let mut guard = lock(&CHILD);
                 let Some(child) = guard.as_mut() else { return };
                 if child.try_wait().ok().flatten().is_some() {
                     *guard = None;
@@ -168,7 +167,7 @@ pub fn start(app: &AppHandle) {
 /// Starts our Station again on the engine's newest files: it is stopped, and the watcher in
 /// `start` starts it again. A Station started elsewhere (the command line) is left as it is.
 pub fn restart() {
-    if let Some(c) = CHILD.lock().unwrap().as_mut() {
+    if let Some(c) = lock(&CHILD).as_mut() {
         RESTART.store(true, Ordering::Relaxed);
         let _ = c.kill();
     }
@@ -176,7 +175,7 @@ pub fn restart() {
 
 /// Stops our Station, when the app quits or is replaced.
 pub fn stop() {
-    if let Some(mut c) = CHILD.lock().unwrap().take() {
+    if let Some(mut c) = lock(&CHILD).take() {
         let _ = c.kill();
         let _ = c.wait();
     }

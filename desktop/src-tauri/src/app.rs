@@ -3,7 +3,7 @@
 use crate::corner::{self, is_visible, watch_pointer, PageCommand};
 use crate::logging::log;
 use crate::prefs::{apply_start_at_login, Prefs};
-use crate::state::{AppState, Hooks, Shared};
+use crate::state::{lock, AppState, Hooks, Shared};
 use crate::tray::{self, build_menu, menu_event, TRAY_ID};
 use crate::{commands, engine, setup, update};
 use std::sync::{Arc, Mutex};
@@ -23,7 +23,7 @@ fn wants_update(args: &[String]) -> bool {
 
 /// The global shortcut: Roger comes, or his panel opens or closes.
 fn on_shortcut(app: &AppHandle) {
-    let tucked = app.state::<AppState>().lock().unwrap().prefs.tucked;
+    let tucked = lock(&app.state::<AppState>()).prefs.tucked;
     if !is_visible(app) || tucked {
         corner::show(app, true)
     } else {
@@ -106,7 +106,7 @@ pub fn run() {
                 .show_menu_on_left_click(true)
                 .on_menu_event(|app, e| menu_event(app, e.id().as_ref()))
                 .build(app)?;
-            let p = state.lock().unwrap().prefs.clone();
+            let p = lock(&state).prefs.clone();
             apply_start_at_login(&handle, p.start_at_login);
             watch_pointer(handle.clone(), state.clone());
             {
@@ -115,9 +115,19 @@ pub fn run() {
                     log(&format!("start: the shortcut {SHORTCUT} is taken, so Airband has none: {e}"));
                 }
             }
-            // Set up: the engine starts and the corner opens. Not yet: the setup tour.
-            if p.set_up && engine::ready() {
-                engine::start(&handle);
+            // Set up: the engine starts and the corner opens. Not yet: the setup tour. Whether
+            // Node and the engine are there runs the login shell, so it is looked at off the main
+            // thread.
+            if p.set_up {
+                let h = handle.clone();
+                std::thread::spawn(move || {
+                    if engine::ready() {
+                        engine::start(&h);
+                    } else {
+                        let a = h.clone();
+                        let _ = h.run_on_main_thread(move || setup::open(&a));
+                    }
+                });
             } else {
                 setup::open(&handle);
             }

@@ -2,7 +2,7 @@
 use crate::corner::{self, is_visible, PageCommand};
 use crate::paths::{self, STATION_SETTINGS};
 use crate::prefs::PrefKey;
-use crate::state::AppState;
+use crate::state::{lock, AppState};
 use crate::update::{self, UpdateStep};
 use crate::{engine, setup, uninstall};
 use std::fs;
@@ -80,7 +80,7 @@ fn check(app: &AppHandle, id: MenuId, label: impl AsRef<str>, on: bool) -> tauri
 }
 
 pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
-    let p = app.state::<AppState>().lock().unwrap().prefs.clone();
+    let p = lock(&app.state::<AppState>()).prefs.clone();
     let name = companion_name();
     let items = Menu::new(app)?;
     let newer = update::current();
@@ -132,7 +132,7 @@ pub fn refresh_menu(app: &AppHandle) {
 
 pub fn menu_event(app: &AppHandle, id: &str) {
     let Some(id) = MenuId::from_id(id) else { return };
-    let p = app.state::<AppState>().lock().unwrap().prefs.clone();
+    let p = lock(&app.state::<AppState>()).prefs.clone();
     let flip = |key: PrefKey| corner::set_pref(app, key, !p.get(key));
     match id {
         MenuId::Toggle if is_visible(app) && !p.hidden => corner::hide(app),

@@ -2,11 +2,11 @@
 //! granted to its window in capabilities/ (scripts/check-commands.mjs checks the four agree).
 use crate::corner::{self, is_visible};
 use crate::engine;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::logging::log;
 use crate::prefs::{PagePrefs, PrefKey};
 use crate::setup::{self, Scan};
-use crate::state::{AppState, Rect};
+use crate::state::{lock, save_prefs, AppState, Rect};
 use crate::tray::{build_menu, refresh_menu};
 use crate::update;
 use tauri::{AppHandle, Manager, State, WebviewWindow};
@@ -25,19 +25,14 @@ pub fn log_line(line: String) {
 /// Where the page's clickable parts are now.
 #[tauri::command]
 pub fn hit_areas(rects: Vec<Rect>, state: State<AppState>) {
-    let mut s = state.lock().unwrap();
-    if s.hits.is_empty() && !rects.is_empty() {
-        let r = rects[0];
+    let (first, count) = (rects.first().copied(), rects.len());
+    let arrived = std::mem::replace(&mut lock(&state).hits, rects).is_empty();
+    if let (true, Some(r)) = (arrived, first) {
         log(&format!(
-            "corner: clickable parts arrived ({}), first at {:.0},{:.0} {:.0}x{:.0}",
-            rects.len(),
-            r.x,
-            r.y,
-            r.width,
-            r.height
+            "corner: clickable parts arrived ({count}), first at {:.0},{:.0} {:.0}x{:.0}",
+            r.x, r.y, r.width, r.height
         ));
     }
-    s.hits = rects;
 }
 
 /// A drag starts on the figure: the system moves the window from here.
@@ -48,7 +43,7 @@ pub fn drag(window: WebviewWindow) {
 
 #[tauri::command]
 pub fn prefs(state: State<AppState>) -> PagePrefs {
-    state.lock().unwrap().prefs.for_page()
+    lock(&state).prefs.for_page()
 }
 
 #[tauri::command]
@@ -67,7 +62,7 @@ pub fn menu(app: AppHandle, window: WebviewWindow) {
 /// Asleep, the pointer is looked at less often.
 #[tauri::command]
 pub fn asleep(asleep: bool, state: State<AppState>) {
-    state.lock().unwrap().asleep = asleep;
+    lock(&state).asleep = asleep;
 }
 
 /// A newer app, if there is one (Roger's panel shows it).
@@ -91,7 +86,7 @@ pub fn just_updated(app: AppHandle) -> Option<String> {
 /// A request or a finished chat came: hidden or tucked away, the companion comes back.
 #[tauri::command]
 pub fn come_back(app: AppHandle) {
-    let p = app.state::<AppState>().lock().unwrap().prefs.clone();
+    let p = lock(&app.state::<AppState>()).prefs.clone();
     if !p.notify {
         return;
     }
@@ -105,44 +100,48 @@ pub fn come_back(app: AppHandle) {
 }
 
 // ---- the setup tour ----
+//
+// Each of these runs programs, downloads or waits: on the runtime's blocking threads, never on
+// the one that answers the pages.
+
+async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+    tauri::async_runtime::spawn_blocking(work).await.map_err(|e| Error::from(format!("the work stopped: {e}")))?
+}
 
 /// What is on this computer, and what is not.
 #[tauri::command]
-pub async fn scan() -> Scan {
-    setup::look()
+pub async fn scan() -> Result<Scan> {
+    blocking(|| Ok(setup::look())).await
 }
 
 /// Node.js, the current long-term version, from nodejs.org into ~/.airband/runtime/node, checked
 /// against nodejs.org's own list of fingerprints.
 #[tauri::command]
 pub async fn install_node(app: AppHandle) -> Result<String> {
-    setup::node_from_nodejs(&setup::progress_to(&app))
+    blocking(move || setup::node_from_nodejs(&setup::progress_to(&app))).await
 }
 
 /// Airband's engine, the latest npm package, into ~/.airband/engine, checked against npm's
 /// published fingerprint (its sha512 "integrity").
 #[tauri::command]
 pub async fn install_engine(app: AppHandle) -> Result<String> {
-    setup::engine_from_npm(&setup::progress_to(&app))
+    blocking(move || setup::engine_from_npm(&setup::progress_to(&app))).await
 }
 
 /// Connects Airband to the agents found: its hook, tools and skills, and the `airband` command.
 #[tauri::command]
 pub async fn connect_agents() -> Result<serde_json::Value> {
-    setup::connect()
+    blocking(setup::connect).await
 }
 
 /// The tour is done: Roger comes, and the tour window goes. Never refused: with something still
 /// missing, Airband waits in the menu bar, and "Set up Airband…" there finishes it.
 #[tauri::command]
 pub async fn finish(app: AppHandle) -> Result<()> {
-    let ready = engine::ready();
-    {
-        let state = app.state::<AppState>();
-        let mut s = state.lock().unwrap();
-        s.prefs.set_up = true;
-        s.prefs.save();
-    }
+    let ready = blocking(|| Ok(engine::ready())).await?;
+    let state = app.state::<AppState>();
+    lock(&state).prefs.set_up = true;
+    save_prefs(&state);
     if ready && corner::window(&app).is_none() {
         engine::start(&app);
     }

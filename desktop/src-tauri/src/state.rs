@@ -1,8 +1,7 @@
 //! What the app keeps while it runs, and how the modules below the app tell it what happened.
 use crate::prefs::Prefs;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use tauri::{AppHandle, Manager};
 
 /// A part of the page that takes clicks (logical pixels in the window).
@@ -45,24 +44,31 @@ pub struct Shared {
     pub asleep: bool,
     pub side: Side,
     pub vertical: Vertical,
-    pub last_move: Option<Instant>,
 }
 
 impl Shared {
     pub fn new(prefs: Prefs) -> Self {
-        Shared {
-            prefs,
-            hits: vec![],
-            passing: true,
-            asleep: false,
-            side: Side::Right,
-            vertical: Vertical::Bottom,
-            last_move: None,
-        }
+        Shared { prefs, hits: vec![], passing: true, asleep: false, side: Side::Right, vertical: Vertical::Bottom }
     }
 }
 
 pub type AppState = Arc<Mutex<Shared>>;
+
+/// Locks a mutex. A thread that panicked while holding it leaves the data as it was, which is
+/// still good to use: the app goes on rather than panicking on every lock after.
+pub fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Writes the settings as they are now. The file is written outside the state's lock, so the
+/// pointer watcher and the page's calls never wait on the disk; one save runs at a time, and each
+/// writes the newest settings, so the last one written is always the newest.
+pub fn save_prefs(state: &AppState) {
+    static SAVING: Mutex<()> = Mutex::new(());
+    let _one_at_a_time = lock(&SAVING);
+    let prefs = lock(state).prefs.clone();
+    prefs.save();
+}
 
 /// How the modules below the app tell it something happened, without knowing the menu or the
 /// corner: app.rs fills these in.

@@ -1,7 +1,7 @@
 //! Watching the pointer, which a window that lets clicks through never hears about.
 use super::{event, window, FIG_H, FIG_PAD, FIG_W, WIN_H, WIN_W};
 use crate::logging::log;
-use crate::state::{AppState, Side, Vertical};
+use crate::state::{lock, AppState, Side, Vertical};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 
@@ -30,7 +30,7 @@ pub fn watch_pointer(app: AppHandle, state: AppState) {
         // would stay on the row that was clicked.
         let mut last_point = String::new();
         loop {
-            let asleep = state.lock().unwrap().asleep;
+            let asleep = lock(&state).asleep;
             std::thread::sleep(if asleep { POLL_ASLEEP } else { POLL_AWAKE });
             let Some(w) = window(&app) else { continue };
             if !w.is_visible().unwrap_or(false) {
@@ -41,12 +41,12 @@ pub fn watch_pointer(app: AppHandle, state: AppState) {
             };
             let (cx, cy) = ((c.x - pos.x as f64) / scale, (c.y - pos.y as f64) / scale);
             let (over, side, vertical, passing) = {
-                let s = state.lock().unwrap();
+                let s = lock(&state);
                 (s.hits.iter().any(|r| r.contains(cx, cy)), s.side, s.vertical, s.passing)
             };
             if over == passing {
                 let _ = w.set_ignore_cursor_events(!over);
-                state.lock().unwrap().passing = !over;
+                lock(&state).passing = !over;
                 log(&format!(
                     "pointer: {} at {cx:.0},{cy:.0}",
                     if over { "over Roger: takes clicks" } else { "away: clicks pass through" }

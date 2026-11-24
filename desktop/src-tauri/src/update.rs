@@ -14,7 +14,7 @@ use crate::corner::{self, event};
 use crate::error::Result;
 use crate::logging::log;
 use crate::paths::{self, UPDATED};
-use crate::state::{hooks, AppState};
+use crate::state::{hooks, lock, AppState};
 use crate::{engine, setup};
 use serde::Serialize;
 use std::sync::Mutex;
@@ -55,7 +55,7 @@ static NOW: Mutex<AppUpdate> =
     Mutex::new(AppUpdate { version: None, installing: false, step: None, progress: None, error: None });
 
 pub fn current() -> AppUpdate {
-    NOW.lock().unwrap().clone()
+    lock(&NOW).clone()
 }
 
 /// The menu and Roger's panel show what changed.
@@ -71,7 +71,7 @@ fn tell_panel(app: &AppHandle) {
 }
 
 fn set_step(app: &AppHandle, step: UpdateStep) {
-    NOW.lock().unwrap().step = Some(step);
+    lock(&NOW).step = Some(step);
     tell(app);
 }
 
@@ -113,7 +113,7 @@ pub fn watch(app: &AppHandle) {
 // ---- the engine: by itself ----
 
 fn engine_update(app: &AppHandle) {
-    let set_up = app.state::<AppState>().lock().unwrap().prefs.set_up;
+    let set_up = lock(&app.state::<AppState>()).prefs.set_up;
     if !set_up || std::env::var("AIRBAND_ENGINE_DIR").is_ok() || !engine::ready() {
         return;
     }
@@ -142,7 +142,7 @@ async fn check_app(app: &AppHandle) {
     match updater.check().await {
         Ok(Some(u)) => {
             let fresh = {
-                let mut now = NOW.lock().unwrap();
+                let mut now = lock(&NOW);
                 let fresh = now.version.as_deref() != Some(u.version.as_str());
                 now.version = Some(u.version.clone());
                 fresh
@@ -173,7 +173,7 @@ pub fn check_and_install(app: &AppHandle) {
 /// Downloads the newer app, checks it, puts it in place and starts it.
 pub fn install(app: &AppHandle) {
     {
-        let mut now = NOW.lock().unwrap();
+        let mut now = lock(&NOW);
         if now.installing {
             return;
         }
@@ -189,14 +189,19 @@ pub fn install(app: &AppHandle) {
             Ok(v) => {
                 log(&format!("update: Airband {v} installed, starting it"));
                 set_step(&app, UpdateStep::Restarting);
-                std::thread::sleep(RESTART_PAUSE);
-                engine::stop();
-                app.restart();
+                // "Starting again…" stays a moment; the pause and the engine's stop wait on a
+                // blocking thread, not on the runtime's.
+                let _ = tauri::async_runtime::spawn_blocking(move || {
+                    std::thread::sleep(RESTART_PAUSE);
+                    engine::stop();
+                    app.restart();
+                })
+                .await;
             }
             Err(e) => {
                 log(&format!("update: the app didn't update: {e}"));
                 {
-                    let mut now = NOW.lock().unwrap();
+                    let mut now = lock(&NOW);
                     now.installing = false;
                     now.step = None;
                     now.progress = None;
@@ -218,7 +223,7 @@ async fn download_and_install(app: &AppHandle) -> Result<String> {
             got += chunk as u64;
             let Some(total) = total.filter(|t| *t > 0) else { return };
             let pct = ((got * 100) / total).min(100) as u8;
-            let was = NOW.lock().unwrap().progress.replace(pct);
+            let was = lock(&NOW).progress.replace(pct);
             if was != Some(pct) {
                 tell_panel(&a);
                 // The menu is built again only now and then.
