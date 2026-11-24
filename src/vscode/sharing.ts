@@ -11,7 +11,7 @@ import type { ChatDigest, ChatRef, ChatSession, Connection } from "../core/types
 import { HOOK_STEP_MAX, readAsks } from "../sessions/record/store";
 import { readAsksFrom } from "../sessions/record/extract";
 import { recordContext, recordPointer, renderAsks, type LinkLevel } from "../sessions/record/render";
-import { addConnection, readConnections, removeConnection } from "../sharing/connections";
+import { addConnection, readConnections, removeConnection, setPaused } from "../sharing/connections";
 import { getCursor, setCursor } from "../sharing/cursors";
 import { logDelivery, readDeliveries } from "../sharing/deliveries";
 import { buildContext, buildUpdate, formatDelivery } from "../sharing/delivery";
@@ -119,6 +119,21 @@ export class Sharing {
       );
     }
     return gone;
+  }
+
+  /** Pauses or resumes a channel, tells the chat it feeds, and offers Undo. */
+  async pause(connectionId: string, paused: boolean, view: vscode.Webview): Promise<void> {
+    setPaused(connectionId, paused);
+    const c = readConnections().find((x) => x.id === connectionId);
+    if (c) {
+      this.notice(c.to.id, c.from, paused ? `Paused: updates from “${c.from.title}” stop until resumed.` : `Resumed: updates from “${c.from.title}” come again.`, `pause:${c.id}`);
+      this.app.toast(`${shortTitle(this.app.chats.ref(c.from).title)} → ${shortTitle(this.app.chats.ref(c.to).title)}`, "ok", view, {
+        title: paused ? "Paused" : "Resumed",
+        icon: paused ? "pause" : "play",
+        undo: { type: "pause", connectionId: c.id, paused: !paused },
+      });
+    }
+    return this.app.refresh();
   }
 
   /** Sets which way two linked chats share: both ways, a → b, or b → a. */

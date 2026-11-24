@@ -4,23 +4,21 @@
 import * as vscode from "vscode";
 import type { BoardTab, ConnectionView, FromWebview, ToWebview, ViewState } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
-import { libraryView, shortTitle } from "./pages";
 import { BoardStore } from "../core/state";
-import { readConnections, setPaused, setLevel } from "../sharing/connections";
+import { readConnections } from "../sharing/connections";
 import { readInbox } from "../sharing/inbox";
 import { readDeliveries } from "../sharing/deliveries";
 import { unregisterWindow } from "../core/folders";
-import { setClaudeAiCredit } from "../install/agent-hooks";
 import { claudeExtensionInstalled } from "./open";
 import { webviewHtml } from "./webview-html";
 import { PlansService } from "./plans-service";
 import { SetupService } from "./setup-service";
-import { libraryMessage } from "./library-page";
 import { MapPageService } from "./map-page";
 import { ChatIndex } from "./chat-index";
 import { ChatOpener } from "./chat-opener";
 import { Sharing } from "./sharing";
-import { setWriting, syncConfig, writingView } from "./settings";
+import { route } from "./message-router";
+import { syncConfig } from "./settings";
 
 const POLL_MS = 10_000;
 
@@ -84,7 +82,7 @@ export class Controller implements vscode.Disposable {
     webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(this.ctx.extensionUri, "dist")] };
     webview.html = webviewHtml(webview, this.ctx.extensionUri, view);
     this.views.add(webview);
-    const sub = webview.onDidReceiveMessage((m: FromWebview) => this.handle(m, webview));
+    const sub = webview.onDidReceiveMessage((m: FromWebview) => route(this, m, webview));
     return { dispose: () => (this.views.delete(webview), sub.dispose()) };
   }
 
@@ -221,162 +219,6 @@ export class Controller implements vscode.Disposable {
     this.chats.afterLoad();
   }
 
-  // ---- requests from the views ----
-
-  private async handle(m: FromWebview, from: vscode.Webview): Promise<void> {
-    try {
-      switch (m.type) {
-        case "ready":
-          this.post({ type: "state", state: this.state }, from);
-          this.refreshSoon(0);
-          return;
-        case "refresh":
-          return this.refresh();
-        case "open":
-          return this.opener.open(m.id);
-        case "openInFolder":
-          return this.opener.openInFolder(m.id);
-        case "openInTerminal":
-          return this.opener.openTerminal(m.id);
-        case "newChat":
-          return this.opener.newChat(m.tool);
-        case "openBoard":
-          return this.openBoard(m.tab);
-        case "setup":
-          return this.turnOn();
-        case "connect":
-          return this.sharing.connect(m.from, m.to, !!m.both, from);
-        case "connectMany":
-          if (m.handles) this.boardStore().update((b) => (b.handles = { ...(b.handles ?? {}), ...m.handles }));
-          return this.sharing.connectMany(m.pairs, from);
-        case "disconnect":
-          this.sharing.unlink([m.connectionId], from);
-          return this.refresh();
-        case "disconnectMany":
-          this.sharing.unlink(m.ids, from);
-          return this.refresh();
-        case "direction":
-          return this.sharing.direction(m.a, m.b, m.want, from);
-        case "pause": {
-          setPaused(m.connectionId, m.paused);
-          const c = readConnections().find((x) => x.id === m.connectionId);
-          if (c) {
-            this.sharing.notice(c.to.id, c.from, m.paused ? `Paused: updates from “${c.from.title}” stop until resumed.` : `Resumed: updates from “${c.from.title}” come again.`, `pause:${c.id}`);
-            this.toast(`${shortTitle(this.chats.ref(c.from).title)} → ${shortTitle(this.chats.ref(c.to).title)}`, "ok", from, {
-              title: m.paused ? "Paused" : "Resumed",
-              icon: m.paused ? "pause" : "play",
-              undo: { type: "pause", connectionId: c.id, paused: !m.paused },
-            });
-          }
-          return this.refresh();
-        }
-        case "syncNow":
-          return this.sharing.syncNow(m.id);
-        case "plans":
-          return void this.plansService.refresh(true);
-        case "codeMap":
-          return void this.mapPage.send(from, m.rebuild, m.root);
-        case "codeMapFolder":
-          return void this.mapPage.mapAnotherFolder(from);
-        case "codeFind":
-          return this.mapPage.find(m.q, m.root, from);
-        case "codeModule":
-          return this.mapPage.module(m.id, m.root, from);
-        case "openFile":
-          return this.mapPage.openFile(m.path, m.line, m.root);
-        case "moduleDoc":
-          return void this.mapPage.moduleDoc(m.id, m.action, from, m.root);
-        case "library":
-        case "librarySuggest":
-        case "libraryRun":
-        case "libraryCopy":
-        case "libraryOpen":
-        case "libraryNew":
-          return libraryMessage(m, (msg) => this.post(msg, from));
-        case "setUpToolkit":
-          await this.setup.setUpToolkit();
-          return this.post({ type: "library", data: libraryView() }, from);
-        case "writing":
-          return this.post({ type: "writing", data: writingView() }, from);
-        case "writingSet": {
-          await setWriting(m.key, m.on);
-          return this.post({ type: "writing", data: writingView() }, from);
-        }
-        case "writingAiCredit":
-          setClaudeAiCredit(m.show);
-          return this.post({ type: "writing", data: writingView() }, from);
-        case "fullscreen":
-          return this.fullscreen();
-        case "askBranch":
-          return this.sharing.askBranch(m.id, from);
-        case "branch":
-          return this.sharing.branch(m, from);
-        case "peek":
-          return this.sharing.peek(m.id, from);
-        case "boardAdd":
-          this.boardStore().update((b) => {
-            if (!b.members.includes(m.id)) b.members.push(m.id);
-            if (m.x !== undefined && m.y !== undefined) b.positions[m.id] = { x: Math.round(m.x), y: Math.round(m.y) };
-          });
-          // From the sidebar, show the board with the chat on it.
-          if (m.open) this.openBoard("board");
-          return this.refresh();
-        case "boardRemove":
-          this.boardStore().update((b) => (b.members = b.members.filter((id) => id !== m.id)));
-          return this.refresh();
-        case "move":
-          this.boardStore().update((b) => (b.positions[m.id] = { x: Math.round(m.x), y: Math.round(m.y) }));
-          this.state.board.positions[m.id] = { x: m.x, y: m.y };
-          return;
-        case "boardClear": {
-          const before = this.boardStore().read();
-          if (!before.members.length) return;
-          this.boardStore().update((b) => {
-            b.members = [];
-            b.positions = {};
-            b.seeded = true;
-          });
-          this.toast(`${before.members.length} card${before.members.length === 1 ? "" : "s"} taken off. Add chats back from the list, a folder at a time or one by one.`, "ok", from, {
-            title: "Tower cleared",
-            icon: "info",
-            undo: { type: "boardRestore", members: before.members, positions: before.positions },
-          });
-          return this.refresh();
-        }
-        case "boardRestore":
-          this.boardStore().update((b) => {
-            b.members = [...new Set([...m.members, ...b.members])];
-            b.positions = { ...m.positions, ...b.positions };
-          });
-          return this.refresh();
-        case "linkLevel":
-          setLevel(m.ids, m.level);
-          return this.refresh();
-        case "viewport":
-          // Kept quietly: nothing else on screen depends on it.
-          this.boardStore().update((b) => (b.viewport = m.viewport));
-          this.state.board.viewport = m.viewport;
-          return;
-        case "boardArrange":
-          this.boardStore().update((b) => (b.arrange = m.arrange));
-          return this.refresh();
-        case "scope":
-          // Every folder in the sidebar: the board groups by folder too; back to this folder: by links.
-          this.boardStore().update((b) => (b.arrange = m.scope === "all" ? "folder" : "links"));
-          return this.refresh();
-        case "arrange":
-          // Every card placed stays on the board (a drag in "By time" keeps all the chats it showed).
-          this.boardStore().update((b) => {
-            Object.assign(b.positions, m.positions);
-            for (const id of Object.keys(m.positions)) if (!b.members.includes(id)) b.members.push(id);
-          });
-          return this.refresh();
-      }
-    } catch (err) {
-      this.toast(err instanceof Error ? err.message : String(err), "warn", from);
-    }
-  }
-
   boardStore(): BoardStore {
     return new BoardStore(this.requireRoot());
   }
@@ -384,7 +226,7 @@ export class Controller implements vscode.Disposable {
   private focusOn = false;
 
   /** Focus: the board gets the whole window (side panels hidden); again to bring them back. */
-  private async fullscreen(): Promise<void> {
+  async fullscreen(): Promise<void> {
     this.openBoard("board");
     const run = async (...ids: string[]) => {
       for (const id of ids) {
