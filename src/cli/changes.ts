@@ -1,7 +1,7 @@
 // What changed, from the CHANGELOG.md built into this copy: shown after an update and by
 // `airband changelog`. No network: the notes travel with the version they describe.
 import changelog from "../../CHANGELOG.md";
-import { newer } from "../core/setup";
+import { newer } from "../core/version";
 
 export interface Release {
   version: string;

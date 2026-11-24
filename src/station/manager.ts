@@ -10,7 +10,7 @@
 import { execFile } from "node:child_process";
 import * as fs from "node:fs";
 import { airbandFile } from "../core/paths";
-import { findClaude, findNode } from "../core/hooks";
+import { findClaude, findNode } from "../core/process";
 import { matchChats, type LiveChat } from "./chats";
 import { DEFAULT_COMPANION } from "./companion";
 import { knowledge } from "./knowledge";

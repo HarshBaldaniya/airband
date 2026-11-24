@@ -5,7 +5,6 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { execFileSync } from "node:child_process";
 import { airbandHome, guardRealHome, writeFileAtomic } from "./paths";
 
 export const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest", "Notification", "Stop", "SessionEnd"] as const;
@@ -43,52 +42,6 @@ export function installedHookPath(): string {
 }
 
 /**
- * Where a command lives, as the person's own setup finds it: their login shell on macOS and Linux
- * (an editor started from the Dock or a desktop menu has a short PATH), `where` on Windows, then the
- * usual install places.
- */
-export function findCommand(name: string, platform: NodeJS.Platform = process.platform): string | undefined {
-  const tryRun = (cmd: string, args: string[]) => {
-    try {
-      return execFileSync(cmd, args, { encoding: "utf8", timeout: 5000, windowsHide: true })
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter(Boolean);
-    } catch {
-      return [];
-    }
-  };
-  if (platform === "win32") {
-    // `where` lists every match; an .exe or .cmd is what can actually be started.
-    const found = tryRun("where", [name]).find((p) => /\.(exe|cmd|bat)$/i.test(p) && fs.existsSync(p));
-    if (found) return found;
-  } else {
-    const shells = [process.env.SHELL, "/bin/zsh", "/bin/bash", "/bin/sh"].filter((s): s is string => !!s && fs.existsSync(s));
-    for (const shell of shells.slice(0, 2)) {
-      const found = tryRun(shell, ["-lc", `command -v ${name}`]).pop();
-      if (found && path.isAbsolute(found) && fs.existsSync(found)) return found;
-    }
-  }
-  const home = os.homedir();
-  const usual =
-    platform === "win32"
-      ? [
-          path.join(process.env.APPDATA ?? path.join(home, "AppData", "Roaming"), "npm", `${name}.cmd`),
-          path.join(home, ".local", "bin", `${name}.exe`),
-          path.join(process.env.LOCALAPPDATA ?? path.join(home, "AppData", "Local"), "Microsoft", "WinGet", "Links", `${name}.exe`),
-          path.join(process.env.ProgramFiles ?? "C:\\Program Files", "nodejs", `${name}.exe`),
-        ]
-      : [path.join(home, ".local", "bin", name), `/opt/homebrew/bin/${name}`, `/usr/local/bin/${name}`, `/usr/bin/${name}`];
-  return usual.find((p) => fs.existsSync(p));
-}
-
-/** The absolute path of `node` (falls back to "node" on the PATH at run time). */
-export function findNode(): string {
-  // The editor's own Node is not a choice: VS Code ships Electron, not a node the hook can run.
-  return findCommand("node") ?? "node";
-}
-
-/**
  * A `node` made from an app that carries its own (the desktop app is Electron, which runs as plain
  * Node when ELECTRON_RUN_AS_NODE=1): a small script in ~/.airband/bin that starts that app as Node.
  * For a computer with no Node of its own, which many have: Claude Code and Codex install without
@@ -105,11 +58,6 @@ export function appNode(appBinary: string, dir: string, platform: NodeJS.Platfor
   fs.writeFileSync(file, `#!/bin/sh\nELECTRON_RUN_AS_NODE=1 exec '${appBinary.replace(/'/g, `'\\''`)}' "$@"\n`);
   fs.chmodSync(file, 0o755);
   return file;
-}
-
-/** The person's own `claude`. */
-export function findClaude(): string | undefined {
-  return findCommand("claude");
 }
 
 function readSettings(file: string): Settings {

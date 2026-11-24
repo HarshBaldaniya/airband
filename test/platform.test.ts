@@ -7,7 +7,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { backUp, backupDirFor, restore } from "../src/core/backup";
-import { findCommand } from "../src/core/hooks";
+import { findCommand } from "../src/core/process";
 import { extract } from "../src/codemap/extract";
 import { CodeMap } from "../src/codemap/index";
 import { parseCommand } from "../src/library/index";

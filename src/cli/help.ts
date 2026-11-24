@@ -1,6 +1,6 @@
 // Every command, in one table: the help page, `airband help <command>`, "did you mean" and tab
 // completion for bash, zsh, fish and PowerShell are all drawn from it, so they never disagree.
-import { VERSION } from "../core/setup";
+import { VERSION } from "../core/version";
 import { DOCS } from "./about";
 import { columns, paint } from "./ui";
 

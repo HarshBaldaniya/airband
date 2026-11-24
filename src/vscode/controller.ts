@@ -53,7 +53,8 @@ import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, pruneRecords, readHead, r
 import { agentOf } from "../core/agents";
 import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";
 import { moveOldHome, moveOldWorkspace } from "../core/migrate";
-import { claudeAiCreditShown, connect, disconnect, findClaude, findNode, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../core/hooks";
+import { findClaude, findNode } from "../core/process";
+import { claudeAiCreditShown, connect, disconnect, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../core/hooks";
 import { claudeExtensionInstalled, openClaude, openInTerminal } from "./open";
 import { webviewHtml } from "./webview-html";
 

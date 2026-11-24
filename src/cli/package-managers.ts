@@ -2,7 +2,7 @@
 // how to run each without a shell where one isn't needed. The same on macOS, Windows and Linux.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { findCommand } from "../core/hooks";
+import { findCommand } from "../core/process";
 import { npmCommand, NPM_PACKAGE, OLD_PACKAGES } from "../core/setup";
 
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";

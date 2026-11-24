@@ -12,7 +12,7 @@ import { readJson } from "../core/json";
 import { readHead } from "../core/record";
 import { appendInbox } from "../core/store";
 import type { Status } from "../core/types";
-import { VERSION } from "../core/setup";
+import { VERSION } from "../core/version";
 import { AGENTS, type AgentId } from "../core/agents";
 import { forgetReads, liveChats, titleOf, type LiveChat } from "./chats";
 import { CatchUp } from "./catchup";

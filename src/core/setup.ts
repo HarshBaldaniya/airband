@@ -7,12 +7,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { airbandFile, airbandHome, guardRealHome, writeFileAtomic } from "./paths";
 import { moveOldHome } from "./migrate";
-import { connect, disconnect, findClaude, findNode, hookCommandFor, hookTargets, installedHookPath, isToolConnected, staleHookTargets } from "./hooks";
+import { connect, disconnect, hookCommandFor, hookTargets, installedHookPath, isToolConnected, staleHookTargets } from "./hooks";
 import { agentStates, installToolkit, removeToolkit } from "./toolkit";
 import { installSkills, removeSkills, SKILLS, skillsState, type SkillAgent } from "./skills";
 import { agentOf, toolOf, type AgentId } from "./agents";
+import { findClaude, findNode } from "./process";
+import { newer, VERSION, VERSION_RE } from "./version";
 
-export const VERSION = __AIRBAND_VERSION__;
 /** The npm package: `npx airband` sets everything up; `npm i -g airband` installs the
  *  `airband` command. */
 export const NPM_PACKAGE = "airband";
@@ -236,17 +237,6 @@ export function doctor(latest?: string, self = "airband"): Check[] {
 }
 
 // ---------------------------------------------------------------- updates
-
-/** A plain version number, as npm publishes them: 1.2.3 or 1.2.3-beta.1. */
-export const VERSION_RE = /^\d{1,6}\.\d{1,6}\.\d{1,6}(-[0-9A-Za-z.]{1,40})?$/;
-
-/** a > b, for plain x.y.z versions. */
-export function newer(a: string, b: string): boolean {
-  const pa = a.split(/[.-]/).map((x) => Number(x) || 0);
-  const pb = b.split(/[.-]/).map((x) => Number(x) || 0);
-  for (let i = 0; i < 3; i++) if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) > (pb[i] ?? 0);
-  return false;
-}
 
 /** Update checks are off in CI and when asked (AIRBAND_NO_UPDATE_CHECK=1, or the common
  *  NO_UPDATE_NOTIFIER). `airband update` still asks, since that is what it is for. */

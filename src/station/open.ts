@@ -12,12 +12,11 @@
 //      window, and the link shows the chat there. (Codex and Gemini have no VS Code panel to show.)
 //   5. The Claude app lists the chat in its Code tab: the app shows it.
 //   6. Otherwise it is resumed in a new Terminal window.
-import { execFileSync, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { claudeAppChats, claudeAppHost, claudeAppLink, codexAppLink } from "../core/apps";
 import { addOpenRequest, windowFor } from "../core/folders";
-import { findCommand } from "../core/hooks";
+import { findCommand, launch, output, succeeds } from "../core/process";
 import { claudeHome, safeId } from "../core/paths";
 import { toolOf } from "../core/agents";
 import type { LiveChat } from "./chats";
@@ -32,29 +31,8 @@ const BINARY: Record<LiveChat["agent"], RegExp> = { claude: /(^|\/)claude$/, cod
 
 const quote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
-/** Windows: a .cmd (VS Code's `code`, Cursor's `cursor`) starts only through cmd.exe. */
-const isScript = (cmd: string) => /\.(cmd|bat)$/i.test(cmd);
-
-function run(cmd: string, args: string[]): boolean {
-  try {
-    const child = isScript(cmd)
-      ? spawn("cmd.exe", ["/d", "/s", "/c", `"${[cmd, ...args].map((a) => `"${a}"`).join(" ")}"`], { detached: true, stdio: "ignore", windowsHide: true, windowsVerbatimArguments: true })
-      : spawn(cmd, args, { detached: true, stdio: "ignore", windowsHide: true });
-    child.on("error", () => undefined);
-    child.unref();
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function sh(cmd: string, args: string[], timeout = 3000): string {
-  try {
-    return execFileSync(cmd, args, { encoding: "utf8", timeout, stdio: ["ignore", "pipe", "ignore"] });
-  } catch (e) {
-    return String((e as { stdout?: string }).stdout ?? "");
-  }
-}
+/** What a command printed, or nothing. */
+const sh = (cmd: string, args: string[], timeoutMs?: number) => output(cmd, args, timeoutMs) ?? "";
 
 type Proc = { ppid: number; tty: string; comm: string; args: string };
 
@@ -225,24 +203,15 @@ export function windowsResumeLine(cwd: string | undefined, resume: string): stri
 /** The editor's own command: Cursor's is `cursor`, every VS Code's is `code`. */
 export const editorCommand = (app: string | undefined) => (/cursor/i.test(app ?? "") ? "cursor" : "code");
 
-/** Opens the chat where it lives; says where, in a few words. */
 /** Opens an app's own link (claude://, codex://). False when no app on this computer takes it. */
 function openLink(url: string): boolean {
-  try {
-    if (process.platform === "darwin") {
-      // `open` fails when no app takes the link, so the next way gets its turn.
-      execFileSync("open", [url], { stdio: "ignore", timeout: 5000 });
-      return true;
-    }
-    if (process.platform === "win32") {
-      const scheme = url.slice(0, url.indexOf(":"));
-      execFileSync("reg", ["query", `HKCR\\${scheme}`], { stdio: "ignore", timeout: 3000 });
-      return run("rundll32", ["url.dll,FileProtocolHandler", url]);
-    }
-    return run("xdg-open", [url]);
-  } catch {
-    return false;
+  // `open` fails when no app takes the link, so the next way gets its turn.
+  if (process.platform === "darwin") return succeeds("open", [url], 5000);
+  if (process.platform === "win32") {
+    const scheme = url.slice(0, url.indexOf(":"));
+    return succeeds("reg", ["query", `HKCR\\${scheme}`]) && launch("rundll32", ["url.dll,FileProtocolHandler", url]);
   }
+  return launch("xdg-open", [url]);
 }
 
 /** Shows the chat in the app it lives in, when it is the Claude app or the Codex app. */
@@ -267,7 +236,7 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" |
     // so the link waits for the window; the values go in as arguments, never as part of the command.
     addOpenRequest({ id: chat.id, tool: toolOf(chat.agent), cwd: chat.cwd!, at: now, title: chat.title, app: appName(app) });
     const link = withLink && chat.agent === "claude" ? claudeChatLink(app, chat.id) : undefined;
-    return link ? run("sh", ["-c", 'open -a "$1" "$2" && sleep 0.4 && open "$3"', "airband-open", app, folder, link]) : run("open", ["-a", app, folder]);
+    return link ? launch("sh", ["-c", 'open -a "$1" "$2" && sleep 0.4 && open "$3"', "airband-open", app, folder, link]) : launch("open", ["-a", app, folder]);
   };
   // 3 first when it runs in the Claude app or the Codex app now: bringing the app forward alone
   // would leave the person looking for the chat in it.
@@ -280,7 +249,7 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" |
   if (live && !live.vscode) {
     const script = live.tty ? tabScript(live.app) : undefined;
     if (script && /ok/.test(sh("osascript", ["-e", script, live.tty!]))) return `Showing it in ${appName(live.app)}.`;
-    if (run("open", ["-a", live.app])) return `Showing it in ${appName(live.app)}.`;
+    if (launch("open", ["-a", live.app])) return `Showing it in ${appName(live.app)}.`;
   }
   // 2. It runs now in VS Code (or the editor it was started in): that window.
   if (live?.vscode && chat.cwd) {
@@ -303,7 +272,7 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" |
       const cli = win && !/cursor|windsurf/i.test(win.app ?? "") ? findCommand("code") : undefined;
       if (cli && win) {
         addOpenRequest({ id: chat.id, tool: toolOf(chat.agent), cwd: chat.cwd, at: now, title: chat.title, ...(win.app ? { app: win.app } : {}) });
-        if (run(cli, [win.root])) return `Showing it in ${win.app ?? "VS Code"}.`;
+        if (launch(cli, [win.root])) return `Showing it in ${win.app ?? "VS Code"}.`;
       }
     }
   }
@@ -316,24 +285,17 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" |
   // may be older than the app's, and a second copy fights the app over a chat it still holds. When
   // the app's link didn't show it, the app itself comes forward.
   const home = chat.app === "claude-app" && chat.agent === "claude" ? "Claude" : chat.app === "codex-app" && chat.agent === "codex" ? "Codex" : undefined;
-  if (home && process.platform === "darwin" && run("open", ["-a", home])) return `Showing the ${home} app. The chat is in its list.`;
+  if (home && process.platform === "darwin" && launch("open", ["-a", home])) return `Showing the ${home} app. The chat is in its list.`;
   // 6. Resume it in a new terminal window: the lightest way to see it. The id is typed into a shell.
   if (!safeId(chat.id)) return CANT_RESUME;
   const resume = RESUME[chat.agent](chat.id);
   const line = chat.cwd ? `cd ${quote(chat.cwd)} && ${resume}` : resume;
   if (process.platform === "darwin") {
     const script = `tell application "Terminal" to do script ${JSON.stringify(line)}\ntell application "Terminal" to activate`;
-    if (run("osascript", ["-e", script])) return "Opened it in Terminal.";
+    if (launch("osascript", ["-e", script])) return "Opened it in Terminal.";
   } else if (process.platform === "win32") {
-    try {
-      // Its own console window: detached, and not hidden.
-      const child = spawn("cmd.exe", [windowsResumeLine(chat.cwd, resume)], { detached: true, stdio: "ignore", windowsVerbatimArguments: true });
-      child.on("error", () => undefined);
-      child.unref();
-      return "Opened it in a terminal.";
-    } catch {
-      // Falls through to the line to run.
-    }
-  } else if (run("x-terminal-emulator", ["-e", "sh", "-c", line])) return "Opened it in a terminal.";
+    // Its own console window: detached, and not hidden.
+    if (launch("cmd.exe", [windowsResumeLine(chat.cwd, resume)], { visible: true, verbatim: true })) return "Opened it in a terminal.";
+  } else if (launch("x-terminal-emulator", ["-e", "sh", "-c", line])) return "Opened it in a terminal.";
   return `Run this to open it: ${line}`;
 }
