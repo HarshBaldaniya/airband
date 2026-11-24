@@ -19,6 +19,10 @@ export interface Answer {
   message?: string;
 }
 
+/** What the agent is told when the person says no, or skips its question. */
+export const DENIED = "The person said no from Airband.";
+export const SKIPPED_QUESTION = "The person skipped this question from Airband. Carry on with your best judgement, and say what you assumed.";
+
 /** The agents whose permission requests Airband can answer. Gemini CLI has no such hook. */
 const TAKES_DECISIONS = ["claude", "codex"] as const;
 export type DecidingAgent = (typeof TAKES_DECISIONS)[number];
@@ -82,8 +86,11 @@ export function permissionReply(agent: string, toolName: string | undefined, inp
       }
       return wrap({ behavior: "allow" });
     }
-    case "deny":
-      return wrap({ behavior: "deny", message: (answer.message ?? "").trim() || "The person said no from Airband." });
+    case "deny": {
+      // A question turned down is a question skipped: the agent goes on without an answer.
+      const said = (answer.message ?? "").trim() || (questionsOf(toolName, input) ? SKIPPED_QUESTION : DENIED);
+      return wrap({ behavior: "deny", message: said });
+    }
     default:
       return undefined;
   }

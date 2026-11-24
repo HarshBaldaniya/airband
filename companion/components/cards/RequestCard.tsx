@@ -1,7 +1,7 @@
 // A request a chat is waiting on: a permission, a question with its choices, or a plan to approve.
 // Each says who asks and what, with the buttons, and a thin line for the time left.
 import { useEffect, useState } from "react";
-import { Check, CheckCheck, SquareTerminal, X } from "lucide-react";
+import { Check, CheckCheck, PenLine, SkipForward, SquareTerminal, X } from "lucide-react";
 import { MODE } from "../../api/desktop-bridge";
 import { api, type PendingView } from "../../api/station";
 import { AgentMark } from "../AgentMark";
@@ -36,6 +36,11 @@ export function RequestCard({ request, onError, compact = false }: { request: Pe
       onError(e instanceof Error ? e.message : String(e));
       setBusy(false);
     }
+  };
+  // The question goes back to the chat, and the chat is opened to answer there.
+  const writeOwn = async () => {
+    await decide("terminal");
+    if (p.chatId) void api.open(p.chatId).catch(() => undefined);
   };
   // On a phone, away from the computer, "answer in the terminal" helps no one.
   const terminal = MODE === "phone" ? null : (
@@ -109,7 +114,16 @@ export function RequestCard({ request, onError, compact = false }: { request: Pe
               <Check size={14} /> Send
             </button>
           )}
-          {terminal}
+          {/* None of the choices: the question goes back to the chat, which is opened to type in
+              (its own "Other"). On a phone, away from the computer, only skipping helps. */}
+          {MODE !== "phone" && (
+            <button className="btn" disabled={busy} onClick={() => void writeOwn()} title="Answer in the chat itself, in your own words">
+              <PenLine size={14} /> Write my own
+            </button>
+          )}
+          <button className="btn" disabled={busy} onClick={() => decide("deny")} title="The chat carries on without an answer, and says what it assumed">
+            <SkipForward size={14} /> Skip
+          </button>
         </div>
         <TimeLeft at={p.at} until={p.expiresAt} />
       </div>

@@ -13,7 +13,7 @@ import { readInbox } from "../src/sharing/inbox";
 import { readHookStatus } from "../src/sessions/status";
 import { DETAIL_MAX, Station } from "../src/station/server";
 import { askStation, readStationInfo } from "../src/station/client";
-import { answersFit, describeRequest, permissionReply, questionsOf, ruleKey } from "../src/station/reply";
+import { answersFit, DENIED, describeRequest, permissionReply, questionsOf, ruleKey, SKIPPED_QUESTION } from "../src/station/reply";
 import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/station/manager";
 import { knowledge } from "../src/station/knowledge";
 import { cleanDesign, cleanName, DEFAULT_COMPANION } from "../src/station/companion";
@@ -78,6 +78,15 @@ test("a question is answered only with a choice it offered", () => {
   assert.deepEqual(out.hookSpecificOutput.decision.updatedInput.answers, { "Keep plan history editable?": "Yes" });
   assert.equal(out.hookSpecificOutput.decision.updatedInput.questions.length, 1, "the questions stay as asked");
   assert.equal(permissionReply("claude", "AskUserQuestion", ASK_INPUT, { decision: "allow" }), undefined, "no answers: the terminal asks");
+});
+
+test("a question skipped from the app lets the chat carry on; a question to answer in the chat prints nothing", () => {
+  const skipped = JSON.parse(permissionReply("claude", "AskUserQuestion", ASK_INPUT, { decision: "deny" })!);
+  assert.equal(skipped.hookSpecificOutput.decision.behavior, "deny");
+  assert.equal(skipped.hookSpecificOutput.decision.message, SKIPPED_QUESTION);
+  assert.equal(JSON.parse(permissionReply("claude", "Bash", { command: "ls" }, { decision: "deny" })!).hookSpecificOutput.decision.message, DENIED);
+  // "Write my own": the chat asks in its own window, where the person types the answer.
+  assert.equal(permissionReply("claude", "AskUserQuestion", ASK_INPUT, { decision: "terminal" }), undefined);
 });
 
 test("each request reads as a sentence", () => {

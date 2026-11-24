@@ -1,6 +1,15 @@
 # Changelog
 
 ## Unreleased
+- **A chat running agents is one chat, working until its last agent ends.** Agents it waits for
+  count now too, not only agents sent to the background. A message from Roger, or a linked chat's
+  update, always reaches the chat itself. Before, an agent's next step could take it, because
+  Claude Code runs hooks inside a chat's agents. The notice Claude Code sends when an agent
+  finishes no longer shows as your ask. A Codex agent's own thread is part of the chat that
+  started it, not a new chat.
+- **Questions have Write my own and Skip.** None of the choices fit: Write my own opens the chat
+  to type your answer there. Skip lets the chat carry on without an answer, and it says what it
+  assumed.
 - **Roger goes anywhere on any screen, and moving him feels smooth.** He could not be dragged
   much above the middle of the screen, because the system kept his tall, mostly empty window
   below the menu bar. The app now moves him with the pointer itself, so he reaches every part of
