@@ -2,7 +2,6 @@
 // answers the webviews, and turns their requests (connect, branch, open) into
 // connections, context and chats.
 import * as vscode from "vscode";
-import { agentStates, installToolkit, refreshCodexPrompts, removeToolkit } from "../install/toolkit";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -13,13 +12,9 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { CodexAdapter } from "../adapters/codex";
 import { GeminiAdapter } from "../adapters/gemini";
 import { claudeProjectFolder, claudeProjectsDir, codexSessionsDir, airbandFile, airbandHome, statusDir } from "../core/paths";
-import { readJson } from "../core/json";
-import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, ViewState, WritingView } from "../core/protocol";
+import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, ViewState } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
 import { codeHits, codeMapView, codeModuleView, knownProjects, libraryView } from "./pages";
-import { projectFile } from "../writing/settings";
-import { claudePluginInstalled, installFiles } from "../install/setup";
-import { installSkills, removeSkills, skillsState } from "../install/skills";
 import { allCommands, STARTER_DESCRIPTION, userLibraryDir } from "../library/index";
 
 /** Folders picked with "Map another folder", newest first. */
@@ -39,21 +34,20 @@ import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pick
 import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../sessions/plans";
 import { recentRollouts } from "../adapters/codex";
 import { readTail } from "../core/file-lines";
-import { CONTEXT_BUDGET, type ContextSize } from "../core/config";
+import { CONTEXT_BUDGET } from "../core/config";
 import { buildContext, buildUpdate, formatDelivery } from "../sharing/delivery";
 import { sameFolder } from "../core/paths";
-import { HOOK_START_MAX, HOOK_STEP_MAX, pruneRecords, readHead, readAsks, setRecordTitle } from "../sessions/record/store";
+import { HOOK_START_MAX, HOOK_STEP_MAX, readHead, readAsks, setRecordTitle } from "../sessions/record/store";
 import { catchUpRecord, recordBehind } from "../sessions/record/update";
 import { readAsksFrom } from "../sessions/record/extract";
 import { recordContext, recordPointer, renderAsks, type LinkLevel } from "../sessions/record/render";
 import { agentOf } from "../core/agents";
-import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";
-import { moveOldHome, moveOldWorkspace } from "../install/migrate";
-import { findClaude, findNode } from "../core/process";
-import { claudeAiCreditShown, connect, disconnect, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../install/agent-hooks";
+import { findClaude } from "../core/process";
+import { hookTargets, setClaudeAiCredit } from "../install/agent-hooks";
 import { claudeExtensionInstalled, openClaude, openInTerminal } from "./open";
 import { webviewHtml } from "./webview-html";
-import { OLD_CONVERSATIONS_FOLDER } from "../core/legacy";
+import { SetupService } from "./setup-service";
+import { contextSize, setWriting, syncConfig, writingView } from "./settings";
 
 const POLL_MS = 10_000;
 const PER_TOOL = 60;
@@ -81,7 +75,7 @@ export class Controller implements vscode.Disposable {
   private readonly adapters: Adapter[] = [new ClaudeAdapter(), new CodexAdapter(), new GeminiAdapter()];
   private readonly views = new Set<vscode.Webview>();
   private board: vscode.WebviewPanel | undefined;
-  private state: ViewState = {
+  state: ViewState = {
     tools: [],
     sessions: [],
     connections: [],
@@ -105,17 +99,19 @@ export class Controller implements vscode.Disposable {
   private again = false;
   private firstLoad = true;
 
-  constructor(private readonly ctx: vscode.ExtensionContext) {
+  readonly setup = new SetupService(this);
+
+  constructor(readonly ctx: vscode.ExtensionContext) {
     this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => (this.rewatch(), this.noteWindow())));
     // A note of this window's folders, so the desktop app opens a chat here when its folder is open.
     this.noteWindow();
     const note = setInterval(() => this.noteWindow(), 60_000);
     this.disposables.push({ dispose: () => (clearInterval(note), unregisterWindow()) });
-    this.disposables.push(vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration("airband") && this.syncConfig()));
-    this.moveFromOldNames();
-    this.keepHookCurrent();
-    this.tidyStorage();
-    this.syncConfig();
+    this.disposables.push(vscode.workspace.onDidChangeConfiguration((e) => e.affectsConfiguration("airband") && syncConfig()));
+    this.setup.moveFromOldNames();
+    this.setup.keepHookCurrent();
+    this.setup.tidyStorage();
+    syncConfig();
     this.rewatch();
     // A window opened to show a Claude chat opens it now, not after every folder's chats are read.
     void this.takeOpens();
@@ -164,11 +160,11 @@ export class Controller implements vscode.Disposable {
     if (tab !== "board") setTimeout(() => void panel.webview.postMessage({ type: "tab", tab } satisfies ToWebview), 400);
   }
 
-  private post(msg: ToWebview, to?: vscode.Webview): void {
+  post(msg: ToWebview, to?: vscode.Webview): void {
     for (const v of to ? [to] : this.views) void v.postMessage(msg);
   }
 
-  private toast(text: string, tone: "ok" | "warn" = "ok", to?: vscode.Webview, extra: { title?: string; icon?: Extract<ToWebview, { type: "toast" }>["icon"]; undo?: FromWebview } = {}): void {
+  toast(text: string, tone: "ok" | "warn" = "ok", to?: vscode.Webview, extra: { title?: string; icon?: Extract<ToWebview, { type: "toast" }>["icon"]; undo?: FromWebview } = {}): void {
     this.post({ type: "toast", text, tone, ...extra }, to);
   }
 
@@ -242,7 +238,7 @@ export class Controller implements vscode.Disposable {
   private async load(): Promise<void> {
     const root = this.root;
     const claudeExtension = await claudeExtensionInstalled();
-    const hooks = this.hookState();
+    const hooks = this.setup.hookState();
     // "On" means every installed agent has Airband's hook.
     const hooksOn = Object.values(hooks).every(Boolean);
     if (!root) {
@@ -571,7 +567,7 @@ export class Controller implements vscode.Disposable {
     const bySource = new Map<string, ReturnType<typeof readConnections>>();
     for (const c of readConnections()) {
       // An agent with Airband's hook sends its own updates when a reply ends; the rest are read here.
-      if (c.paused || this.hooked(c.from.tool)) continue;
+      if (c.paused || this.setup.hooked(c.from.tool)) continue;
       bySource.set(c.from.id, [...(bySource.get(c.from.id) ?? []), c]);
     }
     for (const [id, conns] of bySource) {
@@ -746,19 +742,17 @@ export class Controller implements vscode.Disposable {
         case "libraryNew":
           return void this.newLibraryCommand();
         case "setUpToolkit":
-          await this.setUpToolkit();
+          await this.setup.setUpToolkit();
           return this.post({ type: "library", data: libraryView() }, from);
         case "writing":
-          return this.post({ type: "writing", data: this.writingView() }, from);
+          return this.post({ type: "writing", data: writingView() }, from);
         case "writingSet": {
-          // VS Code's setting is the source; the change is mirrored to ~/.airband for the hook.
-          await vscode.workspace.getConfiguration("airband").update(`writing.${m.key}`, m.on, vscode.ConfigurationTarget.Global);
-          this.syncConfig();
-          return this.post({ type: "writing", data: this.writingView() }, from);
+          await setWriting(m.key, m.on);
+          return this.post({ type: "writing", data: writingView() }, from);
         }
         case "writingAiCredit":
           setClaudeAiCredit(m.show);
-          return this.post({ type: "writing", data: this.writingView() }, from);
+          return this.post({ type: "writing", data: writingView() }, from);
         case "fullscreen":
           return this.fullscreen();
         case "askBranch":
@@ -957,11 +951,11 @@ export class Controller implements vscode.Disposable {
     // like a terminal agent's, is resumed in a terminal in its own folder, where its history lives:
     // this window stays as it is.
     if (s.tool === "Claude" && !s.away) {
-      const waiting = !this.hooked("Claude") ? this.takeForPaste(id) : undefined;
+      const waiting = !this.setup.hooked("Claude") ? this.takeForPaste(id) : undefined;
       return openClaude(id, waiting);
     }
     this.chatTerminal(s);
-    const waiting = this.hooked(s.tool) ? undefined : this.takeForPaste(id);
+    const waiting = this.setup.hooked(s.tool) ? undefined : this.takeForPaste(id);
     if (waiting) {
       await vscode.env.clipboard.writeText(waiting);
       this.toast(`Copied what connected chats did. Paste it into ${s.tool} (⌘V) once it opens.`);
@@ -1019,9 +1013,9 @@ export class Controller implements vscode.Disposable {
     // Started once the line is drawn: reading a big chat's record must not hold up the board.
     if (fresh.length) setTimeout(() => void this.sendContexts(fresh, wanted), 250);
     // A link only works by itself with auto-sharing on: ask now, rather than leave a hint.
-    if (wanted.some(([, b]) => !this.hooked(this.session(b).tool))) {
+    if (wanted.some(([, b]) => !this.setup.hooked(this.session(b).tool))) {
       await this.turnOn();
-      this.state.hooksOn = Object.values(this.hookState()).every(Boolean);
+      this.state.hooksOn = Object.values(this.setup.hookState()).every(Boolean);
     }
     if (!quiet) {
       const [[a0, b0]] = wanted;
@@ -1033,33 +1027,6 @@ export class Controller implements vscode.Disposable {
       this.toast(what, "ok", view, { title: twoWay ? "Channel open both ways" : wanted.length > 2 ? "Channels open" : "Channel open", icon: "link", undo: { type: "disconnectMany", ids: created.map((c) => c.id) } });
       // Quietly, the caller has more to change first and shows the result once.
       await this.refresh();
-    }
-  }
-
-  /**
-   * What each newly linked chat has done so far, for the chat it now shares with: read one chat at a
-   * time, and only delivered if the link is still there (it may have been undone meanwhile).
-   */
-  /**
-   * Airband was first called Relay, then Crosstalk: its data moves to the new names once (~/.relay,
-   * ~/.crosstalk and each project's .relay or .crosstalk folder). Tests, which point Airband at
-   * folders of their own, are left alone.
-   */
-  private moveFromOldNames(): void {
-    if (!process.env.AIRBAND_HOME) moveOldHome(airbandHome());
-    if (!process.env.AIRBAND_WORKSPACE_DIR) for (const f of vscode.workspace.workspaceFolders ?? []) moveOldWorkspace(f.uri.fsPath, workspaceAirbandPath(f.uri.fsPath));
-  }
-
-  /**
-   * Readable copies of whole conversations are gone (session records replaced them), and a record
-   * nothing has used for 30 days goes too, unless its chat is still linked.
-   */
-  private tidyStorage(): void {
-    try {
-      fs.rmSync(airbandFile(OLD_CONVERSATIONS_FOLDER), { recursive: true, force: true });
-      pruneRecords(new Set(readConnections().flatMap((c) => [c.from.id, c.to.id])));
-    } catch {
-      // Tidying is a nicety.
     }
   }
 
@@ -1117,7 +1084,7 @@ export class Controller implements vscode.Disposable {
     if (m.keepConnected && getCursor(s.id) === undefined) setCursor(s.id, this.adapter(s.tool).end(s));
     const title = task.split("\n")[0].slice(0, 60);
     // The new chat is a Claude Code chat: what matters is Claude's hook.
-    if (this.hooked("Claude")) {
+    if (this.setup.hooked("Claude")) {
       // The new chat opens in this window's folder, wherever the old one lives.
       addPending({ id: randomBytes(6).toString("hex"), from: this.ref(s), title, cwd: root, at: Date.now(), taskStart: task, context, keepConnected: m.keepConnected });
       await openClaude(undefined, task);
@@ -1126,41 +1093,6 @@ export class Controller implements vscode.Disposable {
       const prompt = context ? `${task}\n\n---\n${formatDelivery([{ from: this.ref(s), at: Date.now(), kind: "context", text: context }])}` : task;
       await openClaude(undefined, prompt);
       this.toast("New chat opened with your task and the context. Turn on auto-sharing to keep them connected.", "warn", view);
-    }
-  }
-
-  /** How much of a conversation goes over on connecting: the `airband.contextSize` setting. */
-  private contextSize(): ContextSize {
-    const v = vscode.workspace.getConfiguration("airband").get<string>("contextSize", "standard");
-    return (v in CONTEXT_BUDGET ? v : "standard") as ContextSize;
-  }
-
-  /** What the Writing page shows: the switches, and any project file that overrides them. */
-  writingView(): WritingView {
-    const cfg = vscode.workspace.getConfiguration("airband");
-    const settings = { docs: cfg.get<boolean>("writing.docs", true), messages: cfg.get<boolean>("writing.messages", true), replies: cfg.get<boolean>("writing.replies", false), beforeSend: cfg.get<boolean>("writing.beforeSend", true) };
-    const projects = (vscode.workspace.workspaceFolders ?? []).flatMap((f) => {
-      const file = projectFile(f.uri.fsPath);
-      if (!file) return [];
-      const team = readJson<{ writing?: Record<string, unknown> }>(file, {}).writing ?? {};
-      const pick = (k: string) => (typeof team[k] === "boolean" ? { [k]: team[k] as boolean } : {});
-      return [{ name: f.name, team: { ...pick("docs"), ...pick("messages"), ...pick("replies"), ...pick("beforeSend") } }];
-    });
-    return { settings, claudeAiCredit: claudeAiCreditShown(), projects };
-  }
-
-  /** The hook can't read VS Code's settings, so the ones it needs are mirrored to ~/.airband/config.json. */
-  syncConfig(): void {
-    try {
-      const cfg = vscode.workspace.getConfiguration("airband");
-      const autoDeliver = cfg.get<boolean>("autoDeliver", false);
-      const notices = cfg.get<boolean>("notices", true);
-      const writing = { docs: cfg.get<boolean>("writing.docs", true), messages: cfg.get<boolean>("writing.messages", true), replies: cfg.get<boolean>("writing.replies", false), beforeSend: cfg.get<boolean>("writing.beforeSend", true) };
-      // Kept: anything else in the file (set from the terminal, or by a newer version).
-      const file = airbandFile("config.json");
-      writeFileAtomic(file, JSON.stringify({ ...readJson<Record<string, unknown>>(file, {}), contextSize: this.contextSize(), autoDeliver, notices, writing }));
-    } catch {
-      // Defaults apply.
     }
   }
 
@@ -1179,10 +1111,9 @@ export class Controller implements vscode.Disposable {
       if (text) return text;
     }
     const d = await this.digest(s);
-    const budget = CONTEXT_BUDGET[opts.level === "full" ? this.contextSize() : "compact"];
+    const budget = CONTEXT_BUDGET[opts.level === "full" ? contextSize() : "compact"];
     return buildContext({ from: this.ref(s), digest: d, root, absolute, budget, pointer: s.file ? recordPointer(s.id, s.title) : undefined });
   }
-
 
   /** A short note about a link change, delivered with the chat's next message. */
   private notice(chatId: string, about: ChatRef, text: string, topic?: string): void {
@@ -1194,7 +1125,7 @@ export class Controller implements vscode.Disposable {
     const s = this.session(id);
     const ask = "Catch up on what my connected chats did, then tell me in a few lines what changed.";
     if (s.tool !== "Claude" || s.away) return this.open(id);
-    if (this.hooked("Claude")) {
+    if (this.setup.hooked("Claude")) {
       await openClaude(id, ask);
       this.toast(`Press Send in ${short(s.title)}`, "ok", undefined, { title: "Ready to sync", icon: "sync" });
     } else {
@@ -1241,94 +1172,17 @@ export class Controller implements vscode.Disposable {
     return this.root;
   }
 
-  // ---- setup: the hook (live status and delivery) and the notes tools (MCP) ----
-
-  private keepHookCurrent(): void {
-    try {
-      fs.mkdirSync(airbandHome(), { recursive: true });
-      fs.copyFileSync(path.join(this.ctx.extensionPath, "dist", "airband-hook.js"), path.join(airbandHome(), "airband-hook.js"));
-      // Airband's tools (notes, session records), once added, stay as new as the extension.
-      if (fs.existsSync(path.join(airbandHome(), "airband-mcp.js"))) installFiles(path.join(this.ctx.extensionPath, "dist"));
-      refreshCodexPrompts();
-      // Skills, once added, are rewritten when the extension brings newer ones.
-      for (const a of ["claude", "codex"] as const) {
-        const s = skillsState(a);
-        if (s.installed && s.current < s.installed) installSkills([a]);
-      }
-      // A hook that names a node no longer there (an nvm version removed) is rewritten with today's.
-      const stale = staleHookTargets();
-      if (stale.length) {
-        const node = findNode();
-        for (const t of stale) connect(hookCommandFor(node, t.tool), t.file, t.events, t.timeout, t.timeouts);
-      }
-    } catch {
-      // Not built yet, or no permission: turning on reports it.
-    }
+    /** Offers auto-sharing once, the first time Airband runs without it. */
+  offerSetupOnce(): Promise<void> {
+    return this.setup.offerOnce();
   }
 
-  /** Offers auto-sharing once, the first time Airband runs without it. */
-  async offerSetupOnce(): Promise<void> {
-    const key = "airband.offeredSetup";
-    const memory = this.ctx.globalState;
-    if (!memory || isConnected() || memory.get<boolean>(key)) return;
-    await memory.update(key, true);
-    const pick = await vscode.window.showInformationMessage(
-      "Airband: turn on auto-sharing so connected chats keep each other up to date by themselves?",
-      "Turn on",
-      "Not now",
-    );
-    if (pick === "Turn on") await this.turnOn();
-  }
-
-  /** Which installed agents have Airband's hook. */
-  private hookState(): Partial<Record<Tool, boolean>> {
-    const out: Partial<Record<Tool, boolean>> = {};
-    for (const t of hookTargets()) if (t.present()) out[t.tool] = isToolConnected(t);
-    return out;
-  }
-
-  private hooked(tool: Tool): boolean {
-    return !!this.state.hooks?.[tool] || !!this.hookState()[tool];
-  }
-
-  async turnOn(): Promise<void> {
-    const targets = hookTargets().filter((t) => t.present());
-    const missing = targets.filter((t) => !isToolConnected(t));
-    if (!missing.length) {
-      this.toast("Every agent here already shares.", "ok", undefined, { title: "Auto-sharing is on", icon: "info" });
-      return;
-    }
-    const names = missing.map((t) => t.tool).join(", ");
-    const ok = await vscode.window.showInformationMessage(
-      `Turn on auto-sharing for ${names}?`,
-      {
-        modal: true,
-        detail: [
-          `Airband adds a small hook to each agent's own settings (${missing.map((t) => t.file.replace(os.homedir(), "~")).join(", ")}; a backup of each is kept).`,
-          "With it, connected chats get each other's work by themselves, across agents, and every chat shows whether it is working, waiting for you or done. It never touches your logins.",
-          ...missing.filter((t) => t.note).map((t) => t.note!),
-          "Turn it off any time with “Airband: Turn off auto-sharing”.",
-        ].join("\n\n"),
-      },
-      "Turn on",
-    );
-    if (ok !== "Turn on") return;
-    this.keepHookCurrent();
-    if (!fs.existsSync(installedHookPath())) throw new Error("The hook script is missing. Rebuild Airband (npm run build) and try again.");
-    const node = findNode();
-    for (const t of missing) connect(hookCommandFor(node, t.tool), t.file, t.events, t.timeout, t.timeouts);
-    const codex = missing.find((t) => t.tool === "Codex");
-    this.toast(codex ? "Last step for Codex: type /hooks in Codex and trust Airband's hook." : `Chats in ${names} pick it up from now.`, "ok", undefined, {
-      title: "Auto-sharing on",
-      icon: "link",
-    });
-    this.refreshSoon(0);
+  turnOn(): Promise<void> {
+    return this.setup.turnOn();
   }
 
   turnOff(): void {
-    for (const t of hookTargets()) if (t.present()) disconnect(t.file);
-    this.toast("Connected chats stop updating each other.", "ok", undefined, { title: "Auto-sharing off", icon: "pause" });
-    this.refreshSoon(0);
+    this.setup.turnOff();
   }
 
   // ---- the Code and Library pages ----
@@ -1403,56 +1257,16 @@ export class Controller implements vscode.Disposable {
     void vscode.window.showInformationMessage("Your own command: private to this computer, and live in every agent as soon as you save it. Rename it with the name: line.");
   }
 
-  /** Gives the chosen agents Airband's tools (code map, flightlogs, notes) and the Library's commands. */
-  async setUpToolkit(): Promise<void> {
-    const states = agentStates();
-    const picks = await vscode.window.showQuickPick(
-      states.map((a) => ({
-        label: a.name,
-        description: !a.present ? "not found on this computer" : a.tools ? "already set up: refresh it" : "",
-        picked: a.present,
-        id: a.id,
-      })),
-      { canPickMany: true, title: "Give these agents Airband's tools and commands", placeHolder: "The code map, flightlogs, notes, and commands such as /plan, /review and /pr" },
-    );
-    if (!picks?.length) return;
-    const what = picks.map((p) => p.label).join(", ");
-    const ok = await vscode.window.showInformationMessage(
-      `Add Airband to ${what}?`,
-      { modal: true, detail: "Each agent's settings are backed up first. Claude Code: added through its own `claude mcp add`, plus its skills in ~/.claude/skills. Codex: a [mcp_servers.airband] table in config.toml, the commands as prompt files, and the skills in ~/.agents/skills. Gemini CLI: an mcpServers entry in settings.json. Remove it any time with \"Airband: Remove the toolkit\"." },
-      "Add",
-    );
-    if (ok !== "Add") return;
-    installFiles(path.join(this.ctx.extensionPath, "dist"));
-    // The Claude Code plugin, when installed, already gives Claude the tools and skills.
-    const viaPlugin = claudePluginInstalled();
-    const ids = picks.map((p) => p.id).filter((a) => !(a === "claude" && viaPlugin));
-    const lines = await installToolkit(ids, { node: findNode(), claudeCli: findClaude() });
-    if (viaPlugin && picks.some((p) => p.id === "claude")) lines.unshift("Claude Code: the Airband plugin already gives it the tools.");
-    // Skills let the agent reach for the Map and past chats by itself.
-    const skillAgents = ids.filter((a): a is "claude" | "codex" => a === "claude" || a === "codex");
-    if (skillAgents.length) installSkills(skillAgents);
-    void vscode.window.showInformationMessage(`${lines.join(" ")} Start a new chat to use them.`);
+  setUpToolkit(): Promise<void> {
+    return this.setup.setUpToolkit();
   }
 
-  async removeToolkit(): Promise<void> {
-    const states = agentStates().filter((a) => a.tools || a.commands);
-    if (!states.length) {
-      void vscode.window.showInformationMessage("No agent has Airband's tools.");
-      return;
-    }
-    const picks = await vscode.window.showQuickPick(
-      states.map((a) => ({ label: a.name, picked: true, id: a.id })),
-      { canPickMany: true, title: "Remove Airband's tools and commands from" },
-    );
-    if (!picks?.length) return;
-    const lines = await removeToolkit(picks.map((p) => p.id), { claudeCli: findClaude() });
-    removeSkills(picks.map((p) => p.id).filter((a): a is "claude" | "codex" => a === "claude" || a === "codex"));
-    void vscode.window.showInformationMessage(lines.join(" "));
+  removeToolkit(): Promise<void> {
+    return this.setup.removeToolkit();
   }
 
-  async addNotesTools(): Promise<void> {
-    return this.setUpToolkit();
+  addNotesTools(): Promise<void> {
+    return this.setup.setUpToolkit();
   }
 
   newChatCommand(): Promise<void> {
@@ -1471,5 +1285,4 @@ export class Controller implements vscode.Disposable {
 function short(title: string, max = 28): string {
   return title.length > max ? `${title.slice(0, max - 1).trimEnd()}…` : title;
 }
-
 
