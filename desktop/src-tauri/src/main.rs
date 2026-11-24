@@ -27,6 +27,9 @@ const FIG_W: f64 = 104.0;
 const FIG_H: f64 = 125.0;
 const FIG_PAD: f64 = 10.0;
 
+/// Shows Roger, or opens and closes his panel, from anywhere.
+const SHORTCUT: &str = "Alt+CommandOrControl+R";
+
 /// ~/.airband, or AIRBAND_HOME.
 pub fn home() -> PathBuf {
     if let Ok(h) = std::env::var("AIRBAND_HOME") {
@@ -618,7 +621,6 @@ fn asleep(asleep: bool, state: tauri::State<State>) {
     state.lock().unwrap().asleep = asleep;
 }
 
-/// A request or a finished chat came: hidden or tucked away, the companion comes back.
 /// A newer app, if there is one (Roger's panel shows it).
 #[tauri::command]
 fn update_info() -> update::AppUpdate {
@@ -637,6 +639,7 @@ fn just_updated(app: AppHandle) -> Option<String> {
     update::just_updated(&app)
 }
 
+/// A request or a finished chat came: hidden or tucked away, the companion comes back.
 #[tauri::command]
 fn come_back(app: AppHandle) {
     let p = app.state::<State>().lock().unwrap().prefs.clone();
@@ -763,9 +766,9 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(
+            // The shortcut itself is registered in `setup`: one another app already holds must not
+            // stop Airband from starting.
             tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts(["Alt+CommandOrControl+R"])
-                .expect("the shortcut")
                 .with_handler(|app, _shortcut, event| {
                     if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                         let p = app.state::<State>().lock().unwrap().prefs.clone();
@@ -828,6 +831,12 @@ fn main() {
             let p = state.lock().unwrap().prefs.clone();
             login_item(&handle, p.start_at_login);
             watch_pointer(handle.clone(), state.clone());
+            {
+                use tauri_plugin_global_shortcut::GlobalShortcutExt;
+                if let Err(e) = handle.global_shortcut().register(SHORTCUT) {
+                    log(&format!("start: the shortcut {SHORTCUT} is taken, so Airband has none: {e}"));
+                }
+            }
             // Set up: the engine starts and the corner opens. Not yet: the setup tour.
             if p.set_up && engine::ready() {
                 engine::start(&handle);

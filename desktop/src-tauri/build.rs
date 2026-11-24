@@ -20,6 +20,7 @@ fn main() {
         "open_url",
         "update_info",
         "install_update",
+        "just_updated",
     ])))
     .expect("the app's commands");
 }
