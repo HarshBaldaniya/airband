@@ -56,7 +56,7 @@ const configs = tests
   : [
       { ...node, entryPoints: ["src/extension.ts"], outfile: "dist/extension.js", external: ["vscode"] },
       { ...node, entryPoints: ["src/hook/bin.ts"], outfile: "dist/airband-hook.js" },
-      { ...node, entryPoints: ["src/mcp/server.ts"], outfile: "dist/airband-mcp.js" },
+      { ...node, entryPoints: ["src/mcp/bin.ts"], outfile: "dist/airband-mcp.js" },
       // The command line runs as `airband ...` once installed from npm, so it starts with a shebang.
       { ...node, entryPoints: ["src/cli/bin.ts"], outfile: "dist/airband.js", banner: { js: "#!/usr/bin/env node\n" + node.banner.js } },
       {
