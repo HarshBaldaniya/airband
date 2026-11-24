@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ExternalLink, MessageSquare, Send } from "lucide-react";
 import { api, type LiveChat } from "../../api/station";
-import { ago } from "../../format";
+import { agentsRunning, ago } from "../../format";
 import { sounds } from "../../sound";
 import { AgentMark } from "../AgentMark";
 import { TYPING } from "./typing";
@@ -35,7 +35,7 @@ export function ChatRow({ chat, onSay }: { chat: LiveChat; onSay: (t: string) =>
         </span>
         <span className="chattext">
           <b className="ellipsis">{c.title}</b>
-          <span className={`chatmeta ellipsis${waiting ? " waiting" : ""}`}>{waiting ? c.line : `${c.project} · ${ago(c.since)}`}</span>
+          <span className={`chatmeta ellipsis${waiting ? " waiting" : ""}`}>{waiting ? c.line : `${c.project} · ${c.agents ? agentsRunning(c.agents) : ago(c.since)}`}</span>
         </span>
         <span className="rowactions">
           {/* Only a working chat takes a message straight away (its hook hands it over after the next

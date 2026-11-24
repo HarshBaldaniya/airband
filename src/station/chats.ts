@@ -11,6 +11,8 @@ import type { HookStatus, Status } from "../core/types";
 import { plainText, shorten } from "../core/text";
 import { parseJsonLine } from "../core/json";
 import { DAY_MS } from "../core/units";
+import { backgroundAgents, forgetAgents } from "../sessions/background";
+import { claudeRunningChats } from "../sessions/running";
 
 
 export interface LiveChat {
@@ -22,6 +24,8 @@ export interface LiveChat {
   /** Where it runs: a terminal, VS Code, the Claude app or the Codex app (when its file says). */
   app?: ChatApp;
   status: Status;
+  /** Agents it runs in the background: its turn may have ended, but it works until they do. */
+  agents?: number;
   /** What it waits for, when it waits. */
   line?: string;
   /** The person's latest ask, and what came of it. */
@@ -82,6 +86,7 @@ export function forgetReads(): void {
   lastAsk.clear();
   names.clear();
   replies.clear();
+  forgetAgents();
 }
 
 // A chat renamed in its agent (Claude Code's "rename"): the agent writes the new name into the chat's
@@ -207,6 +212,7 @@ function hookedTools(now: number): Set<string> {
 export function liveChats(now = Date.now(), windowMs = LIVE_WINDOW_MS, limit = 60): LiveChat[] {
   const out: LiveChat[] = [];
   const told = hookedTools(now);
+  const running = claudeRunningChats();
   for (const h of cachedHeads(now)) {
     const hook = readHookStatus(h.id);
     const last = Math.max(h.updatedAt, hook?.at ?? 0);
@@ -219,6 +225,8 @@ export function liveChats(now = Date.now(), windowMs = LIVE_WINDOW_MS, limit = 6
     const settled = !!hook && hook.status !== "working" && hook.status !== "waiting" && told.has(h.tool);
     const activity = settled ? (repliedAfter(h.tool, h.file, hook!.at) ? (mtime(h.file) ?? hook!.at) : hook!.at) : !hook && told.has(h.tool) ? h.updatedAt : (mtime(h.file) ?? h.updatedAt);
     const r = resolveStatus(activity, hook, now);
+    // A turn that ended with agents still at work in the background: the chat works until they end.
+    const agents = h.tool === "claude" && (r.status === "done" || r.status === "idle") ? backgroundAgents(h.id, h.file, running, now) : undefined;
     const ask = cachedLastAsk(h);
     const renamed = liveName(h);
     const app = chatApp(h.tool, h.file);
@@ -229,13 +237,14 @@ export function liveChats(now = Date.now(), windowMs = LIVE_WINDOW_MS, limit = 6
       project: projectOf(h.cwd),
       ...(h.cwd ? { cwd: h.cwd } : {}),
       ...(app ? { app } : {}),
-      status: r.status,
+      status: agents ? "working" : r.status,
+      ...(agents ? { agents: agents.count } : {}),
       ...(r.line ? { line: short(r.line, 200) } : {}),
       ...(ask ? { lastAsk: short(ask.ask, 200), lastDid: short(ask.did, 280) } : {}),
       ...(ask?.open ? { open: short(ask.open, 200) } : {}),
       ...(ask?.brief ? { lastBrief: ask.brief } : {}),
       ...(ask?.yours ? { yours: true } : {}),
-      updatedAt: last,
+      updatedAt: Math.max(last, agents?.at ?? 0),
       since: hook?.at ?? last,
     });
   }

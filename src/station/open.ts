@@ -17,7 +17,8 @@ import * as path from "node:path";
 import { claudeAppChats, claudeAppHost, claudeAppLink, codexAppLink } from "../sessions/apps";
 import { addOpenRequest, windowFor } from "../core/folders";
 import { findCommand, launch, output, succeeds } from "../core/process";
-import { claudeHome, safeId } from "../core/paths";
+import { safeId } from "../core/paths";
+import { readClaudeSessions } from "../sessions/running";
 import { toolOf } from "../core/agents";
 import type { LiveChat } from "./chats";
 
@@ -53,7 +54,7 @@ export function runningIn(chat: Pick<LiveChat, "id" | "agent" | "cwd">, procs = 
   if (!agents.length) return undefined;
   // The one for this chat: Claude Code's own record of which process runs which chat, or started
   // with its id. Only an agent that says neither is matched by its folder.
-  const claims = chat.agent === "claude" ? claudeSessions() : new Map<number, string>();
+  const claims = chat.agent === "claude" ? new Map(readClaudeSessions().map((r) => [r.pid, r.sessionId])) : new Map<number, string>();
   let pid = agents.find(([p]) => claims.get(p) === chat.id)?.[0] ?? agents.find(([, p]) => p.args.includes(chat.id))?.[0];
   const unclaimed = agents.filter(([p]) => !claims.has(p));
   if (!pid && unclaimed.length) {
@@ -79,26 +80,6 @@ export function runningIn(chat: Pick<LiveChat, "id" | "agent" | "cwd">, procs = 
     at = p.ppid;
   }
   return undefined;
-}
-
-/** Claude Code's record of its running chats: process id to chat id (<config>/sessions/<pid>.json). */
-function claudeSessions(): Map<number, string> {
-  const out = new Map<number, string>();
-  const dir = path.join(claudeHome(), "sessions");
-  try {
-    for (const f of fs.readdirSync(dir)) {
-      if (!/^\d+\.json$/.test(f)) continue;
-      try {
-        const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")) as { pid?: number; sessionId?: string };
-        if (typeof j.pid === "number" && typeof j.sessionId === "string") out.set(j.pid, j.sessionId);
-      } catch {
-        // A file being written: the next open reads it.
-      }
-    }
-  } catch {
-    // An older Claude Code keeps no such record: the folder match stands in.
-  }
-  return out;
 }
 
 /** VS Code itself (stable or Insiders), not an editor built on it. */

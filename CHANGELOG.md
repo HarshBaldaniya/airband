@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- **A chat with agents running in the background is working.** A Claude Code chat can end its turn
+  while agents it started keep working ("1 agent" under the chat). Roger showed it as done. It now
+  shows as working until the last of them ends, in Roger, on the phone and in VS Code, and its row
+  says "1 agent running".
 - **Linked chats lose nothing and get nothing twice.** Fixed six cases:
   - Work a chat did after your message from Roger now reaches the chats it is linked to.
   - A Gemini chat that was rewound shares the turns after the rewind.

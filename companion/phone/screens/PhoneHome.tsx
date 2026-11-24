@@ -7,7 +7,7 @@ import { AgentMark } from "../../components/AgentMark";
 import { RequestCard } from "../../components/cards/RequestCard";
 import { Companion } from "../../figure/Companion";
 import type { Mood } from "../../figure/types";
-import { ago } from "../../format";
+import { agentsRunning, ago } from "../../format";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -114,7 +114,7 @@ function WorkingItem({ chat }: { chat: LiveChat }) {
           <b className="ellipsis">{chat.title}</b>
           <span className="muted">{ago(chat.since)}</span>
         </span>
-        <span className="muted pproj ellipsis">{chat.lastAsk && chat.lastAsk !== chat.title ? chat.lastAsk : chat.project}</span>
+        <span className="muted pproj ellipsis">{chat.agents ? `${chat.project} · ${agentsRunning(chat.agents)}` : chat.lastAsk && chat.lastAsk !== chat.title ? chat.lastAsk : chat.project}</span>
       </span>
     </li>
   );

@@ -16,6 +16,8 @@ import { addUsage, NO_USAGE, type ChatRef, type ChatSession, type Status } from 
 import { HOOK_START_MAX, HOOK_STEP_MAX, readHead, setRecordTitle } from "../sessions/record/store";
 import { catchUpRecord, recordBehind } from "../sessions/record/update";
 import { readHookStatus, resolveStatus } from "../sessions/status";
+import { backgroundAgents } from "../sessions/background";
+import { claudeRunningChats } from "../sessions/running";
 import { readConnections } from "../sharing/connections";
 import type { Controller } from "./controller";
 
@@ -68,10 +70,12 @@ export class ChatIndex implements vscode.Disposable {
     ).map((s) => ({ ...s, away: !s.cwd || !sameFolder(s.cwd, root) }));
     const sessions = [...mine, ...elsewhere].sort((a, b) => b.lastModified - a.lastModified);
     const totals: ViewState["totals"] = {};
+    const running = claudeRunningChats();
     for (const s of sessions) {
-      // Every agent with Airband's hook records its own status.
+      // Every agent with Airband's hook records its own status. A Claude chat whose turn ended
+      // while agents it started still work in the background is working until they end.
       const { status, line } = resolveStatus(s.lastModified, readHookStatus(s.id));
-      s.status = status;
+      s.status = (status === "done" || status === "idle") && s.tool === "Claude" && backgroundAgents(s.id, s.file, running) ? "working" : status;
       s.lastLine = line;
       try {
         if (s.away) {
