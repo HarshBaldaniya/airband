@@ -56,7 +56,7 @@ export function whatsHappening(chats: LiveChat[], pending: PendingBrief[], now =
 }
 
 /** Today in a few short lines: how much happened, then the busiest projects, one line each. */
-export async function today(now = Date.now()): Promise<string> {
+async function today(now = Date.now()): Promise<string> {
   // Loaded only when someone asks: the worklog reads chats through Claude's SDK, which the app
   // otherwise never needs, so it never takes memory for it.
   const { sinceDays, workSince } = await import("../core/worklog");
@@ -240,7 +240,7 @@ export function ownVoice(text: string, name: string): string {
 }
 
 /** An open question, answered by Claude Code in one locked room, in a few lines. */
-export function askClaude(claude: string, question: string, state: string, name: string, mode: LookupMode = "chats", timeoutMs = 120_000): Promise<string | undefined> {
+function askClaude(claude: string, question: string, state: string, name: string, mode: LookupMode = "chats", timeoutMs = 120_000): Promise<string | undefined> {
   const prompt = mode === "web" ? [
     persona(name),
     "The person asks a general question.",

@@ -36,7 +36,7 @@ export function isPushEndpoint(endpoint: string): boolean {
 }
 
 /** Who sends: Apple refuses a push without a contact URL or address. The project's public page. */
-export const PUSH_SUBJECT = "https://github.com/HarshBaldaniya/airband";
+const PUSH_SUBJECT = "https://github.com/HarshBaldaniya/airband";
 
 export function vapidAuthorization(endpoint: string, keys: VapidKeys, now = Date.now()): string {
   const pub = fromB64u(keys.publicKey);
@@ -74,7 +74,7 @@ export function lockForPhone(payload: Uint8Array, target: PushTarget["keys"], sa
 }
 
 /** A push is small: what a notification says. Push services take at most about 4 KB. */
-export const PUSH_MAX_BYTES = 3000;
+const PUSH_MAX_BYTES = 3000;
 
 export interface PushResult {
   status: number;

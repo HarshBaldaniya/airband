@@ -199,10 +199,6 @@ export function addUsage(a: Usage, b: Usage): Usage {
   return { input: a.input + b.input, output: a.output + b.output, cacheRead: a.cacheRead + b.cacheRead, cacheWrite: a.cacheWrite + b.cacheWrite };
 }
 
-export function totalTokens(u: Usage | undefined): number {
-  return u ? u.input + u.output + u.cacheRead + u.cacheWrite : 0;
-}
-
 function parse<T>(line: string): T | undefined {
   if (!line) return undefined;
   try {

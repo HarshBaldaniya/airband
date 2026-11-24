@@ -23,7 +23,7 @@ const pause = new Int32Array(new SharedArrayBuffer(4));
  * file never lose each other's change. A lock that can't be had in time is broken: a stuck writer
  * must not stop every chat.
  */
-export function withLock<T>(name: string, fn: () => T): T {
+function withLock<T>(name: string, fn: () => T): T {
   const dir = airbandFile("locks");
   const lock = path.join(dir, `${name}.lock`);
   fs.mkdirSync(dir, { recursive: true });
@@ -161,7 +161,7 @@ export function takeInbox(chatId: string): InboxItem[] {
   });
 }
 
-export function removeInboxFrom(chatId: string, fromId: string): void {
+function removeInboxFrom(chatId: string, fromId: string): void {
   if (!safeId(chatId)) return;
   withLock(`inbox-${chatId}`, () => {
     const kept = readInbox(chatId).filter((i) => i.from.id !== fromId);
@@ -290,7 +290,7 @@ export function readDeliveries(max = 2000): Delivery[] {
 
 // ---- branches waiting for their new chat ----
 
-export function readPending(now = Date.now()): PendingBranch[] {
+function readPending(now = Date.now()): PendingBranch[] {
   return readJson<PendingBranch[]>(airbandFile("pending.json"), []).filter((p) => now - p.at < PENDING_MS);
 }
 

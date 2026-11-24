@@ -193,7 +193,7 @@ function tips(r: TokenReport): string[] {
   return out;
 }
 
-export function fmt(n: number): string {
+function fmt(n: number): string {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n);
 }
 

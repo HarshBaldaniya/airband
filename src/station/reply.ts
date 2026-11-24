@@ -20,7 +20,7 @@ export interface Answer {
 }
 
 /** The agents whose permission requests Airband can answer. Gemini CLI has no such hook. */
-export const TAKES_DECISIONS = ["claude", "codex"] as const;
+const TAKES_DECISIONS = ["claude", "codex"] as const;
 export type DecidingAgent = (typeof TAKES_DECISIONS)[number];
 
 export interface QuestionOption {
@@ -127,7 +127,7 @@ export function ruleKey(agent: string, cwd: string | undefined, toolName: string
 }
 
 /** JSON with every object's keys in order, so the same input always reads the same. */
-export function canonicalJson(v: unknown): string {
+function canonicalJson(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map((x) => canonicalJson(x === undefined ? null : x)).join(",")}]`;
   if (v && typeof v === "object") {
     const o = v as Record<string, unknown>;

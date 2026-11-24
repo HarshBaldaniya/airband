@@ -204,7 +204,7 @@ interface Block {
 }
 
 /** The conversation as a person sees it, from the SDK's messages (which follow rewinds and branches). */
-export function digest(raw: RawMessage[]): ChatDigest {
+function digest(raw: RawMessage[]): ChatDigest {
   const messages: ChatDigest["messages"] = [];
   const files = new Set<string>();
   for (const m of raw) {

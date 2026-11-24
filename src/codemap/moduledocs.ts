@@ -24,9 +24,9 @@ export interface ModuleDoc {
   body: string;
 }
 
-export const MODULE_DOCS_DIR = path.join("docs", "modules");
+const MODULE_DOCS_DIR = path.join("docs", "modules");
 /** About 40 lines: what fits on a screen, and is read whole. */
-export const MAX_DOC_LINES = 60;
+const MAX_DOC_LINES = 60;
 
 export function docSlug(moduleId: string): string {
   return moduleId.replace(/^\.\/?/, "").replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "") || "root";
@@ -37,7 +37,7 @@ export function docPath(root: string, moduleId: string): string {
 }
 
 /** One fingerprint for a module's code: its files' paths and content hashes. */
-export function codeFingerprint(module: Module, files: Map<string, FileEntry>): string {
+function codeFingerprint(module: Module, files: Map<string, FileEntry>): string {
   const h = crypto.createHash("sha1");
   for (const p of [...module.files].sort()) h.update(`${p}\0${files.get(p)?.h ?? ""}\n`);
   return h.digest("hex").slice(0, 16);
@@ -50,7 +50,7 @@ interface Head {
   approved?: string;
 }
 
-export function parseDoc(text: string): { head: Head; body: string } {
+function parseDoc(text: string): { head: Head; body: string } {
   const m = /^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/.exec(text.replace(/\r\n/g, "\n"));
   if (!m) return { head: {}, body: text.trim() };
   const head: Record<string, string> = {};

@@ -123,7 +123,7 @@ export function userLibraryDir(): string {
 export const STARTER_DESCRIPTION = "One line: what it does, for whom.";
 
 /** The person's own commands: every .md in ~/.airband/library (one folder deep), except untouched starters. */
-export function userCommands(): LibraryCommand[] {
+function userCommands(): LibraryCommand[] {
   const dir = userLibraryDir();
   const out: LibraryCommand[] = [];
   const read = (d: string, depth: number) => {

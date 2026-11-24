@@ -1,5 +1,5 @@
 // What the companion shows, from what is going on. Pure, so it can be tested on its own.
-import type { StationState } from "../../src/station";
+import type { StationState } from "../../src/station/server";
 import type { Mood } from "./types";
 
 /** Every chat done (none working, none waiting) for this long, and no touch: the companion falls

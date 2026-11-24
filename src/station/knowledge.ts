@@ -39,8 +39,6 @@ const FUN: AnswerChoice[] = [
   { label: "Tell me a joke", ask: "tell me a joke" },
 ];
 
-const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
-
 const ENTRIES: Entry[] = [
   {
     match: /^(hi|hii+|hello+|hey+|yo|hiya|howdy|namaste|good (morning|afternoon|evening))\b[\s!.,]*(there|roger|buddy|friend)?[\s!.]*$/i,
@@ -154,7 +152,7 @@ const ENTRIES: Entry[] = [
 ];
 
 /** Chat-speak spelled out, so "who r u" and "where do u live" are understood like their full words. */
-export function spellOut(q: string): string {
+function spellOut(q: string): string {
   return q
     .replace(/\bu\b/gi, "you")
     .replace(/\bur\b/gi, "your")

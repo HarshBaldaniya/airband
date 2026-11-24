@@ -5,8 +5,8 @@ import * as path from "node:path";
 import type { ChatSession, Tool } from "./types";
 import { readJson, airbandFile, writeFileAtomic } from "./paths";
 
-export const ELSEWHERE_PER_FOLDER = 15;
-export const ELSEWHERE_FOLDERS = 25;
+const ELSEWHERE_PER_FOLDER = 15;
+const ELSEWHERE_FOLDERS = 25;
 
 /**
  * Chats from other folders worth showing: the newest few of each folder, from the most recent

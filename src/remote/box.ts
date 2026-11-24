@@ -127,7 +127,7 @@ export interface Pairing {
   claimed?: boolean;
 }
 
-export const ROOM_RE = /^[A-Za-z0-9_-]{22}$/;
+const ROOM_RE = /^[A-Za-z0-9_-]{22}$/;
 
 export function pairingFragment(p: Pairing): string {
   return `${p.room}.${p.secret}.${p.vapid}`;

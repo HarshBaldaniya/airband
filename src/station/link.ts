@@ -25,12 +25,12 @@ import type { FinishedView, PendingView, Station, StationState } from "./server"
 if (!globalThis.crypto) (globalThis as { crypto?: unknown }).crypto = webcrypto;
 
 /** Airband's relay. `AIRBAND_RELAY_URL` points at another one (a test, or your own). */
-export const RELAY_URL = (process.env.AIRBAND_RELAY_URL ?? "https://app.airband.workers.dev").replace(/\/+$/, "");
+const RELAY_URL = (process.env.AIRBAND_RELAY_URL ?? "https://app.airband.workers.dev").replace(/\/+$/, "");
 
 /** How long a code waits to be scanned. */
-export const CODE_MS = 10 * 60_000;
+const CODE_MS = 10 * 60_000;
 /** The most frames the Mac sends the relay in a day, whatever happens: far inside the free plan. */
-export const DAILY_FRAMES = 3000;
+const DAILY_FRAMES = 3000;
 const PING_MS = 60_000;
 const MAX_RETRY_MS = 5 * 60_000;
 const STATE_EVERY_MS = 1000;

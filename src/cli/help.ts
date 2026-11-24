@@ -183,7 +183,7 @@ export const COMMANDS: CommandInfo[] = [
   { name: "help", group: "About", args: "[command]", summary: "Help for Airband, or for one command", examples: ["airband help", "airband help find", "airband find --help"] },
 ];
 
-export const GLOBAL_OPTIONS: [string, string][] = [
+const GLOBAL_OPTIONS: [string, string][] = [
   ["--in <folder|project>", "Work on this folder, or a project already mapped by its name (default: the one you are in)"],
   ["--json", "Output as JSON (status, doctor, version, about)"],
   ["--no-color", "Plain text, no colour"],

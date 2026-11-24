@@ -9,9 +9,6 @@ import { claudeHome } from "./paths";
 
 export type ChatApp = "claude-app" | "codex-app" | "vscode" | "terminal";
 
-/** The app's name as people say it. */
-export const APP_NAME: Record<ChatApp, string> = { "claude-app": "the Claude app", "codex-app": "the Codex app", vscode: "VS Code", terminal: "a terminal" };
-
 function readPart(file: string, from: "start" | "end", bytes: number): string {
   let fd: number | undefined;
   try {
@@ -72,7 +69,7 @@ export function chatApp(tool: "claude" | "codex" | "gemini", file: string | unde
 }
 
 /** The Claude app's own folder (its Code tab keeps one small file per chat there). */
-export function claudeAppDir(): string {
+function claudeAppDir(): string {
   if (process.env.AIRBAND_CLAUDE_APP_DIR) return process.env.AIRBAND_CLAUDE_APP_DIR;
   if (process.platform === "darwin") return path.join(os.homedir(), "Library", "Application Support", "Claude");
   if (process.platform === "win32") return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "Claude");

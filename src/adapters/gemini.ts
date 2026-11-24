@@ -175,7 +175,7 @@ export function geminiChatDirs(root: string): string[] {
 }
 
 /** Every project folder Gemini CLI has chats for, with the folder it belongs to. */
-export function geminiAllChatDirs(): { dir: string; cwd: string }[] {
+function geminiAllChatDirs(): { dir: string; cwd: string }[] {
   const tmp = geminiTmpDir();
   const byName = new Map<string, string>();
   try {

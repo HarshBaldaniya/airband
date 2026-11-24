@@ -564,7 +564,7 @@ function readRange(file: string, start: number, end: number): string {
 /** The exact words of one recorded ask, read again from the agent's own file. */
 /** A chat file inside Claude Code's, Codex's or Gemini CLI's own folders (after following links):
  *  ~/.claude, ~/.codex (sessions and archived ones) or ~/.gemini, wherever each is configured. */
-export function isAgentChatFile(file: string | undefined): boolean {
+function isAgentChatFile(file: string | undefined): boolean {
   if (!file) return false;
   let real: string;
   try {
@@ -605,7 +605,6 @@ export function exchangeText(id: string, n: number, max = 20_000): string | unde
 
 /** How much a link sends after each reply: a line per ask, a short summary, or the words themselves. */
 export type LinkLevel = "ping" | "brief" | "full";
-export const LINK_LEVELS: LinkLevel[] = ["ping", "brief", "full"];
 
 /** Files named as the receiving chat can open them: short in the same folder, full paths elsewhere. */
 function fileNames(files: string[], root: string | undefined, absolute: boolean, max: number): string {

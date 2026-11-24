@@ -112,10 +112,6 @@ export function findClaude(): string | undefined {
   return findCommand("claude");
 }
 
-export function hookCommand(node: string): string {
-  return `"${node}" "${installedHookPath()}"`;
-}
-
 function readSettings(file: string): Settings {
   if (!fs.existsSync(file)) return {};
   const text = fs.readFileSync(file, "utf8");

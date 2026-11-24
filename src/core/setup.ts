@@ -38,7 +38,7 @@ export function claudePluginInstalled(): boolean {
 }
 
 /** The Crosstalk plugin is still installed in Claude Code; its repository is gone, so it no longer works. */
-export function oldClaudePluginInstalled(): boolean {
+function oldClaudePluginInstalled(): boolean {
   return claudePlugins("crosstalk");
 }
 

@@ -10,7 +10,6 @@ packages, each under its own license:
 | [d3-force](https://github.com/d3/d3-force) | ISC | Laying out the Map |
 | [lucide-react](https://github.com/lucide-icons/lucide) | ISC | Interface icons |
 | [@lobehub/icons-static-svg](https://github.com/lobehub/lobe-icons) | MIT | Agent logos |
-| [simple-icons](https://github.com/simple-icons/simple-icons) | CC0-1.0 | Agent logos |
 | [@vscode/tree-sitter-wasm](https://github.com/microsoft/vscode-tree-sitter-wasm) | MIT | Reading code for the Map |
 | [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) | MIT | The tools agents call |
 | [zod](https://github.com/colinhacks/zod) | MIT | Checking tool inputs |

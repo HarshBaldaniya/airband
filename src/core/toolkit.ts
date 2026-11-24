@@ -32,7 +32,7 @@ const codexHome = () => process.env.CODEX_HOME || path.join(os.homedir(), ".code
 const geminiHome = () => process.env.AIRBAND_GEMINI_HOME || path.join(os.homedir(), ".gemini");
 const claudeHome = () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
 /** Where Claude Code keeps user-scope MCP servers. */
-export const claudeJsonPath = () =>
+const claudeJsonPath = () =>
   process.env.AIRBAND_CLAUDE_JSON || (process.env.CLAUDE_CONFIG_DIR ? path.join(process.env.CLAUDE_CONFIG_DIR, ".claude.json") : path.join(os.homedir(), ".claude.json"));
 export const codexConfigPath = () => path.join(codexHome(), "config.toml");
 export const codexPromptsDir = () => path.join(codexHome(), "prompts");
@@ -103,7 +103,7 @@ export function agentStates(): AgentState[] {
 export type Runner = (cmd: string, args: string[]) => Promise<{ ok: boolean; out: string }>;
 
 /** Runs an agent's own command. On Windows a .cmd (as npm installs them) needs a shell to start. */
-export const runCli: Runner = (cmd, args) =>
+const runCli: Runner = (cmd, args) =>
   new Promise((resolve) => {
     // An agent's own command writes to the person's real settings: never from a test.
     if (process.env.NODE_TEST_CONTEXT) throw new Error(`A test tried to run ${cmd}. Pass claudeCli: null.`);
@@ -125,7 +125,7 @@ const CLAUDE_ALLOW = `mcp__${SERVER}`;
 
 /** Adds or takes out Airband's rule in Claude Code's permissions.allow; nothing else in the file
  *  changes, and a settings file that doesn't parse is left alone. */
-export function allowInClaude(on: boolean): void {
+function allowInClaude(on: boolean): void {
   const file = claudeSettingsPath();
   if (!fs.existsSync(file) && !on) return;
   const settings = fs.existsSync(file) ? readJsonFile<Record<string, unknown> & { permissions?: { allow?: string[] } }>(file) : {};

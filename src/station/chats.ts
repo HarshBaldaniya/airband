@@ -1,7 +1,6 @@
 // Every recent chat on this computer, in Claude Code, Codex and Gemini CLI, with what it is doing
 // now: read from Airband's own records (the flightlog) and the status each chat's hook writes.
 import * as fs from "node:fs";
-import * as path from "node:path";
 import { airbandHome, safeId, statusDir } from "../core/paths";
 import { listHeads, readAsks, setRecordTitle, type RecordHead, type RecordTool } from "../core/record";
 import { chatApp, type ChatApp } from "../core/apps";
@@ -170,7 +169,7 @@ export function projectOf(cwd: string | undefined): string {
 /** Whether a chat's file holds a reply made after `at`: its newest lines, read again when it grows. */
 const REPLY_TAIL = 128 * 1024;
 const replies = new Map<string, { size: number; at: number; after: boolean }>();
-export function repliedAfter(tool: RecordTool, file: string | undefined, at: number): boolean {
+function repliedAfter(tool: RecordTool, file: string | undefined, at: number): boolean {
   if (!file || tool === "gemini") return false;
   let size: number;
   try {
@@ -324,9 +323,4 @@ export function matchChats(chats: LiveChat[], text: string): { chat: LiveChat; s
     if (score > 0) out.push({ chat: c, score });
   }
   return out.sort((a, b) => b.score - a.score || b.chat.updatedAt - a.chat.updatedAt);
-}
-
-/** The one chat a person most likely means. */
-export function findChat(chats: LiveChat[], words: string): LiveChat | undefined {
-  return matchChats(chats, words)[0]?.chat;
 }

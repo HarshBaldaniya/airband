@@ -1,7 +1,6 @@
 // Shapes shared by the extension, the webviews, the hook and the MCP server.
 
 export type Tool = "Claude" | "Codex" | "Gemini";
-export const TOOLS: Tool[] = ["Claude", "Codex", "Gemini"];
 
 /** working: replying · waiting: needs you · done: replied, your turn · idle: quiet for a while */
 export type Status = "working" | "waiting" | "done" | "idle";

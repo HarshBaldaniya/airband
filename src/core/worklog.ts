@@ -135,7 +135,7 @@ function shares(asks: RecordAsk[]): SpendChat["refs"] {
 
 const scale = (u: Usage, k: number): Usage => ({ input: u.input * k, output: u.output * k, cacheRead: u.cacheRead * k, cacheWrite: u.cacheWrite * k });
 
-export function fmtTokens(n: number): string {
+function fmtTokens(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`;
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
   if (n >= 1e3) return `${Math.round(n / 1e3)}k`;

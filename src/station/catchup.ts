@@ -13,7 +13,7 @@ import { readHookStatus } from "../core/status";
 import type { ChatSession } from "../core/types";
 
 /** Chats active within this long are kept caught up. */
-export const CATCH_UP_WINDOW_MS = 24 * 3600e3;
+const CATCH_UP_WINDOW_MS = 24 * 3600e3;
 
 /** The chats whose record the hook won't write, most urgent first: working or needing you, then the newest. */
 export function needsCatchUp(sessions: ChatSession[], now = Date.now(), windowMs = CATCH_UP_WINDOW_MS): ChatSession[] {

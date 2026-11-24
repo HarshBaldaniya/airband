@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
 import { execFile } from "node:child_process";
-import { airbandFile, writeFileAtomic } from "../core/paths";
+import { writeFileAtomic } from "../core/paths";
 import type { Decl, Import } from "./extract";
 import { langOf, type LangId } from "./parser";
 import { TABLE_SKIP_DIR } from "./langs";
@@ -26,7 +26,7 @@ export interface FileEntry {
 }
 
 /** A store's format; a change here rebuilds every map once. */
-export const STORE_VERSION = 1;
+const STORE_VERSION = 1;
 
 // Kept in ./where so the hook can find a map without loading the parser.
 export { folderId, storeDir } from "./where";
@@ -103,7 +103,7 @@ const SKIP_FILE = /(\.min\.(js|mjs|cjs)|\.bundle\.js|\.chunk\.js|-lock\.json|\.m
 /** Bigger than this is data or generated code, not something to read for meaning. */
 export const MAX_FILE_BYTES = 512 * 1024;
 
-export function mappable(rel: string): boolean {
+function mappable(rel: string): boolean {
   return !!langOf(rel) && !SKIP_DIR.test(rel) && !TABLE_SKIP_DIR.test(rel) && !SKIP_FILE.test(rel);
 }
 

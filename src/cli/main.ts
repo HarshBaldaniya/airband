@@ -291,7 +291,7 @@ export async function main(argv: string[]): Promise<number> {
     }
     case "station": {
       // The Station without the app: approvals in a browser, for any computer (the Mac app runs its own).
-      const { Station } = await import("../station");
+      const { Station } = await import("../station/server");
       const station = new Station();
       if (flag(args, "--phone")) out(paint.dim("  The phone link comes with Airband's iPhone app. Until then, answer on this computer."));
       try {

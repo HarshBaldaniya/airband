@@ -9,7 +9,7 @@ export interface CompanionSettings {
 }
 
 export const DEFAULT_COMPANION: CompanionSettings = { name: "Roger", design: "headset" };
-export const NAME_MAX = 24;
+const NAME_MAX = 24;
 
 /** A name fit to show: trimmed, short, never empty. */
 export function cleanName(name: unknown): string {

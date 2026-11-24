@@ -8,11 +8,11 @@ import type { OurCommand } from "./package-managers";
 
 export const REPO = "https://github.com/HarshBaldaniya/airband";
 export const DOCS = `${REPO}#readme`;
-export const ISSUES = `${REPO}/issues`;
+const ISSUES = `${REPO}/issues`;
 export const CHANGELOG = `${REPO}/blob/main/CHANGELOG.md`;
 
 /** "macOS 15.1 (Apple silicon)", "Windows 10.0.26100 (x64)", "Ubuntu 24.04.1 LTS (arm64)". */
-export function systemName(): string {
+function systemName(): string {
   const run = (cmd: string, args: string[]) => {
     try {
       return execFileSync(cmd, args, { encoding: "utf8", timeout: 2000, windowsHide: true }).trim();
@@ -39,7 +39,7 @@ export function systemName(): string {
   return `${os.type()} ${os.release()} (${process.arch})`;
 }
 
-export const tilde = (p: string) => (p.startsWith(os.homedir()) ? `~${p.slice(os.homedir().length)}` : p);
+const tilde = (p: string) => (p.startsWith(os.homedir()) ? `~${p.slice(os.homedir().length)}` : p);
 
 export interface AboutInfo {
   version: string;

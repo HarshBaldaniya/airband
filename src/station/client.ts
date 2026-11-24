@@ -65,7 +65,7 @@ export function readStationInfo(): StationInfo | undefined {
 }
 
 /** POSTs JSON to the Station and reads the JSON answer, within `budgetMs`. */
-export function stationPost<T>(info: Pick<StationInfo, "port" | "token">, route: string, body: unknown, budgetMs: number): Promise<T | undefined> {
+function stationPost<T>(info: Pick<StationInfo, "port" | "token">, route: string, body: unknown, budgetMs: number): Promise<T | undefined> {
   return new Promise((resolve) => {
     const data = Buffer.from(JSON.stringify(body));
     const nonce = randomBytes(18).toString("base64url");

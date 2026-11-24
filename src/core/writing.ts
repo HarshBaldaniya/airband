@@ -27,7 +27,7 @@ export interface WritingSettings {
 }
 
 /** The project's settings file, at its root (found from any folder inside it). */
-export const PROJECT_FILE = ".airband.json";
+const PROJECT_FILE = ".airband.json";
 
 interface ProjectFile {
   writing?: Partial<Record<WritingKind | "beforeSend", boolean>> & { rules?: unknown };
@@ -49,7 +49,7 @@ export function projectFile(cwd: string | undefined): string | undefined {
 }
 
 /** Where the project's settings file goes: the repository's root, else this folder. */
-export function projectRoot(cwd: string): string {
+function projectRoot(cwd: string): string {
   let dir = path.resolve(cwd);
   for (let i = 0; i < 12; i++) {
     if (fs.existsSync(path.join(dir, ".git")) || fs.existsSync(path.join(dir, PROJECT_FILE))) return dir;

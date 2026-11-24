@@ -23,7 +23,7 @@ const OLD_ONLY = new Set([
 ]);
 
 /** The folders Airband's data lived in under its earlier names, oldest first. */
-export const OLD_HOME_NAMES = [".relay", ".crosstalk"];
+const OLD_HOME_NAMES = [".relay", ".crosstalk"];
 const RENAMED: Record<string, string> = { sessions: "flightlogs" };
 
 /** Moves one folder's contents into another, keeping whatever the new one already has. */

@@ -26,7 +26,7 @@ import { openChat } from "./open";
 import { chatApp } from "../core/apps";
 import { describeRequest, questionsOf, ruleKey, type Answer, type Question } from "./reply";
 
-export const DEFAULT_PORT = 47821;
+const DEFAULT_PORT = 47821;
 
 export interface PendingView {
   id: string;
@@ -133,7 +133,7 @@ const SOMETHING_WRONG = "Something went wrong in Airband's Station. Try again.";
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
 
-export const defaultSettings = (): StationSettings => ({ approvals: true, phone: false, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: true, phoneAlways: true });
+const defaultSettings = (): StationSettings => ({ approvals: true, phone: false, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: true, phoneAlways: true });
 
 export function readSettings(): StationSettings {
   const saved = readJson<Partial<StationSettings>>(settingsFile(), {});

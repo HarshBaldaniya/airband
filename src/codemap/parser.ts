@@ -47,9 +47,6 @@ const GRAMMAR: Record<LangId, string> = {
   php: "tree-sitter-php.wasm",
 };
 
-/** The grammar files Airband ships, for the build to copy. */
-export const SHIPPED_GRAMMARS = ["tree-sitter.wasm", ...Object.values(GRAMMAR)];
-
 /** The ones the npm package carries; the rest are fetched once, when a project first needs them. */
 export const BUNDLED_GRAMMARS = ["tree-sitter.wasm", "tree-sitter-typescript.wasm", "tree-sitter-tsx.wasm", "tree-sitter-javascript.wasm", "tree-sitter-python.wasm"];
 
@@ -63,7 +60,7 @@ export function setGrammarFetcher(f: GrammarFetcher | undefined): void {
 
 /** Where a fetched parser can come from: the same npm package the build used, through two public
  *  npm mirrors. Whatever arrives must match the fingerprint written in at build time. */
-export function grammarUrls(file: string): string[] {
+function grammarUrls(file: string): string[] {
   const pkg = __AIRBAND_GRAMMARS__.pkg;
   return [`https://cdn.jsdelivr.net/npm/${pkg}/wasm/${file}`, `https://unpkg.com/${pkg}/wasm/${file}`];
 }
@@ -147,7 +144,7 @@ export function langOf(file: string): LangId | undefined {
 }
 
 /** Where the .wasm files are: next to the running bundle in a build, the package itself in tests. */
-export function wasmDir(): string {
+function wasmDir(): string {
   const candidates = [process.env.AIRBAND_WASM_DIR, path.join(__dirname, "wasm")];
   try {
     candidates.push(path.join(path.dirname(require.resolve("@vscode/tree-sitter-wasm/package.json")), "wasm"));
@@ -169,7 +166,7 @@ function init(): Promise<void> {
   return ready;
 }
 
-export async function language(id: LangId): Promise<Language> {
+async function language(id: LangId): Promise<Language> {
   await init();
   let l = languages.get(id);
   if (!l) {

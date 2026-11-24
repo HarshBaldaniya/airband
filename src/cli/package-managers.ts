@@ -91,7 +91,7 @@ export function findOnPath(name: string, env = process.env, platform = process.p
 /** A command, if it was installed from one of these packages: where it is, which package and which
  *  package manager (another program could use the same name). npm, yarn and bun link it into the
  *  package; pnpm, and every manager on Windows, write a small script that names the package. */
-export function commandFrom(found: string | undefined, packages: string[]): OurCommand | undefined {
+function commandFrom(found: string | undefined, packages: string[]): OurCommand | undefined {
   if (!found || temporary(found)) return undefined;
   let where = "";
   try {
