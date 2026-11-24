@@ -1,6 +1,7 @@
 // One place that sets Airband up for every agent on this computer, checks it, keeps it current and
 // takes it away again. The command line (`airband setup | update | doctor | remove`) and the VS
 // Code extension both use it, so the two always do the same thing.
+import { hookSkipped, SKIPPED_FIX } from "./hook-health";
 import * as fs from "node:fs";
 import * as https from "node:https";
 import * as os from "node:os";
@@ -227,7 +228,9 @@ export function doctor(latest?: string, self = "airband"): Check[] {
           ? { ok: "warn", what: `${name}: auto-sharing off`, fix: `Run: ${self} setup --agents ${a.id} (connected chats then update each other)` }
           : stale.has(t.tool)
             ? { ok: false, what: `${name}: auto-sharing hook points at a Node.js that is gone`, fix: `Run: ${self}` }
-            : { ok: true, what: `${name}: auto-sharing on` },
+            : hookSkipped(a.id, t.file)
+              ? { ok: false, what: `${name}: auto-sharing is set up, but ${name} has not run it in its recent chats, so they share nothing`, fix: SKIPPED_FIX[a.id] ?? `Run: ${self}` }
+              : { ok: true, what: `${name}: auto-sharing on` },
       );
     }
   }

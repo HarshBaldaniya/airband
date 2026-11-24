@@ -7,6 +7,7 @@ import { DECISION_MS } from "../station/client";
 import { handle } from "./handle";
 import type { HookInput } from "./input";
 import { permission } from "./permission";
+import { noteHookRan } from "../install/hook-health";
 
 /** A permission request waits up to DECISION_MS for a click; this much more lets its answer be printed. */
 const EXIT_GRACE_MS = 5_000;
@@ -26,6 +27,8 @@ function main(): void {
     } catch {
       process.exit(0);
     }
+    // The agent runs the hook: noted, so the doctor can tell an agent that skips it.
+    noteHookRan(tool);
     if (input.hook_event_name === "PermissionRequest") {
       // The one event that waits for a person: the usual 4 s limit gives way to the app's own.
       clearTimeout(limit);

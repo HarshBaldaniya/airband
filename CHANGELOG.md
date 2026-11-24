@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased
+- **The doctor tells when an agent skips Airband's hook.** Codex runs a hook only after you
+  review and trust it in Codex, and asks again when the hook changes. Until then it skips it
+  without a word: its chats shared nothing and showed no status. The hook now notes each run, and
+  `airband doctor` says when Codex chats ran without it, and how to trust it.
 - **A chat running agents is one chat, working until its last agent ends.** Agents it waits for
   count now too, not only agents sent to the background. A message from Roger, or a linked chat's
   update, always reaches the chat itself. Before, an agent's next step could take it, because
