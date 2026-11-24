@@ -22,6 +22,7 @@ name = "airband"
 version = "0.1.6"
 dependencies = [
  "base64 0.22.1",
+ "minisign-verify",
  "serde",
  "serde_json",
  "sha2 0.10.9",

@@ -17,11 +17,16 @@ const repo = join(process.cwd(), "..");
 
 export const VERSION: string = JSON.parse(readFileSync(join(repo, "package.json"), "utf8")).version;
 
+/** The release files' names, with {version} in them: desktop/downloads.json, which the release
+ *  scripts and the app read too. */
+const NAMES: Record<string, string> = JSON.parse(readFileSync(join(repo, "desktop", "downloads.json"), "utf8"));
+const named = (key: string) => (v: string) => NAMES[key].split("{version}").join(v);
+
 /** Each download, and its file's name in a release of version `v`. */
 const FILES: (Omit<Download, "url" | "file" | "version"> & { name: (v: string) => string })[] = [
-  { platform: "mac-arm", label: "Mac with Apple silicon", detail: "M1 or later", name: (v) => `Airband-${v}-Apple-Silicon.dmg` },
-  { platform: "mac-intel", label: "Mac with Intel", detail: "macOS 11 or later", name: (v) => `Airband-${v}-Intel.dmg` },
-  { platform: "windows", label: "Windows", detail: "Windows 10 or 11, 64-bit", name: (v) => `Airband-Setup-${v}.exe` },
+  { platform: "mac-arm", label: "Mac with Apple silicon", detail: "M1 or later", name: named("mac-arm") },
+  { platform: "mac-intel", label: "Mac with Intel", detail: "macOS 11 or later", name: named("mac-intel") },
+  { platform: "windows", label: "Windows", detail: "Windows 10 or 11, 64-bit", name: named("windows") },
 ];
 
 interface GitHubRelease {

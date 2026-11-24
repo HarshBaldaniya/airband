@@ -10,12 +10,33 @@
 //!   system doesn't ask to allow a download, as it does for one from a browser.
 //!
 //! Both are looked at a minute after the app starts, then every six hours.
-use crate::{engine, log, refresh_menu, setup, State};
+use crate::corner::{self, event};
+use crate::error::Result;
+use crate::logging::log;
+use crate::paths::{self, UPDATED};
+use crate::state::{hooks, lock, AppState};
+use crate::{engine, setup};
 use serde::Serialize;
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_updater::UpdaterExt;
+
+/// The first look for updates, after the app starts.
+const FIRST_CHECK: Duration = Duration::from_secs(60);
+/// Then a look every six hours.
+const CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
+/// "Starting again…" stays on screen this long before the app restarts.
+const RESTART_PAUSE: Duration = Duration::from_millis(700);
+
+/// Where an app update is.
+#[derive(Clone, Copy, Serialize, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateStep {
+    Downloading,
+    Installing,
+    Restarting,
+}
 
 /// A newer app, as the menu and Roger's panel show it.
 #[derive(Clone, Serialize)]
@@ -23,45 +44,40 @@ pub struct AppUpdate {
     /// The newer version, when there is one.
     pub version: Option<String>,
     pub installing: bool,
-    /// While installing: "downloading", "installing", then "restarting".
-    pub step: Option<&'static str>,
+    pub step: Option<UpdateStep>,
     /// How much of the download is in, 0 to 100, when its size is known.
     pub progress: Option<u8>,
     /// What went wrong the last time, in words for the person.
     pub error: Option<String>,
 }
 
-static NOW: Mutex<AppUpdate> = Mutex::new(AppUpdate { version: None, installing: false, step: None, progress: None, error: None });
+static NOW: Mutex<AppUpdate> =
+    Mutex::new(AppUpdate { version: None, installing: false, step: None, progress: None, error: None });
 
 pub fn current() -> AppUpdate {
-    NOW.lock().unwrap().clone()
+    lock(&NOW).clone()
 }
 
 /// The menu and Roger's panel show what changed.
 fn tell(app: &AppHandle) {
     tell_panel(app);
-    refresh_menu(app);
+    (hooks(app).menu_changed)(app);
 }
 
 fn tell_panel(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.emit("update", current());
+    if let Some(w) = corner::window(app) {
+        let _ = w.emit(event::UPDATE, current());
     }
 }
 
-fn set_step(app: &AppHandle, step: &'static str) {
-    NOW.lock().unwrap().step = Some(step);
+fn set_step(app: &AppHandle, step: UpdateStep) {
+    lock(&NOW).step = Some(step);
     tell(app);
-}
-
-/// Written just before the new app goes in place, so the new app can say it is the new one.
-fn marker() -> std::path::PathBuf {
-    crate::home().join("updated.json")
 }
 
 /// The version this app was just updated to, once: Roger says so after the restart.
 pub fn just_updated(app: &AppHandle) -> Option<String> {
-    let f = marker();
+    let f = paths::file(UPDATED);
     let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&f).ok()?).ok()?;
     let _ = std::fs::remove_file(&f);
     let to = v["to"].as_str()?.to_string();
@@ -70,7 +86,14 @@ pub fn just_updated(app: &AppHandle) -> Option<String> {
 
 /// "0.1.10" is newer than "0.1.9".
 pub fn newer(a: &str, b: &str) -> bool {
-    let parts = |v: &str| v.trim().trim_start_matches('v').split(['.', '-', '+']).take(3).map(|x| x.parse::<u64>().unwrap_or(0)).collect::<Vec<_>>();
+    let parts = |v: &str| {
+        v.trim()
+            .trim_start_matches('v')
+            .split(['.', '-', '+'])
+            .take(3)
+            .map(|x| x.parse::<u64>().unwrap_or(0))
+            .collect::<Vec<_>>()
+    };
     parts(a) > parts(b)
 }
 
@@ -78,11 +101,11 @@ pub fn newer(a: &str, b: &str) -> bool {
 pub fn watch(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_secs(60));
+        std::thread::sleep(FIRST_CHECK);
         loop {
             engine_update(&app);
             tauri::async_runtime::block_on(check_app(&app));
-            std::thread::sleep(Duration::from_secs(6 * 60 * 60));
+            std::thread::sleep(CHECK_EVERY);
         }
     });
 }
@@ -90,16 +113,16 @@ pub fn watch(app: &AppHandle) {
 // ---- the engine: by itself ----
 
 fn engine_update(app: &AppHandle) {
-    let set_up = app.state::<State>().lock().unwrap().prefs.set_up;
+    let set_up = lock(&app.state::<AppState>()).prefs.set_up;
     if !set_up || std::env::var("AIRBAND_ENGINE_DIR").is_ok() || !engine::ready() {
         return;
     }
     let (Some(have), Ok(latest)) = (setup::engine_version(), setup::latest_engine()) else { return };
-    if !newer(&latest, &have) {
+    if !newer(&latest.version, &have) {
         return;
     }
-    log(&format!("update: engine {have} to {latest}"));
-    match setup::engine_from_npm(&|_, _, _| {}) {
+    log(&format!("update: engine {have} to {}", latest.version));
+    match setup::install_engine(&latest, &|_, _, _| {}) {
         Ok(v) => {
             match setup::connect() {
                 Ok(_) => log("update: agents set up with the new engine"),
@@ -119,7 +142,7 @@ async fn check_app(app: &AppHandle) {
     match updater.check().await {
         Ok(Some(u)) => {
             let fresh = {
-                let mut now = NOW.lock().unwrap();
+                let mut now = lock(&NOW);
                 let fresh = now.version.as_deref() != Some(u.version.as_str());
                 now.version = Some(u.version.clone());
                 fresh
@@ -150,12 +173,12 @@ pub fn check_and_install(app: &AppHandle) {
 /// Downloads the newer app, checks it, puts it in place and starts it.
 pub fn install(app: &AppHandle) {
     {
-        let mut now = NOW.lock().unwrap();
+        let mut now = lock(&NOW);
         if now.installing {
             return;
         }
         now.installing = true;
-        now.step = Some("downloading");
+        now.step = Some(UpdateStep::Downloading);
         now.progress = None;
         now.error = None;
     }
@@ -165,15 +188,20 @@ pub fn install(app: &AppHandle) {
         match download_and_install(&app).await {
             Ok(v) => {
                 log(&format!("update: Airband {v} installed, starting it"));
-                set_step(&app, "restarting");
-                std::thread::sleep(Duration::from_millis(700));
-                engine::stop(&app);
-                app.restart();
+                set_step(&app, UpdateStep::Restarting);
+                // "Starting again…" stays a moment; the pause and the engine's stop wait on a
+                // blocking thread, not on the runtime's.
+                let _ = tauri::async_runtime::spawn_blocking(move || {
+                    std::thread::sleep(RESTART_PAUSE);
+                    engine::stop();
+                    app.restart();
+                })
+                .await;
             }
             Err(e) => {
                 log(&format!("update: the app didn't update: {e}"));
                 {
-                    let mut now = NOW.lock().unwrap();
+                    let mut now = lock(&NOW);
                     now.installing = false;
                     now.step = None;
                     now.progress = None;
@@ -185,8 +213,8 @@ pub fn install(app: &AppHandle) {
     });
 }
 
-async fn download_and_install(app: &AppHandle) -> Result<String, String> {
-    let u = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?.ok_or_else(|| "this is already the newest".to_string())?;
+async fn download_and_install(app: &AppHandle) -> Result<String> {
+    let u = app.updater()?.check().await?.ok_or("this is already the newest")?;
     let mut got: u64 = 0;
     let (a, b) = (app.clone(), app.clone());
     let to = u.version.clone();
@@ -195,23 +223,22 @@ async fn download_and_install(app: &AppHandle) -> Result<String, String> {
             got += chunk as u64;
             let Some(total) = total.filter(|t| *t > 0) else { return };
             let pct = ((got * 100) / total).min(100) as u8;
-            let was = NOW.lock().unwrap().progress.replace(pct);
+            let was = lock(&NOW).progress.replace(pct);
             if was != Some(pct) {
                 tell_panel(&a);
                 // The menu is built again only now and then.
                 if pct / 10 != was.unwrap_or(0) / 10 {
-                    refresh_menu(&a);
+                    (hooks(&a).menu_changed)(&a);
                 }
             }
         },
         move || {
             // On Windows the installer takes over from here and starts the new app itself.
-            let _ = std::fs::write(marker(), serde_json::json!({ "to": to }).to_string());
-            set_step(&b, "installing");
+            let _ = std::fs::write(paths::file(UPDATED), serde_json::json!({ "to": to }).to_string());
+            set_step(&b, UpdateStep::Installing);
         },
     )
-    .await
-    .map_err(|e| e.to_string())?;
+    .await?;
     Ok(u.version)
 }
 
@@ -247,5 +274,23 @@ pub async fn from_terminal(app: &AppHandle) -> i32 {
             eprintln!("error: couldn't look for a newer app: {e}");
             1
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compares_versions_as_numbers() {
+        assert!(newer("0.1.10", "0.1.9"));
+        assert!(newer("v1.0.0", "0.9.9"));
+        assert!(!newer("0.1.6", "0.1.6"));
+        assert!(!newer("0.1.6-beta", "0.1.6"));
+    }
+
+    #[test]
+    fn the_panel_reads_the_step_as_before() {
+        assert_eq!(serde_json::to_string(&UpdateStep::Downloading).unwrap(), r#""downloading""#);
     }
 }

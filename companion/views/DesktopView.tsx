@@ -76,21 +76,8 @@ export function DesktopView() {
   const figure = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; moving: boolean } | undefined>(undefined);
   const clicks = useRef<number[]>([]);
-  const hit = useRef(false);
-  const pointer = useRef<{ x: number; y: number } | undefined>(undefined);
   const toastSeen = useRef(new Map<string, number>());
   const [toastGone, setToastGone] = useState<Set<string>>(new Set());
-
-  /** Takes clicks only where something is drawn under the pointer. Run on every move and after
-   *  every change, so a card that goes away never leaves a spot that still catches clicks. */
-  const checkHit = () => {
-    const p = pointer.current;
-    const over = !!p && !!(document.elementFromPoint(p.x, p.y) as HTMLElement | null)?.closest("[data-hit]");
-    if (over !== hit.current) {
-      hit.current = over;
-      bridge.setHit(over);
-    }
-  };
 
   const openPanel = (withSettings = false) => {
     setSettings(withSettings);
@@ -157,22 +144,9 @@ export function DesktopView() {
         else motionTimer.current = setTimeout(() => setMotion(undefined), 560);
       }
     });
-    // Clicks reach the window only over what it draws; elsewhere they go to the windows behind.
-    const onMove = (e: MouseEvent) => {
-      pointer.current = { x: e.clientX, y: e.clientY };
-      if (!drag.current) checkHit();
-    };
-    const onLeave = () => {
-      pointer.current = undefined;
-      if (!drag.current) checkHit();
-    };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && closePanel();
-    window.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseleave", onLeave);
     window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseleave", onLeave);
       window.removeEventListener("keydown", onKey);
       clearTimeout(enter);
       clearInterval(hoverTimer);
@@ -213,15 +187,13 @@ export function DesktopView() {
       const r = figure.current!.getBoundingClientRect();
       bridge.dragStart({ x: r.x, y: r.y, width: r.width, height: r.height });
       // The system moves the window from here, and keeps the pointer: nothing more comes to us.
-      if (bridge.nativeDrag) return void (drag.current = undefined);
+      drag.current = undefined;
     }
-    if (d.moving) bridge.dragMove();
   };
   const onUp = () => {
     const d = drag.current;
     drag.current = undefined;
     if (!d) return;
-    if (d.moving) return bridge.dragEnd();
     if (tucked) return tuck(false);
     const now = Date.now();
     clicks.current = [...clicks.current.filter((t) => now - t < 900), now];
@@ -236,12 +208,11 @@ export function DesktopView() {
     togglePanel();
   };
 
-  // After anything changes on screen, the spot under a still pointer is checked again. The lighter
-  // app instead gets where the clickable parts are, whenever they change.
+  // Clicks reach the window only over what it draws; elsewhere they go to the windows behind. The
+  // app is told where the clickable parts are whenever they change.
   const areas = useRef("");
   const sendAreas = useRef(() => {});
   sendAreas.current = () => {
-    if (!bridge.setHitAreas) return;
     const rects = [...document.querySelectorAll("[data-hit]")].map((el) => {
       const r = el.getBoundingClientRect();
       return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
@@ -253,17 +224,13 @@ export function DesktopView() {
     }
   };
   useEffect(() => {
-    const t = requestAnimationFrame(() => {
-      checkHit();
-      sendAreas.current();
-    });
+    const t = requestAnimationFrame(() => sendAreas.current());
     return () => cancelAnimationFrame(t);
   });
   // The panel changes size by itself too (a tab, a row's message box, its opening animation, a list
   // that grows): the parts are measured again as soon as one resizes, and a few times a second
   // anyway, so a click on the panel never falls through to the window behind.
   useEffect(() => {
-    if (!bridge.setHitAreas) return;
     const ro = new ResizeObserver(() => sendAreas.current());
     const watch = () => document.querySelectorAll("[data-hit]").forEach((el) => ro.observe(el));
     watch();
@@ -282,7 +249,7 @@ export function DesktopView() {
     };
   }, []);
 
-  // A new request or a finished chat while hidden or tucked away: the lighter app brings it back.
+  // A new request or a finished chat while hidden or tucked away: the app brings it back.
   const seenKey = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!state || !bridge.comeBack) return;

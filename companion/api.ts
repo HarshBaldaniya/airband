@@ -85,14 +85,11 @@ export interface DesktopPrefs {
   greeted: boolean;
 }
 
-/** What the desktop app adds (window place, drag, menus, the QR code); absent in a browser or on a phone. */
+/** What the desktop app adds (window place, drag, menus); absent in a browser or on a phone. The
+ *  optional members are missing in older apps. */
 export interface DesktopBridge {
-  /** The pointer is over something clickable: the window takes clicks there, and lets the rest through. */
-  setHit(hit: boolean): void;
-  /** A drag starts on the figure, whose box in the window is given so it stays under the pointer. */
+  /** A drag starts on the figure: the system moves the window from here, and keeps the pointer. */
   dragStart(figure: { x: number; y: number; width: number; height: number }): void;
-  dragMove(): void;
-  dragEnd(): void;
   /** Which way the cards open: towards the middle of the screen. */
   onPlace(cb: (p: { side: "left" | "right"; vertical: "top" | "bottom" }) => void): void;
   onCursor(cb: (p: { dx: number; dy: number }) => void): void;
@@ -101,21 +98,17 @@ export interface DesktopBridge {
   onPointer?(cb: (p: { x: number; y: number } | null) => void): void;
   onCommand(cb: (c: string) => void): void;
   onPrefs(cb: (p: DesktopPrefs) => void): void;
-  qr(text: string): Promise<string>;
   prefs(): Promise<DesktopPrefs>;
   setPref(key: keyof DesktopPrefs, on: boolean): void;
   /** The app's own menu, at the pointer (a right-click on the figure). */
   showMenu(): void;
-  hide(): void;
   /** Asleep: the app stops following the pointer until it wakes. */
   setAsleep?(asleep: boolean): void;
   /**
-   * The lighter app (the system's own web view): it can't see the pointer while clicks pass
-   * through, so the screen tells it where its clickable parts are, and it watches the pointer.
+   * The app can't see the pointer while clicks pass through, so the screen tells it where its
+   * clickable parts are, and the app watches the pointer.
    */
-  setHitAreas?(rects: { x: number; y: number; width: number; height: number }[]): void;
-  /** The window is moved by the system itself: a drag is handed over once it starts. */
-  nativeDrag?: boolean;
+  setHitAreas(rects: { x: number; y: number; width: number; height: number }[]): void;
   /** A request or a finished chat came while hidden or tucked away: show the companion. */
   comeBack?(): void;
   /** A newer app, if there is one; older apps don't have these. */

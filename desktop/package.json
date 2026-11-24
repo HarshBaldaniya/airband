@@ -1,7 +1,6 @@
 {
   "name": "airband-desktop",
   "private": true,
-  "version": "0.1.6",
   "description": "Airband's desktop app on the system's own web view (Tauri): a small download.",
   "scripts": {
     "tauri": "tauri",

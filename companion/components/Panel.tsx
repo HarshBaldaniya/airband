@@ -165,6 +165,9 @@ function SettingRow({ title, note, children }: { title: string; note: string; ch
   );
 }
 
+/** A QR code for a link, as an image address, drawn on the screen itself. */
+const qrImage = (url: string, width: number) => import("qrcode").then((m) => m.toDataURL(url, { margin: 1, width }));
+
 /** Link your iPhone through Airband's relay: a code that works once, then which iPhone holds the link. */
 function PhoneRow({ state }: { state: StationState }) {
   const l = state.link;
@@ -182,9 +185,7 @@ function PhoneRow({ state }: { state: StationState }) {
   }, [waiting, url]);
   useEffect(() => {
     if (!url) return setQr(undefined);
-    // The app's own QR maker, or the screen's (the lighter app has none of its own).
-    if (desktop?.qr) void desktop.qr(url).then((q) => (q ? setQr(q) : void import("qrcode").then((m) => m.toDataURL(url, { margin: 1, width: 264 }).then(setQr))));
-    else void import("qrcode").then((m) => m.toDataURL(url, { margin: 1, width: 264 }).then(setQr));
+    void qrImage(url, 264).then(setQr);
   }, [url]);
   // Test: a pretend request goes to the iPhone at once; the line below says what happened.
   const [sent, setSent] = useState<{ at: number; text: string; ok: boolean }>();

@@ -52,6 +52,8 @@
   Spin 'Looking' 'for the newest Airband'
   $file = $null
   $version = $null
+  # The release files are named in desktop/downloads.json; scripts/check-release.mjs checks this
+  # script still names them the same.
   $releases = Ask 'https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20' @{ Accept = 'application/vnd.github+json'; 'User-Agent' = 'airband-install' }
   if ($releases) {
     # Newest first: the first release with a Windows installer.

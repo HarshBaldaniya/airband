@@ -1,11 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "corner",
-  "description": "Roger's corner: only the Station's own page on this computer may call the app, and only these.",
+  "description": "Roger's corner: only the Station's own page on this computer may call the app, and only these. The Station picks its port as it starts, so any port is named here; the corner's window itself refuses every page but the Station's (src/corner/mod.rs).",
   "windows": ["main"],
   "remote": { "urls": ["http://127.0.0.1:*/*", "http://127.0.0.1:*"] },
   "permissions": [
     "core:event:allow-listen", "core:event:allow-unlisten",
-    "allow-hit-areas", "allow-drag", "allow-prefs", "allow-set-pref", "allow-menu", "allow-hide", "allow-asleep", "allow-come-back", "allow-log-line", "allow-update-info", "allow-install-update"
+    "allow-hit-areas", "allow-drag", "allow-prefs", "allow-set-pref", "allow-menu", "allow-asleep", "allow-come-back", "allow-log-line", "allow-update-info", "allow-install-update", "allow-just-updated"
   ]
 }

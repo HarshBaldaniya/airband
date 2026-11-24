@@ -1,0 +1,40 @@
+# The desktop app's Rust code on every change to it: formatted, no clippy warnings, and its tests
+# pass, on macOS and Windows (the two systems it ships for). Linux would need WebKitGTK installed
+# only for this, and the app doesn't ship there.
+name: Desktop checks
+on:
+  push:
+    paths:
+      - "desktop/**"
+      - "package.json"
+      - ".github/workflows/desktop-check.yml"
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "package.json"
+      - ".github/workflows/desktop-check.yml"
+# Read-only: the checks need nothing else.
+permissions:
+  contents: read
+jobs:
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop/src-tauri
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: desktop/src-tauri
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test

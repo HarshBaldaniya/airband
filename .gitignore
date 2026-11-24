@@ -2,8 +2,6 @@ node_modules/
 dist/
 out-test/
 *.vsix
-.relay/
-.crosstalk/
 .airband/
 # Private planning notes: kept on this computer, never published
 docs/internal/
