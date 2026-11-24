@@ -10,7 +10,10 @@
 //!   system doesn't ask to allow a download, as it does for one from a browser.
 //!
 //! Both are looked at a minute after the app starts, then every six hours.
-use crate::{engine, log, refresh_menu, setup, State};
+use crate::logging::log;
+use crate::state::State;
+use crate::tray::refresh_menu;
+use crate::{engine, setup};
 use serde::Serialize;
 use std::sync::Mutex;
 use std::time::Duration;
@@ -57,7 +60,7 @@ fn set_step(app: &AppHandle, step: &'static str) {
 
 /// Written just before the new app goes in place, so the new app can say it is the new one.
 fn marker() -> std::path::PathBuf {
-    crate::home().join("updated.json")
+    crate::paths::home().join("updated.json")
 }
 
 /// The version this app was just updated to, once: Roger says so after the restart.

@@ -2,8 +2,10 @@
 // it to write ~/.airband/station.json, opens Roger's corner on its page, and starts it again if it
 // stops. The engine is the npm package the setup tour fetched (or AIRBAND_ENGINE_DIR, for
 // development). Node is the computer's own, or the one the setup tour fetched.
-use crate::{home, open_corner};
-use std::path::{Path, PathBuf};
+use crate::corner::open_corner;
+use crate::paths::home;
+use crate::process::{find_command, hide_window, major, version_of};
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -11,6 +13,7 @@ use std::time::{Duration, SystemTime};
 use tauri::AppHandle;
 
 static CHILD: Mutex<Option<Child>> = Mutex::new(None);
+
 /// The engine is stopped on purpose, to start again on newer files (after an update).
 static RESTART: AtomicBool = AtomicBool::new(false);
 
@@ -32,149 +35,8 @@ pub fn own_node() -> PathBuf {
     }
 }
 
-/// A command's full path: on the PATH, or where its installer usually puts it (the engine's
-/// `findCommand` looks in the same places, so the setup tour and Roger agree).
-pub fn find_command(name: &str) -> Option<PathBuf> {
-    refresh_path();
-    on_path(name).or_else(|| usual_places(name).into_iter().find(|p| p.is_file()))
-}
-
-fn on_path(name: &str) -> Option<PathBuf> {
-    let out = if cfg!(windows) {
-        let mut c = Command::new("where");
-        c.arg(name);
-        hide_window(&mut c);
-        c.output().ok()?
-    } else {
-        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
-        Command::new(shell).args(["-lc", &format!("command -v {name}")]).output().ok()?
-    };
-    let text = String::from_utf8_lossy(&out.stdout);
-    let runs = |l: &str| {
-        let l = l.to_ascii_lowercase();
-        cfg!(not(windows)) || l.ends_with(".exe") || l.ends_with(".cmd")
-    };
-    let line = text.lines().map(str::trim).find(|l| !l.is_empty() && runs(l))?;
-    let p = PathBuf::from(line);
-    p.exists().then_some(p)
-}
-
-fn usual_places(name: &str) -> Vec<PathBuf> {
-    let home = PathBuf::from(std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default());
-    if cfg!(windows) {
-        let env = |k: &str, or: PathBuf| std::env::var(k).map(PathBuf::from).unwrap_or(or);
-        let roaming = env("APPDATA", home.join("AppData").join("Roaming"));
-        let local = env("LOCALAPPDATA", home.join("AppData").join("Local"));
-        let programs = env("ProgramFiles", PathBuf::from("C:\\Program Files"));
-        vec![
-            roaming.join("npm").join(format!("{name}.cmd")),
-            home.join(".local").join("bin").join(format!("{name}.exe")),
-            local.join("Microsoft").join("WinGet").join("Links").join(format!("{name}.exe")),
-            programs.join("nodejs").join(format!("{name}.exe")),
-        ]
-    } else {
-        vec![
-            home.join(".local").join("bin").join(name),
-            PathBuf::from(format!("/opt/homebrew/bin/{name}")),
-            PathBuf::from(format!("/usr/local/bin/{name}")),
-            PathBuf::from(format!("/usr/bin/{name}")),
-        ]
-    }
-}
-
-/// Windows gives a program the PATH of the moment it started. A tool installed since then (Claude
-/// Code's installer adds %USERPROFILE%\.local\bin, npm adds its own folder) is only in the
-/// registry, so "Check again" never found it. The PATH is read again from there, and each new
-/// folder is added after what the app already had. The engine and the terminals Roger opens get it too.
-pub fn refresh_path() {
-    #[cfg(windows)]
-    {
-        let read = |key: &str| -> Option<String> {
-            let mut c = Command::new("reg");
-            c.args(["query", key, "/v", "Path"]);
-            hide_window(&mut c);
-            let out = c.output().ok()?;
-            let text = String::from_utf8_lossy(&out.stdout).to_string();
-            let line = text.lines().find(|l| l.contains("REG_"))?;
-            let value = line[line.find("REG_")?..].split_once(char::is_whitespace)?.1.trim().to_string();
-            Some(expand(&value, |k| std::env::var(k).ok()))
-        };
-        let now = std::env::var("PATH").unwrap_or_default();
-        let saved = [r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", r"HKCU\Environment"]
-            .iter()
-            .filter_map(|k| read(k))
-            .collect::<Vec<_>>()
-            .join(";");
-        let merged = merge_path(&now, &saved);
-        if merged != now {
-            std::env::set_var("PATH", merged);
-        }
-    }
-}
-
-/// `%NAME%` replaced by its value. An unknown one is left as it is.
-#[cfg_attr(not(any(windows, test)), allow(dead_code))]
-pub fn expand(value: &str, var: impl Fn(&str) -> Option<String>) -> String {
-    let mut out = String::new();
-    let mut rest = value;
-    while let Some(a) = rest.find('%') {
-        out.push_str(&rest[..a]);
-        let after = &rest[a + 1..];
-        match after.find('%') {
-            Some(b) => {
-                let name = &after[..b];
-                match (!name.is_empty()).then(|| var(name)).flatten() {
-                    Some(v) => out.push_str(&v),
-                    None => out.push_str(&format!("%{name}%")),
-                }
-                rest = &after[b + 1..];
-            }
-            None => {
-                out.push('%');
-                rest = after;
-            }
-        }
-    }
-    out.push_str(rest);
-    out
-}
-
-/// The PATH the app has, then each folder of `saved` it lacks. Folders compare as Windows compares
-/// them: case and a last backslash do not count.
-#[cfg_attr(not(any(windows, test)), allow(dead_code))]
-pub fn merge_path(now: &str, saved: &str) -> String {
-    let key = |d: &str| d.trim().trim_end_matches(['\\', '/']).to_ascii_lowercase();
-    let mut seen: Vec<String> = now.split(';').map(key).filter(|d| !d.is_empty()).collect();
-    let mut out = now.trim_end_matches(';').to_string();
-    for d in saved.split(';').map(str::trim).filter(|d| !d.is_empty()) {
-        if !seen.contains(&key(d)) {
-            seen.push(key(d));
-            if !out.is_empty() {
-                out.push(';');
-            }
-            out.push_str(d);
-        }
-    }
-    out
-}
-
 /// The oldest Node.js the engine runs on (its package.json "engines").
 pub const NODE_MIN: u32 = 20;
-
-/// What a command says to `--version`, first line.
-pub fn version_of(cmd: &Path) -> Option<String> {
-    let mut c = Command::new(cmd);
-    c.arg("--version");
-    hide_window(&mut c);
-    let out = c.output().ok()?;
-    let t = String::from_utf8_lossy(&out.stdout).trim().lines().next()?.to_string();
-    (!t.is_empty()).then_some(t)
-}
-
-/// "v22.3.0" is 22.
-pub fn major(version: &str) -> Option<u32> {
-    version.trim().trim_start_matches('v').split('.').next()?.parse().ok()
-}
 
 /// The Node the engine runs with: the one Airband fetched, or the computer's own when it is new
 /// enough. An older one is never used: the engine would stop at once.
@@ -198,15 +60,6 @@ pub fn ready() -> bool {
 /// What `ready()` last found, without looking again (for the menu).
 pub fn was_ready() -> bool {
     READY.load(Ordering::Relaxed)
-}
-
-pub fn hide_window(c: &mut Command) {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        c.creation_flags(0x0800_0000);
-    }
-    let _ = c;
 }
 
 /// The Station's port, key and process, once it has written them (since `since`).
@@ -257,16 +110,16 @@ pub fn start(app: &AppHandle) {
         loop {
             // One already runs: use it, and look again only when it stops.
             if let Some((port, token, pid)) = station_info(SystemTime::UNIX_EPOCH).filter(|(_, _, pid)| alive(*pid)) {
-                crate::log(&format!("engine: using the Station that already runs (process {pid})"));
+                crate::logging::log(&format!("engine: using the Station that already runs (process {pid})"));
                 open(&app, port, &token);
                 while alive(pid) {
                     std::thread::sleep(Duration::from_secs(2));
                 }
-                crate::log("engine: that Station stopped");
+                crate::logging::log("engine: that Station stopped");
                 continue;
             }
             let Some(node) = node() else {
-                crate::log("engine: no Node.js");
+                crate::logging::log("engine: no Node.js");
                 return;
             };
             let since = SystemTime::now() - Duration::from_secs(1);
@@ -279,10 +132,10 @@ pub fn start(app: &AppHandle) {
             };
             hide_window(&mut c);
             let Ok(child) = c.spawn() else {
-                crate::log("engine: couldn't start");
+                crate::logging::log("engine: couldn't start");
                 return;
             };
-            crate::log(&format!("engine: started (process {})", child.id()));
+            crate::logging::log(&format!("engine: started (process {})", child.id()));
             let started = std::time::Instant::now();
             *CHILD.lock().unwrap() = Some(child);
             let mut opened = false;
@@ -310,18 +163,18 @@ pub fn start(app: &AppHandle) {
                 }
             }
             if RESTART.swap(false, Ordering::Relaxed) {
-                crate::log("engine: starting again on the new version");
+                crate::logging::log("engine: starting again on the new version");
                 tries = 0;
                 continue;
             }
-            crate::log("engine: stopped by itself");
+            crate::logging::log("engine: stopped by itself");
             // A Station that ran a good while before stopping isn't one that can't start.
             if started.elapsed() > Duration::from_secs(600) {
                 tries = 0;
             }
             tries += 1;
             if tries >= 5 || (!opened && tries >= 2) {
-                crate::log("engine: gave up starting it again");
+                crate::logging::log("engine: gave up starting it again");
                 return;
             }
             std::thread::sleep(Duration::from_secs(2));
@@ -342,25 +195,5 @@ pub fn stop() {
     if let Some(mut c) = CHILD.lock().unwrap().take() {
         let _ = c.kill();
         let _ = c.wait();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn expands_variables() {
-        let var = |k: &str| (k == "USERPROFILE").then(|| "C:\\Users\\me".to_string());
-        assert_eq!(expand("%USERPROFILE%\\.local\\bin;%NOPE%\\x;50%", var), "C:\\Users\\me\\.local\\bin;%NOPE%\\x;50%");
-    }
-
-    #[test]
-    fn adds_only_new_folders() {
-        assert_eq!(
-            merge_path(r"C:\Windows;C:\npm\", r"c:\windows\;C:\npm;C:\Users\me\.local\bin;"),
-            r"C:\Windows;C:\npm\;C:\Users\me\.local\bin"
-        );
-        assert_eq!(merge_path("", "C:\\a"), "C:\\a");
     }
 }

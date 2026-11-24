@@ -25,12 +25,12 @@ pub fn offer_move() {
     let ask = r#"display dialog "Move Airband to your Applications folder? It opens from there and sets itself up." with title "Airband" buttons {"Not now", "Move to Applications"} default button "Move to Applications" with icon note"#;
     let answer = Command::new("osascript").args(["-e", ask]).output();
     match &answer {
-        Ok(o) => crate::log(&format!(
+        Ok(o) => crate::logging::log(&format!(
             "install: asked from {path}: {} {}",
             String::from_utf8_lossy(&o.stdout).trim(),
             String::from_utf8_lossy(&o.stderr).trim()
         )),
-        Err(e) => crate::log(&format!("install: couldn't ask: {e}")),
+        Err(e) => crate::logging::log(&format!("install: couldn't ask: {e}")),
     }
     let moving = matches!(&answer, Ok(o) if String::from_utf8_lossy(&o.stdout).contains("Move to Applications"));
     if !moving {

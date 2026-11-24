@@ -3,8 +3,10 @@
 // menu takes all of it out. On a Mac the app does it itself. On Windows the menu opens the app's
 // uninstaller, which first runs `Airband.exe --uninstall` (windows/hooks.nsh), so Settings → Apps →
 // Uninstall does the same.
-use crate::engine::{self, hide_window};
-use crate::{home, log};
+use crate::engine;
+use crate::logging::log;
+use crate::paths::home;
+use crate::process::{find_command, hide_window};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::AppHandle;
@@ -22,7 +24,7 @@ pub fn take_out(purge: bool) -> Vec<String> {
             c.arg(&js);
             Some(c)
         }
-        _ => engine::find_command("airband").map(Command::new),
+        _ => find_command("airband").map(Command::new),
     };
     match run {
         Some(mut c) => {
@@ -46,7 +48,7 @@ pub fn take_out(purge: bool) -> Vec<String> {
         log(&format!("uninstall: {l}"));
     }
     if purge {
-        crate::LOG_OFF.store(true, std::sync::atomic::Ordering::Relaxed);
+        crate::logging::LOG_OFF.store(true, std::sync::atomic::Ordering::Relaxed);
         let dir = home();
         if dir.exists() {
             let r = if cfg!(target_os = "macos") {
