@@ -266,6 +266,15 @@ fn follow(w: &WebviewWindow, state: &AppState) {
         }
         std::thread::sleep(DRAG_STEP);
     }
+    // Where the system put the window, if not where it was asked: it kept it somewhere.
+    if let Some(got) = screens::window_at(w) {
+        if (got.0 - last.0).abs() > 2.0 || (got.1 - last.1).abs() > 2.0 {
+            log(&format!(
+                "drag: asked for {:.0},{:.0}, the system kept the window at {:.0},{:.0}",
+                last.0, last.1, got.0, got.1
+            ));
+        }
+    }
 }
 
 /// Waits for each drag the system made to end, then lands Roger: the moment the button is let
@@ -349,6 +358,19 @@ pub fn open_corner(app: &AppHandle, url: &str) {
     else {
         return;
     };
+    #[cfg(target_os = "macos")]
+    if let Ok(ns_window) = w.ns_window() {
+        // A pointer is not Send: it goes to the main thread as a number.
+        let at = ns_window as usize;
+        let _ = w.run_on_main_thread(move || {
+            let free = crate::macos::let_window_pass_menu_bar(at as *mut std::ffi::c_void);
+            log(if free {
+                "corner: the window may pass the menu bar"
+            } else {
+                "corner: the window stays below the menu bar"
+            });
+        });
+    }
     let _ = w.set_ignore_cursor_events(true);
     lock(&state).passing = true;
     // One thread lands Roger after each drag. The window's own moves (placing it, a glide) are

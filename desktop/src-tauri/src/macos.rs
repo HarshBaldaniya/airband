@@ -103,6 +103,62 @@ pub fn app_bundle() -> Option<PathBuf> {
     bundle.extension().is_some_and(|x| x == "app").then_some(bundle)
 }
 
+/// Lets one window go above the menu bar, as Roger's must: his window is tall and mostly empty,
+/// with him at its bottom, so a window kept below the menu bar kept him from the top of the
+/// screen. macOS keeps every window there, a borderless one too, by asking the window to
+/// constrain each new frame; this window is given its own subclass that keeps the frame as asked.
+/// Roger himself stays on the screen: the app places him so.
+#[cfg(target_os = "macos")]
+pub fn let_window_pass_menu_bar(ns_window: *mut std::ffi::c_void) -> bool {
+    use std::ffi::c_void;
+    type Id = *mut c_void;
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    struct CGRect {
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    }
+
+    #[link(name = "objc")]
+    extern "C" {
+        fn object_getClass(obj: Id) -> Id;
+        fn object_setClass(obj: Id, class: Id) -> Id;
+        fn objc_getClass(name: *const std::ffi::c_char) -> Id;
+        fn objc_allocateClassPair(superclass: Id, name: *const std::ffi::c_char, extra: usize) -> Id;
+        fn objc_registerClassPair(class: Id);
+        fn class_addMethod(class: Id, name: Id, imp: *const c_void, types: *const std::ffi::c_char) -> bool;
+        fn sel_registerName(name: *const std::ffi::c_char) -> Id;
+    }
+
+    extern "C" fn as_asked(_window: Id, _cmd: Id, frame: CGRect, _screen: Id) -> CGRect {
+        frame
+    }
+
+    if ns_window.is_null() {
+        return false;
+    }
+    let name = c"AirbandCornerWindow";
+    // SAFETY: the Objective-C runtime's own calls, on a live window, from the main thread. The
+    // subclass adds one method with the signature AppKit calls it with, and nothing else.
+    unsafe {
+        let mut class = objc_getClass(name.as_ptr());
+        if class.is_null() {
+            class = objc_allocateClassPair(object_getClass(ns_window), name.as_ptr(), 0);
+            if class.is_null() {
+                return false;
+            }
+            let selector = sel_registerName(c"constrainFrameRect:toScreen:".as_ptr());
+            let types = c"{CGRect={CGPoint=dd}{CGSize=dd}}@:{CGRect={CGPoint=dd}{CGSize=dd}}@";
+            class_addMethod(class, selector, as_asked as *const c_void, types.as_ptr());
+            objc_registerClassPair(class);
+        }
+        !object_setClass(ns_window, class).is_null()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
