@@ -537,10 +537,28 @@ export class Station extends EventEmitter {
     return undefined;
   }
 
+  /**
+   * Only Roger's own pages and Airband's own programs reach the Station. A web page served from any
+   * other address on this computer could otherwise send requests with the key the browser keeps
+   * (approving a tool, telling a chat what to do): its Host, its Origin or its plain form gives it
+   * away. A JSON body can't come from another page without the browser asking first, and the
+   * Station never says yes.
+   */
+  private fromHere(req: http.IncomingMessage): boolean {
+    const own = new Set([`127.0.0.1:${this.port}`, `localhost:${this.port}`]);
+    const host = req.headers.host ?? "";
+    if (!own.has(host) && !(this.settings.phone && host.endsWith(`:${this.port}`))) return false;
+    const origin = req.headers.origin;
+    if (origin && origin !== `http://${host}`) return false;
+    if (req.method === "POST" && !/^application\/json\b/i.test(req.headers["content-type"] ?? "")) return false;
+    return true;
+  }
+
   private async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const url = new URL(req.url ?? "/", "http://station");
     const route = url.pathname;
     try {
+      if (!this.fromHere(req)) return send(res, 403, { error: "Only Airband's own pages can reach the Station." });
       if (req.method === "GET" && route.startsWith("/ui/")) return this.asset(route.slice(4), res);
       const who = this.who(req, url);
       if (!who) return send(res, 401, { error: "This needs Airband's key." });

@@ -485,3 +485,28 @@ test("a favourite answers the thing asked about", () => {
   assert.match(knowledge("favourite food?", c)!.text, /bytes/);
   assert.match(knowledge("favorite music", c)!.text, /test suite/);
 });
+
+test("another page on this computer can't use the key the browser keeps: Host, Origin and plain forms are refused", async () => {
+  const s = await start();
+  const info = readStationInfo()!;
+  const call = (o: { host?: string; origin?: string; type?: string; cookie?: boolean; path?: string; method?: string; body?: string }) =>
+    new Promise<number>((done, fail) => {
+      const headers: Record<string, string> = { host: o.host ?? `127.0.0.1:${info.port}` };
+      if (o.origin) headers.origin = o.origin;
+      if (o.type) headers["content-type"] = o.type;
+      if (o.cookie) headers.cookie = `airband_t=${info.token}`;
+      const req = http.request({ host: "127.0.0.1", port: info.port, path: o.path ?? "/api/ask", method: o.method ?? "POST", headers }, (res) => (res.resume(), done(res.statusCode ?? 0)));
+      req.on("error", fail);
+      req.end(o.body ?? '{"text":"allow"}');
+    });
+  // The attack: a page on another port posts plain text with the cookie.
+  assert.equal(await call({ origin: "http://127.0.0.1:8000", type: "text/plain", cookie: true }), 403);
+  assert.equal(await call({ type: "text/plain", cookie: true }), 403, "a plain form, even with no Origin");
+  assert.equal(await call({ origin: "http://127.0.0.1:8000", type: "application/json", cookie: true }), 403, "another page's Origin");
+  // A rebound name pointing at this computer: the Host gives it away.
+  assert.equal(await call({ host: `evil.example:${info.port}`, type: "application/json", cookie: true }), 403);
+  // Roger's own page: same Host and Origin, JSON, the cookie.
+  assert.equal(await call({ origin: `http://127.0.0.1:${info.port}`, type: "application/json", cookie: true }), 200);
+  assert.equal(await call({ method: "GET", path: "/api/ping", cookie: true }), 200);
+  void s;
+});
