@@ -1,0 +1,9 @@
+/* Airband's brand and status colours, the same on every screen: the extension's pages, Roger, the
+   phone app and the setup tour. The website keeps a copy (site/scripts/sync.mjs). */
+:root {
+  --ab-brand: #e07a4f;
+  --ab-working: #4f94f0;
+  --ab-waiting: #e0a22c;
+  --ab-done: #3fb57d;
+  --ab-idle: #8b939e;
+}

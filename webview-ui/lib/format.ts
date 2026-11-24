@@ -1,5 +1,6 @@
 // How numbers, times and names read on every page.
 import type { Status, Usage } from "../../src/core/types";
+import { elapsed } from "../../shared/time";
 
 export const STATUS_LABEL: Record<Status, string> = {
   working: "Working",
@@ -10,14 +11,8 @@ export const STATUS_LABEL: Record<Status, string> = {
 
 /** "now", "12m", "3h", "4d", "2mo". */
 function ago(ms: number, now = Date.now()): string {
-  const s = Math.max(0, Math.round((now - ms) / 1000));
-  if (s < 45) return "now";
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h`;
-  const d = Math.round(h / 24);
-  return d < 30 ? `${d}d` : `${Math.round(d / 30)}mo`;
+  const e = elapsed(ms, now);
+  return e ? `${e.n}${e.unit}` : "now";
 }
 
 /** "just now", "12m ago", "3d ago". */

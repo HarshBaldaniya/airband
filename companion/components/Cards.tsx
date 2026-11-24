@@ -3,26 +3,21 @@
 // buttons; nothing more. The same cards fill the phone page.
 import { useEffect, useState } from "react";
 import { Check, CheckCheck, CircleCheck, Eye, SquareTerminal, X } from "lucide-react";
-import claudeLogo from "@lobehub/icons-static-svg/icons/claude-color.svg";
-import codexLogo from "@lobehub/icons-static-svg/icons/codex-color.svg";
-import geminiLogo from "@lobehub/icons-static-svg/icons/gemini-color.svg";
+import { AgentMark as Mark } from "../../shared/AgentMark";
+import { elapsed } from "../../shared/time";
 import { api, MODE, type CompanionAnswer, type FinishedView, type PendingView } from "../api";
 
-const LOGO: Record<string, string> = { claude: claudeLogo, codex: codexLogo, gemini: geminiLogo };
-
 export function AgentMark({ agent, size = 14 }: { agent: string; size?: number }) {
-  const svg = LOGO[agent];
-  if (!svg) return null;
-  return <span className="agentmark" style={{ width: size, height: size }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: svg }} />;
+  return <Mark agent={agent} className="agentmark" style={{ width: size, height: size }} />;
 }
 
+const UNIT = { m: "min", h: "h", d: "d" } as const;
+
+/** "now", "12 min", "3 h", "40 d". */
 export function ago(at: number, now = Date.now()): string {
-  const s = Math.max(0, Math.round((now - at) / 1000));
-  if (s < 45) return "now";
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m} min`;
-  const h = Math.round(m / 60);
-  return h < 24 ? `${h} h` : `${Math.round(h / 24)} d`;
+  const e = elapsed(at, now);
+  if (!e) return "now";
+  return e.unit === "mo" ? `${Math.round((now - at) / 86_400_000)} d` : `${e.n} ${UNIT[e.unit]}`;
 }
 
 function CardHead({ agent, title, project, at, tone }: { agent: string; title: string; project: string; at: number; tone: "needs" | "done" }) {

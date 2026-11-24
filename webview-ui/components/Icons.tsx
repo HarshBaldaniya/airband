@@ -1,9 +1,7 @@
-// Icons come from lucide (the set shadcn uses), sized to the text around them.
-// Each AI tool shows its own logo (LobeHub's icon set, MIT; the marks belong to their owners).
+// Icons come from lucide (the set shadcn uses), sized to the text around them. Each agent shows its
+// own logo.
 import { type LucideProps } from "lucide-react";
-import claudeLogo from "@lobehub/icons-static-svg/icons/claude-color.svg";
-import codexLogo from "@lobehub/icons-static-svg/icons/codex-color.svg";
-import geminiLogo from "@lobehub/icons-static-svg/icons/gemini-color.svg";
+import { AgentMark } from "../../shared/AgentMark";
 import type { Status } from "../../src/core/types";
 import type { Tool } from "../../src/core/agents";
 import { STATUS_LABEL } from "../lib/format";
@@ -57,11 +55,9 @@ export {
 /** Default props for an icon inline with text. */
 export const I: LucideProps = { size: 14, strokeWidth: 2, "aria-hidden": true };
 
-const LOGO: Record<Tool, string> = { Claude: claudeLogo, Codex: codexLogo, Gemini: geminiLogo };
-
-/** The tool's own logo. The SVGs are bundled files from the icon set, never user content. */
+/** The agent's logo, `size` pixels square. */
 export function ToolMark({ tool, size = 16 }: { tool: Tool; size?: number }) {
-  return <span className="toolmark" style={{ fontSize: size }} role="img" aria-label={tool} dangerouslySetInnerHTML={{ __html: LOGO[tool] }} />;
+  return <AgentMark agent={tool} className="toolmark" style={{ fontSize: size }} label={tool} />;
 }
 
 export function StatusDot({ status }: { status: Status }) {

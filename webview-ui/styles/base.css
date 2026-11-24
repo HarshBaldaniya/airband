@@ -1,15 +1,12 @@
-/* Airband's webviews follow the editor's theme through VS Code's CSS variables.
-   Status, link and tool colours are Airband's own, chosen to read on light and dark. */
+@import "../../shared/tokens.css";
+/* Airband's webviews follow the editor's theme through VS Code's CSS variables. The brand and
+   status colours are shared/tokens.css. The link and agent colours here are Airband's own too,
+   chosen to read on light and dark. */
 :root {
   --ab-live: #e0a22c;
-  --ab-working: #4f94f0;
-  --ab-waiting: #e0a22c;
-  --ab-done: #3fb57d;
-  --ab-idle: #8b939e;
   --ab-in: #4f94f0;
   --ab-out: #3fb57d;
   --ab-cw: #b28cf5;
-  --ab-brand: #e07a4f;
   --ab-claude: #d97757;
   --ab-codex: #8b97ff;
   --ab-gemini: #4fa3e0;

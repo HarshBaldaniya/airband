@@ -1,4 +1,5 @@
-:root { --bg: #161618; --line: #2c2c32; --ink: #f2f2f4; --muted: #8e8e96; --brand: #e07a4f; --ok: #3fb57d; --needs: #e0a22c; --bad: #e5675a; color-scheme: dark; }
+@import "../../shared/tokens.css";
+:root { --bg: #161618; --line: #2c2c32; --ink: #f2f2f4; --muted: #8e8e96; --bad: #e5675a; color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body, #root { margin: 0; height: 100%; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; user-select: none; cursor: default; }
@@ -22,7 +23,7 @@ h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -0.015em; }
 .label { font-weight: 550; }
 .note { color: var(--muted); font-size: 13px; text-align: right; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .line.waiting .label { color: var(--muted); }
-.line.needs .note { color: var(--needs); }
+.line.needs .note { color: var(--ab-waiting); }
 .line.failed .note { color: var(--bad); white-space: normal; }
 .more { grid-column: 2 / -1; }
 .more p { margin: 8px 0 0; font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--muted); }
@@ -37,17 +38,17 @@ button.tool:hover:not(:disabled) { background: #222227; border-color: #3a3a42; }
 .tool b { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .tool .by { font-size: 11.5px; color: var(--muted); }
 .tool .go { position: absolute; top: 7px; right: 9px; font-size: 12px; color: var(--muted); opacity: 0.6; transition: color 0.15s ease, opacity 0.15s ease; }
-.tool:hover .go { color: var(--brand); opacity: 1; }
+.tool:hover .go { color: var(--ab-brand); opacity: 1; }
 .more p.hint { margin-top: 10px; font-size: 12.5px; gap: 8px; }
-.hint i { width: 6px; height: 6px; border-radius: 50%; background: var(--needs); animation: breathe 1.8s ease-in-out infinite; }
+.hint i { width: 6px; height: 6px; border-radius: 50%; background: var(--ab-waiting); animation: breathe 1.8s ease-in-out infinite; }
 @keyframes breathe { 50% { opacity: 0.3; } }
 .lines.left { width: 100%; margin-top: 10px; text-align: left; }
 
 .status { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; transition: background 0.25s ease; }
 .status.waiting { border: 1.5px solid var(--line); }
-.status.working { border: 2px solid var(--line); border-top-color: var(--brand); animation: spin 0.8s linear infinite; }
-.status.done { background: var(--ok); color: #0d2a1c; animation: pop 0.3s ease; }
-.status.needs { background: var(--needs); color: #2a1d05; }
+.status.working { border: 2px solid var(--line); border-top-color: var(--ab-brand); animation: spin 0.8s linear infinite; }
+.status.done { background: var(--ab-done); color: #0d2a1c; animation: pop 0.3s ease; }
+.status.needs { background: var(--ab-waiting); color: #2a1d05; }
 .status.failed { background: var(--bad); color: #2a0b07; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pop { from { transform: scale(0.6); } to { transform: none; } }
@@ -57,7 +58,7 @@ button.tool:hover:not(:disabled) { background: #222227; border-color: #3a3a42; }
 .desk .bar { position: absolute; left: 0; right: 0; top: 0; height: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 6px; padding: 0 9px; border-bottom: 1px solid var(--line); background: #1b1b1f; }
 .desk.windows .bar, .desk.linux .bar { top: auto; bottom: 0; border-bottom: 0; border-top: 1px solid var(--line); }
 .desk .bar i { width: 14px; height: 4px; border-radius: 2px; background: #34343b; }
-.desk .bar i.me { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px rgba(224, 122, 79, 0.18); }
+.desk .bar i.me { width: 8px; height: 8px; border-radius: 50%; background: var(--ab-brand); box-shadow: 0 0 0 3px rgba(224, 122, 79, 0.18); }
 .desk .win { position: absolute; left: 20px; top: 32px; width: 140px; height: 86px; border-radius: 7px; border: 1px solid var(--line); background: #202026; }
 .desk.windows .win, .desk.linux .win { top: 18px; }
 .desk .roger { position: absolute; right: 10px; bottom: 8px; }
@@ -79,10 +80,10 @@ button { font: inherit; cursor: pointer; border-radius: 9px; border: 1px solid v
 button:hover:not(:disabled) { background: #2b2b31; }
 button:active:not(:disabled) { transform: scale(0.98); }
 button:disabled { opacity: 0.4; cursor: default; }
-button.primary { min-width: 120px; background: var(--brand); border-color: transparent; color: #1b1310; font-weight: 600; }
+button.primary { min-width: 120px; background: var(--ab-brand); border-color: transparent; color: #1b1310; font-weight: 600; }
 button.primary:hover:not(:disabled) { background: #e88a62; }
 button.ghost { background: transparent; }
 button.small { height: 28px; padding: 0 12px; font-size: 13px; }
-button.link { height: auto; padding: 0; border: 0; background: none; color: var(--brand); font-size: 13px; }
+button.link { height: auto; padding: 0; border: 0; background: none; color: var(--ab-brand); font-size: 13px; }
 button.link:hover { background: none; text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) { .tour, .status.working, .status.done, .hint i { animation: none; } }

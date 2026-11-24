@@ -6,9 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Companion } from "../../companion/figure/Companion";
-import claude from "@lobehub/icons-static-svg/icons/claudecode-color.svg";
-import codex from "@lobehub/icons-static-svg/icons/codex-color.svg";
-import gemini from "@lobehub/icons-static-svg/icons/gemini-color.svg";
+import { AgentMark } from "../../shared/AgentMark";
 import "./setup.css";
 
 interface Found { name: string; found: boolean; detail?: string | null; link: string }
@@ -199,11 +197,11 @@ function Setup({ onDone }: { onDone: (r: Result) => void }) {
   );
 }
 
-/** Each AI tool Airband works with: its own logo, who makes it, and its official website. */
-const TOOL: Record<string, { logo: string; by: string }> = {
-  "Claude Code": { logo: claude, by: "Anthropic" },
-  Codex: { logo: codex, by: "OpenAI" },
-  "Gemini CLI": { logo: gemini, by: "Google" },
+/** Who makes each AI tool Airband works with, by the name the setup reports. */
+const MAKER: Record<string, { agent: string; by: string }> = {
+  "Claude Code": { agent: "claude", by: "Anthropic" },
+  Codex: { agent: "codex", by: "OpenAI" },
+  "Gemini CLI": { agent: "gemini", by: "Google" },
 };
 
 /** The AI tools to choose from, one tile each. A tile opens that tool's website. */
@@ -213,9 +211,9 @@ function Tools({ scan, watching }: { scan: Scan; watching?: boolean }) {
       <div className="tools">
         {scan.agents.map((a) => (
           <button key={a.name} className="tool" title={a.link} onClick={() => open(a.link)}>
-            <span className="logo" dangerouslySetInnerHTML={{ __html: TOOL[a.name]?.logo ?? "" }} />
+            {MAKER[a.name] ? <AgentMark agent={MAKER[a.name].agent} mark="product" className="logo" /> : <span className="logo" />}
             <b>{a.name}</b>
-            <span className="by">{TOOL[a.name]?.by}</span>
+            <span className="by">{MAKER[a.name]?.by}</span>
             <span className="go" aria-hidden>↗</span>
           </button>
         ))}
