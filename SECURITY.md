@@ -25,8 +25,8 @@ What it does to stay safe:
 
 ## How the repository is protected
 
-- Every change reaches `main` through a pull request that the owner approves. A commit pushed after
-  an approval needs a new one.
+- Every change from a contributor reaches `main` through a pull request that the owner approves. A
+  commit pushed after an approval needs a new one. Only the owner can push to `main` directly.
 - The tests on Ubuntu, macOS and Windows must pass, and CodeQL must find no high or critical
   security problem.
 - Nobody can force-push to `main` or delete it. Only the owner can create, move or delete a release

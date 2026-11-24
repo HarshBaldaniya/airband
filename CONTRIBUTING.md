@@ -28,7 +28,8 @@ when `AIRBAND_TEST_DIR` names a folder that has some; otherwise they are skipped
 
 ## How a change reaches main
 
-Nobody pushes to `main` directly, the owner included:
+Every change from a contributor reaches `main` through a pull request. Only the owner can push to
+`main` directly.
 
 1. Fork the repository, or make a branch if you can push to it.
 2. Open a pull request against `main`. The template lists what to check first.
