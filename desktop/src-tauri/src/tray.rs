@@ -1,11 +1,65 @@
 //! The menu-bar (macOS) or tray (Windows) icon's menu, also shown by a right-click on Roger.
-use crate::corner::{hide_corner, is_visible, set_pref_inner, show};
+use crate::corner::{self, is_visible, PageCommand};
 use crate::paths::{self, STATION_SETTINGS};
-use crate::state::State;
-use crate::{engine, setup, uninstall, update};
+use crate::prefs::PrefKey;
+use crate::state::AppState;
+use crate::update::{self, UpdateStep};
+use crate::{engine, setup, uninstall};
 use std::fs;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager, Wry};
+
+/// The icon's id.
+pub const TRAY_ID: &str = "main";
+
+/// The menu's items.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MenuId {
+    Update,
+    Setup,
+    Toggle,
+    Tuck,
+    Settings,
+    Sound,
+    Notify,
+    Login,
+    Uninstall,
+    Quit,
+}
+
+impl MenuId {
+    const ALL: [MenuId; 10] = [
+        MenuId::Update,
+        MenuId::Setup,
+        MenuId::Toggle,
+        MenuId::Tuck,
+        MenuId::Settings,
+        MenuId::Sound,
+        MenuId::Notify,
+        MenuId::Login,
+        MenuId::Uninstall,
+        MenuId::Quit,
+    ];
+
+    fn id(self) -> &'static str {
+        match self {
+            MenuId::Update => "update",
+            MenuId::Setup => "setup",
+            MenuId::Toggle => "toggle",
+            MenuId::Tuck => "tuck",
+            MenuId::Settings => "settings",
+            MenuId::Sound => "sound",
+            MenuId::Notify => "notify",
+            MenuId::Login => "login",
+            MenuId::Uninstall => "uninstall",
+            MenuId::Quit => "quit",
+        }
+    }
+
+    fn from_id(id: &str) -> Option<MenuId> {
+        MenuId::ALL.into_iter().find(|m| m.id() == id)
+    }
+}
 
 /// The companion's name, from the engine's settings (for the menu).
 fn companion_name() -> String {
@@ -17,96 +71,99 @@ fn companion_name() -> String {
         .unwrap_or_else(|| "Roger".into())
 }
 
-pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
-    let p = app.state::<State>().lock().unwrap().prefs.clone();
+fn item(app: &AppHandle, id: MenuId, label: impl AsRef<str>, enabled: bool) -> tauri::Result<MenuItem<Wry>> {
+    MenuItem::with_id(app, id.id(), label, enabled, None::<&str>)
+}
+
+fn check(app: &AppHandle, id: MenuId, label: impl AsRef<str>, on: bool) -> tauri::Result<CheckMenuItem<Wry>> {
+    CheckMenuItem::with_id(app, id.id(), label, true, on, None::<&str>)
+}
+
+pub fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
+    let p = app.state::<AppState>().lock().unwrap().prefs.clone();
     let name = companion_name();
-    let visible = is_visible(app);
     let items = Menu::new(app)?;
     let newer = update::current();
     if let Some(v) = &newer.version {
         let label = match (newer.installing, newer.step, newer.progress) {
-            (true, Some("downloading"), Some(p)) => format!("Downloading Airband {v} · {p}%"),
-            (true, Some("installing"), _) => format!("Installing Airband {v}…"),
-            (true, Some("restarting"), _) => "Starting again…".to_string(),
+            (true, Some(UpdateStep::Downloading), Some(p)) => format!("Downloading Airband {v} · {p}%"),
+            (true, Some(UpdateStep::Installing), _) => format!("Installing Airband {v}…"),
+            (true, Some(UpdateStep::Restarting), _) => "Starting again…".to_string(),
             (true, _, _) => format!("Updating to {v}…"),
             _ => format!("Update to Airband {v}"),
         };
-        items.append(&MenuItem::with_id(app, "update", label, !newer.installing, None::<&str>)?)?;
+        items.append(&item(app, MenuId::Update, label, !newer.installing)?)?;
         items.append(&PredefinedMenuItem::separator(app)?)?;
     }
     if !p.set_up || !engine::was_ready() {
-        items.append(&MenuItem::with_id(app, "setup", "Set up Airband…", true, None::<&str>)?)?;
+        items.append(&item(app, MenuId::Setup, "Set up Airband…", true)?)?;
     } else {
-        items.append(&MenuItem::with_id(
+        let shown = is_visible(app) && !p.hidden;
+        items.append(&item(
             app,
-            "toggle",
-            if visible && !p.hidden { format!("Hide {name}") } else { format!("Show {name}") },
+            MenuId::Toggle,
+            if shown { format!("Hide {name}") } else { format!("Show {name}") },
             true,
-            None::<&str>,
         )?)?;
-        items.append(&MenuItem::with_id(
-            app,
-            "tuck",
-            if p.tucked { format!("Bring {name} back") } else { format!("Tuck {name} away") },
-            true,
-            None::<&str>,
-        )?)?;
-        items.append(&MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?)?;
+        let tuck = if p.tucked { format!("Bring {name} back") } else { format!("Tuck {name} away") };
+        items.append(&item(app, MenuId::Tuck, tuck, true)?)?;
+        items.append(&item(app, MenuId::Settings, "Settings…", true)?)?;
         items.append(&PredefinedMenuItem::separator(app)?)?;
-        items.append(&CheckMenuItem::with_id(app, "sound", "Sounds", true, p.sound, None::<&str>)?)?;
-        items.append(&CheckMenuItem::with_id(
-            app,
-            "notify",
-            format!("{name} comes back when a chat needs you"),
-            true,
-            p.notify,
-            None::<&str>,
-        )?)?;
-        items.append(&CheckMenuItem::with_id(app, "login", "Start at login", true, p.start_at_login, None::<&str>)?)?;
+        items.append(&check(app, MenuId::Sound, "Sounds", p.sound)?)?;
+        items.append(&check(app, MenuId::Notify, format!("{name} comes back when a chat needs you"), p.notify)?)?;
+        items.append(&check(app, MenuId::Login, "Start at login", p.start_at_login)?)?;
         items.append(&PredefinedMenuItem::separator(app)?)?;
-        items.append(&MenuItem::with_id(app, "setup", "Run the setup tour again…", true, None::<&str>)?)?;
+        items.append(&item(app, MenuId::Setup, "Run the setup tour again…", true)?)?;
     }
     // Moving the app to the Bin would leave Airband in every agent: this takes it all out.
     if cfg!(any(target_os = "macos", windows)) {
-        items.append(&MenuItem::with_id(app, "uninstall", "Uninstall Airband…", true, None::<&str>)?)?;
+        items.append(&item(app, MenuId::Uninstall, "Uninstall Airband…", true)?)?;
     }
-    items.append(&MenuItem::with_id(app, "quit", "Quit Airband", true, None::<&str>)?)?;
+    items.append(&item(app, MenuId::Quit, "Quit Airband", true)?)?;
     Ok(items)
 }
 
+/// Builds the menu again, to show what changed.
 pub fn refresh_menu(app: &AppHandle) {
-    if let (Some(tray), Ok(m)) = (app.tray_by_id("main"), build_menu(app)) {
+    if let (Some(tray), Ok(m)) = (app.tray_by_id(TRAY_ID), build_menu(app)) {
         let _ = tray.set_menu(Some(m));
     }
 }
 
 pub fn menu_event(app: &AppHandle, id: &str) {
-    let p = app.state::<State>().lock().unwrap().prefs.clone();
+    let Some(id) = MenuId::from_id(id) else { return };
+    let p = app.state::<AppState>().lock().unwrap().prefs.clone();
+    let flip = |key: PrefKey| corner::set_pref(app, key, !p.get(key));
     match id {
-        "toggle" => {
-            if is_visible(app) && !p.hidden {
-                hide_corner(app)
-            } else {
-                show(app, false)
-            }
+        MenuId::Toggle if is_visible(app) && !p.hidden => corner::hide(app),
+        MenuId::Toggle => corner::show(app, false),
+        MenuId::Tuck => flip(PrefKey::Tucked),
+        MenuId::Settings => {
+            corner::show(app, false);
+            corner::tell(app, PageCommand::Settings);
         }
-        "tuck" => set_pref_inner(app, "tucked", !p.tucked),
-        "settings" => {
-            show(app, false);
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.emit("command", "settings");
-            }
-        }
-        "sound" => set_pref_inner(app, "sound", !p.sound),
-        "notify" => set_pref_inner(app, "notify", !p.notify),
-        "login" => set_pref_inner(app, "startAtLogin", !p.start_at_login),
-        "setup" => setup::open(app),
-        "update" => update::install(app),
-        "uninstall" => uninstall::start(app),
-        "quit" => {
+        MenuId::Sound => flip(PrefKey::Sound),
+        MenuId::Notify => flip(PrefKey::Notify),
+        MenuId::Login => flip(PrefKey::StartAtLogin),
+        MenuId::Setup => setup::open(app),
+        MenuId::Update => update::install(app),
+        MenuId::Uninstall => uninstall::start(app),
+        MenuId::Quit => {
             engine::stop();
             app.exit(0);
         }
-        _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_menu_id_reads_back() {
+        for m in MenuId::ALL {
+            assert_eq!(MenuId::from_id(m.id()), Some(m));
+        }
+        assert_eq!(MenuId::from_id("nope"), None);
     }
 }

@@ -1,12 +1,15 @@
 //! Airband's engine, the `airband` package on npm.
-use super::download::{download, fetch_text, sha512_b64, untar, Progress};
+use super::download::{download, fetch_text, sha512_b64, untar, Progress, Step};
 use crate::engine;
+use crate::error::Result;
 use crate::paths::engine_dir;
 
 /// Where npm says what its newest `airband` is.
 const LATEST: &str = "https://registry.npmjs.org/airband/latest";
 /// npm's own address: a tarball anywhere else is refused.
 const REGISTRY: &str = "https://registry.npmjs.org/";
+/// About how big the engine's download is, for the progress until curl knows.
+const EXPECTED_SIZE: u64 = 1_600_000;
 
 /// The newest engine on npm, as npm describes it.
 pub struct NpmRelease {
@@ -24,7 +27,7 @@ pub fn engine_version() -> Option<String> {
 }
 
 /// Asks npm for its newest engine.
-pub fn latest() -> Result<NpmRelease, String> {
+pub fn latest() -> Result<NpmRelease> {
     let meta: serde_json::Value = serde_json::from_str(&fetch_text(LATEST)?).map_err(|_| "npm's answer didn't read")?;
     let version = meta["version"].as_str().ok_or("no version on npm")?.to_string();
     let tarball = meta["dist"]["tarball"].as_str().ok_or("no package on npm")?.to_string();
@@ -41,7 +44,7 @@ pub fn latest() -> Result<NpmRelease, String> {
 
 /// The newest engine from npm, into ~/.airband/engine. With AIRBAND_ENGINE_DIR (development), the
 /// engine there is used as it is.
-pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
+pub fn engine_from_npm(progress: Progress) -> Result<String> {
     if std::env::var("AIRBAND_ENGINE_DIR").is_ok() {
         return engine_version().ok_or_else(|| "AIRBAND_ENGINE_DIR has no airband package".into());
     }
@@ -49,11 +52,11 @@ pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
 }
 
 /// Downloads `release`, checks it against npm's fingerprint, and puts it in place.
-pub fn install(release: &NpmRelease, progress: Progress) -> Result<String, String> {
+pub fn install(release: &NpmRelease, progress: Progress) -> Result<String> {
     let dir = engine_dir();
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir)?;
     let archive = dir.join(format!("airband-{}.tgz", release.version));
-    download(progress, &release.tarball, &archive, "engine", 1_600_000)?;
+    download(progress, &release.tarball, &archive, Step::Engine, EXPECTED_SIZE)?;
     if sha512_b64(&archive)? != release.integrity {
         let _ = std::fs::remove_file(&archive);
         return Err("the download didn't match npm's fingerprint, so it was thrown away. Try again.".into());
@@ -64,7 +67,7 @@ pub fn install(release: &NpmRelease, progress: Progress) -> Result<String, Strin
     untar(&archive, &next)?;
     let _ = std::fs::remove_file(&archive);
     let _ = std::fs::remove_dir_all(dir.join("package"));
-    std::fs::rename(next.join("package"), dir.join("package")).map_err(|e| e.to_string())?;
+    std::fs::rename(next.join("package"), dir.join("package"))?;
     let _ = std::fs::remove_dir_all(&next);
     Ok(release.version.clone())
 }

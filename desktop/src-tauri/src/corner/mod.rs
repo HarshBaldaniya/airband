@@ -3,92 +3,158 @@
 mod pointer;
 
 use crate::logging::log;
-use crate::prefs::{login_item, prefs_view, save_prefs};
-use crate::state::State;
-use crate::tray::refresh_menu;
+use crate::prefs::{apply_start_at_login, PrefKey};
+use crate::state::{hooks, AppState, Side, Vertical};
+use serde::Serialize;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub use pointer::watch_pointer;
 
+/// The corner's window label (capabilities/corner.json grants the Station's page to it).
+pub const LABEL: &str = "main";
+
 /// The window: a fixed size, so nothing resizes or flickers; empty parts let clicks through.
 pub const WIN_W: f64 = 424.0;
-
 pub const WIN_H: f64 = 700.0;
 /// Where the figure sits in it (logical pixels), for the eyes that follow the pointer.
 pub const FIG_W: f64 = 104.0;
-
 pub const FIG_H: f64 = 125.0;
-
 pub const FIG_PAD: f64 = 10.0;
+
+/// Left this close to an edge after a drag, the window settles against it.
+const SNAP_DISTANCE: f64 = 80.0;
+/// A drag is over once the window has not moved for this long.
+const MOVE_SETTLES_AFTER: Duration = Duration::from_millis(450);
+const MOVE_QUIET: Duration = Duration::from_millis(420);
+/// How long the page takes to fade Roger out before the window goes.
+const FADE_OUT: Duration = Duration::from_millis(260);
+
+/// The events the page listens to (bridge.js).
+pub mod event {
+    /// Which way the cards open: `{ side, vertical }`.
+    pub const PLACE: &str = "place";
+    /// Where the eyes look: `{ dx, dy }`, each -1 to 1.
+    pub const CURSOR: &str = "cursor";
+    /// Where the pointer is over the window, or null.
+    pub const POINTER: &str = "pointer";
+    /// Something for the page to do: a [`super::PageCommand`].
+    pub const COMMAND: &str = "command";
+    /// The settings changed.
+    pub const PREFS: &str = "prefs";
+    /// A newer app: its update's state.
+    pub const UPDATE: &str = "update";
+}
+
+/// What the app asks the page to do.
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PageCommand {
+    /// Roger comes on screen.
+    Arrive,
+    /// Roger fades out: the window is about to go.
+    Leave,
+    /// Open the panel.
+    Open,
+    /// Open or close the panel.
+    Toggle,
+    /// Open the panel on its settings.
+    Settings,
+}
+
+/// Roger's window, once it exists.
+pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
+    app.get_webview_window(LABEL)
+}
 
 /// Roger's window is on screen.
 pub fn is_visible(app: &AppHandle) -> bool {
-    app.get_webview_window("main").and_then(|w| w.is_visible().ok()).unwrap_or(false)
+    window(app).and_then(|w| w.is_visible().ok()).unwrap_or(false)
+}
+
+/// Asks the page to do something.
+pub fn tell(app: &AppHandle, what: PageCommand) {
+    if let Some(w) = window(app) {
+        let _ = w.emit(event::COMMAND, what);
+    }
 }
 
 /// What the Station's page is given to reach the app (bridge.js).
 const BRIDGE: &str = include_str!("bridge.js");
 
-fn work_area(w: &WebviewWindow) -> Option<(f64, f64, f64, f64)> {
+/// The screen's area without the menu bar and the Dock or taskbar (logical pixels).
+#[derive(Clone, Copy)]
+struct Area {
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+}
+
+fn work_area(w: &WebviewWindow) -> Option<Area> {
     let m = w.current_monitor().ok().flatten().or_else(|| w.primary_monitor().ok().flatten())?;
     let s = m.scale_factor();
     let a = m.work_area();
-    Some((a.position.x as f64 / s, a.position.y as f64 / s, a.size.width as f64 / s, a.size.height as f64 / s))
+    Some(Area {
+        x: a.position.x as f64 / s,
+        y: a.position.y as f64 / s,
+        w: a.size.width as f64 / s,
+        h: a.size.height as f64 / s,
+    })
 }
 
 /// Puts the window where it was left, or at the bottom right; keeps it on the screen.
-fn place(w: &WebviewWindow, state: &State) {
-    let Some((ax, ay, aw, ah)) = work_area(w) else { return };
+fn place(w: &WebviewWindow, state: &AppState) {
+    let Some(a) = work_area(w) else { return };
     let at = state.lock().unwrap().prefs.window_at;
-    let (mut x, mut y) = at.unwrap_or((ax + aw - WIN_W, ay + ah - WIN_H));
-    x = x.clamp(ax - WIN_W + FIG_W + 2.0 * FIG_PAD, ax + aw - FIG_W - 2.0 * FIG_PAD);
-    y = y.clamp(ay - WIN_H + FIG_H + 2.0 * FIG_PAD, ay + ah - FIG_H - 2.0 * FIG_PAD);
+    let (mut x, mut y) = at.unwrap_or((a.x + a.w - WIN_W, a.y + a.h - WIN_H));
+    x = x.clamp(a.x - WIN_W + FIG_W + 2.0 * FIG_PAD, a.x + a.w - FIG_W - 2.0 * FIG_PAD);
+    y = y.clamp(a.y - WIN_H + FIG_H + 2.0 * FIG_PAD, a.y + a.h - FIG_H - 2.0 * FIG_PAD);
     let _ = w.set_position(tauri::LogicalPosition::new(x, y));
-    tell_place(w, state, x, y, (ax, ay, aw, ah));
+    tell_place(w, state, x, y, a);
 }
 
-fn tell_place(w: &WebviewWindow, state: &State, x: f64, y: f64, (ax, ay, aw, ah): (f64, f64, f64, f64)) {
-    let side = if x + WIN_W / 2.0 > ax + aw / 2.0 { "right" } else { "left" };
-    let vertical = if y + WIN_H / 2.0 > ay + ah / 2.0 { "bottom" } else { "top" };
+fn tell_place(w: &WebviewWindow, state: &AppState, x: f64, y: f64, a: Area) {
+    let side = if x + WIN_W / 2.0 > a.x + a.w / 2.0 { Side::Right } else { Side::Left };
+    let vertical = if y + WIN_H / 2.0 > a.y + a.h / 2.0 { Vertical::Bottom } else { Vertical::Top };
     {
         let mut s = state.lock().unwrap();
         s.side = side;
         s.vertical = vertical;
     }
-    let _ = w.emit("place", serde_json::json!({ "side": side, "vertical": vertical }));
+    let _ = w.emit(event::PLACE, serde_json::json!({ "side": side, "vertical": vertical }));
 }
 
 /// After a drag: near an edge, it settles against it; then where it is, is kept.
-fn settle(w: &WebviewWindow, state: &State) {
-    let Some((ax, ay, aw, ah)) = work_area(w) else { return };
+fn settle(w: &WebviewWindow, state: &AppState) {
+    let Some(a) = work_area(w) else { return };
     let Ok(pos) = w.outer_position() else { return };
     let scale = w.scale_factor().unwrap_or(1.0);
     let (mut x, mut y) = (pos.x as f64 / scale, pos.y as f64 / scale);
-    if (ax + aw) - (x + WIN_W) < 80.0 {
-        x = ax + aw - WIN_W;
-    } else if x - ax < 80.0 {
-        x = ax;
+    if (a.x + a.w) - (x + WIN_W) < SNAP_DISTANCE {
+        x = a.x + a.w - WIN_W;
+    } else if x - a.x < SNAP_DISTANCE {
+        x = a.x;
     }
-    if (ay + ah) - (y + WIN_H) < 80.0 {
-        y = ay + ah - WIN_H;
-    } else if y - ay < 80.0 {
-        y = ay;
+    if (a.y + a.h) - (y + WIN_H) < SNAP_DISTANCE {
+        y = a.y + a.h - WIN_H;
+    } else if y - a.y < SNAP_DISTANCE {
+        y = a.y;
     }
     let _ = w.set_position(tauri::LogicalPosition::new(x, y));
     {
         let mut s = state.lock().unwrap();
         s.prefs.window_at = Some((x, y));
-        save_prefs(&s.prefs);
+        s.prefs.save();
     }
-    tell_place(w, state, x, y, (ax, ay, aw, ah));
+    tell_place(w, state, x, y, a);
 }
 
 /// Roger's corner, on the Station's page.
 pub fn open_corner(app: &AppHandle, url: &str) {
-    let state = app.state::<State>().inner().clone();
+    let state = app.state::<AppState>().inner().clone();
     let Ok(target) = url.parse() else { return };
-    if let Some(w) = app.get_webview_window("main") {
+    if let Some(w) = window(app) {
         // Only a new address loads the page again: the same one is left as it is.
         if w.url().map(|u| u.as_str() != url).unwrap_or(true) {
             log("corner: a new address, loading it");
@@ -99,7 +165,7 @@ pub fn open_corner(app: &AppHandle, url: &str) {
     log(&format!("corner: opening {}", url.split('?').next().unwrap_or(url)));
     let hidden = state.lock().unwrap().prefs.hidden;
     let place_state = state.clone();
-    let Ok(w) = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(target))
+    let Ok(w) = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(target))
         .title("Airband")
         .inner_size(WIN_W, WIN_H)
         .resizable(false)
@@ -120,14 +186,14 @@ pub fn open_corner(app: &AppHandle, url: &str) {
             if payload.event() == tauri::webview::PageLoadEvent::Finished {
                 place(&w, &place_state);
                 let p = place_state.lock().unwrap().prefs.clone();
-                let _ = w.emit("prefs", prefs_view(&p));
+                let _ = w.emit(event::PREFS, p.for_page());
                 if !p.hidden {
                     let _ = w.show();
                 }
                 // The menu was made while the window was still hidden (it shows only once its
                 // page loads), so it said "Show Roger" with Roger on screen.
                 let a = w.app_handle().clone();
-                let _ = w.app_handle().run_on_main_thread(move || refresh_menu(&a));
+                let _ = w.app_handle().run_on_main_thread(move || (hooks(&a).menu_changed)(&a));
             }
         })
         .build()
@@ -143,9 +209,8 @@ pub fn open_corner(app: &AppHandle, url: &str) {
             moved_state.lock().unwrap().last_move = Some(Instant::now());
             let (st, win) = (moved_state.clone(), moved_w.clone());
             std::thread::spawn(move || {
-                std::thread::sleep(Duration::from_millis(450));
-                let quiet =
-                    st.lock().unwrap().last_move.map(|t| t.elapsed() >= Duration::from_millis(420)).unwrap_or(false);
+                std::thread::sleep(MOVE_SETTLES_AFTER);
+                let quiet = st.lock().unwrap().last_move.map(|t| t.elapsed() >= MOVE_QUIET).unwrap_or(false);
                 if quiet {
                     st.lock().unwrap().last_move = None;
                     settle(&win, &st);
@@ -156,12 +221,13 @@ pub fn open_corner(app: &AppHandle, url: &str) {
     if hidden {
         let _ = w.hide();
     }
-    refresh_menu(app);
+    (hooks(app).menu_changed)(app);
 }
 
+/// Shows Roger; `open` also opens his panel and brings him back from tucked away.
 pub fn show(app: &AppHandle, open: bool) {
-    let state = app.state::<State>().inner().clone();
-    let Some(w) = app.get_webview_window("main") else { return };
+    let state = app.state::<AppState>().inner().clone();
+    let Some(w) = window(app) else { return };
     let was = w.is_visible().unwrap_or(false);
     {
         let mut s = state.lock().unwrap();
@@ -169,66 +235,59 @@ pub fn show(app: &AppHandle, open: bool) {
         if open {
             s.prefs.tucked = false;
         }
-        save_prefs(&s.prefs);
-        let _ = w.emit("prefs", prefs_view(&s.prefs));
+        s.prefs.save();
+        let _ = w.emit(event::PREFS, s.prefs.for_page());
     }
     let _ = w.show();
     if !was {
-        let _ = w.emit("command", "arrive");
+        let _ = w.emit(event::COMMAND, PageCommand::Arrive);
     }
     if open {
         let _ = w.set_focus();
-        let _ = w.emit("command", "open");
+        let _ = w.emit(event::COMMAND, PageCommand::Open);
     }
-    refresh_menu(app);
+    (hooks(app).menu_changed)(app);
 }
 
-pub fn hide_corner(app: &AppHandle) {
-    let state = app.state::<State>().inner().clone();
+/// Hides Roger: the page fades him out, then the window goes. Never a cut.
+pub fn hide(app: &AppHandle) {
+    let state = app.state::<AppState>().inner().clone();
     {
         let mut s = state.lock().unwrap();
         s.prefs.hidden = true;
-        save_prefs(&s.prefs);
+        s.prefs.save();
     }
-    if let Some(w) = app.get_webview_window("main") {
-        // The screen fades out, then the window goes: never a cut.
-        let _ = w.emit("command", "leave");
-        let w2 = w.clone();
+    if let Some(w) = window(app) {
+        let _ = w.emit(event::COMMAND, PageCommand::Leave);
         let st = state.clone();
         let a = app.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(260));
+            std::thread::sleep(FADE_OUT);
             if st.lock().unwrap().prefs.hidden {
-                let _ = w2.hide();
+                let _ = w.hide();
                 let _ = a.run_on_main_thread({
                     let a = a.clone();
-                    move || refresh_menu(&a)
+                    move || (hooks(&a).menu_changed)(&a)
                 });
             }
         });
     }
 }
 
-pub fn set_pref_inner(app: &AppHandle, key: &str, on: bool) {
-    let state = app.state::<State>().inner().clone();
+/// Changes one setting, and tells the page and the menu.
+pub fn set_pref(app: &AppHandle, key: PrefKey, on: bool) {
+    let state = app.state::<AppState>().inner().clone();
     let view = {
         let mut s = state.lock().unwrap();
-        match key {
-            "sound" => s.prefs.sound = on,
-            "notify" => s.prefs.notify = on,
-            "startAtLogin" => s.prefs.start_at_login = on,
-            "tucked" => s.prefs.tucked = on,
-            "greeted" => s.prefs.greeted = on,
-            _ => return,
-        }
-        save_prefs(&s.prefs);
-        prefs_view(&s.prefs)
+        s.prefs.set(key, on);
+        s.prefs.save();
+        s.prefs.for_page()
     };
-    if key == "startAtLogin" {
-        login_item(app, on);
+    if key == PrefKey::StartAtLogin {
+        apply_start_at_login(app, on);
     }
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.emit("prefs", view);
+    if let Some(w) = window(app) {
+        let _ = w.emit(event::PREFS, view);
     }
-    refresh_menu(app);
+    (hooks(app).menu_changed)(app);
 }

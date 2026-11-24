@@ -1,34 +1,61 @@
 //! Downloads with the computer's own curl, checked, and unpacked with its own tar.
+use crate::error::Result;
 use crate::process::command;
 use base64::Engine as _;
+use serde::Serialize;
 use sha2::{Digest, Sha256, Sha512};
 use std::path::Path;
+use std::process::Command;
+use std::time::Duration;
 
-fn curl() -> std::process::Command {
+/// How often a download's size so far is looked at, for its progress.
+const PROGRESS_EVERY: Duration = Duration::from_millis(250);
+
+/// What is downloading, as the tour names its lines.
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Step {
+    Node,
+    Engine,
+}
+
+impl Step {
+    pub fn name(self) -> &'static str {
+        match self {
+            Step::Node => "node",
+            Step::Engine => "engine",
+        }
+    }
+}
+
+/// Told how far a download is: the step, the bytes so far, and about how many there will be.
+pub type Progress<'a> = &'a dyn Fn(Step, u64, u64);
+
+/// curl, https only, with a modern TLS and a couple of retries.
+fn curl() -> Command {
     let mut c = command(if cfg!(windows) { "curl.exe" } else { "curl" });
     c.args(["-fsSL", "--proto", "=https", "--tlsv1.2", "--retry", "2"]);
     c
 }
 
-pub fn fetch_text(url: &str) -> Result<String, String> {
+pub fn fetch_text(url: &str) -> Result<String> {
     let out = curl().arg(url).output().map_err(|e| format!("couldn't run curl: {e}"))?;
     if !out.status.success() {
-        return Err(format!("couldn't reach {}", url.split('/').nth(2).unwrap_or(url)));
+        return Err(format!("couldn't reach {}", url.split('/').nth(2).unwrap_or(url)).into());
     }
     String::from_utf8(out.stdout).map_err(|_| "an answer that isn't text".into())
 }
 
-/// Downloads `url` to `to`, telling the tour how far it is (by the file's size so far).
-pub type Progress<'a> = &'a dyn Fn(&str, u64, u64);
-
-pub fn download(progress: Progress, url: &str, to: &Path, step: &str, total: u64) -> Result<(), String> {
+/// Downloads `url` to `to`, telling `progress` how far it is (by the file's size so far, against
+/// `total`, about the size it will be).
+pub fn download(progress: Progress, url: &str, to: &Path, step: Step, total: u64) -> Result<()> {
     let _ = std::fs::remove_file(to);
     let mut child = curl().arg("-o").arg(to).arg(url).spawn().map_err(|e| format!("couldn't run curl: {e}"))?;
     loop {
-        std::thread::sleep(std::time::Duration::from_millis(250));
+        std::thread::sleep(PROGRESS_EVERY);
         let got = std::fs::metadata(to).map(|m| m.len()).unwrap_or(0);
         progress(step, got, total);
-        if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {
+        if let Some(status) = child.try_wait()? {
             if !status.success() {
                 return Err("the download stopped. Check the internet connection and try again.".into());
             }
@@ -37,27 +64,30 @@ pub fn download(progress: Progress, url: &str, to: &Path, step: &str, total: u64
     }
 }
 
-pub fn sha256_hex(file: &Path) -> Result<String, String> {
-    let bytes = std::fs::read(file).map_err(|e| e.to_string())?;
+pub fn sha256_hex(file: &Path) -> Result<String> {
+    let bytes = std::fs::read(file)?;
     Ok(Sha256::digest(&bytes).iter().map(|b| format!("{b:02x}")).collect())
 }
 
-pub fn sha512_b64(file: &Path) -> Result<String, String> {
-    let bytes = std::fs::read(file).map_err(|e| e.to_string())?;
+pub fn sha512_b64(file: &Path) -> Result<String> {
+    let bytes = std::fs::read(file)?;
     Ok(base64::engine::general_purpose::STANDARD.encode(Sha512::digest(&bytes)))
 }
 
-pub fn untar(archive: &Path, into: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(into).map_err(|e| e.to_string())?;
-    let mut c = command("tar");
-    c.arg(if archive.extension().and_then(|e| e.to_str()) == Some("zip") { "-xf" } else { "-xzf" })
+/// Unpacks a .tar.gz, .tgz or .zip (Windows' own tar reads zips too).
+pub fn untar(archive: &Path, into: &Path) -> Result<()> {
+    std::fs::create_dir_all(into)?;
+    let zip = archive.extension().and_then(|e| e.to_str()) == Some("zip");
+    let out = command("tar")
+        .arg(if zip { "-xf" } else { "-xzf" })
         .arg(archive)
         .arg("-C")
-        .arg(into);
-    let out = c.output().map_err(|e| format!("couldn't run tar: {e}"))?;
+        .arg(into)
+        .output()
+        .map_err(|e| format!("couldn't run tar: {e}"))?;
     if out.status.success() {
         Ok(())
     } else {
-        Err(format!("couldn't unpack: {}", String::from_utf8_lossy(&out.stderr).trim()))
+        Err(format!("couldn't unpack: {}", String::from_utf8_lossy(&out.stderr).trim()).into())
     }
 }

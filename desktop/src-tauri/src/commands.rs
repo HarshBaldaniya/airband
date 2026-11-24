@@ -1,53 +1,62 @@
 //! Everything a page may ask the app, as Tauri commands. Each one is also named in build.rs and
 //! granted to its window in capabilities/ (scripts/check-commands.mjs checks the four agree).
-use crate::corner::{is_visible, set_pref_inner, show};
+use crate::corner::{self, is_visible};
 use crate::engine;
+use crate::error::Result;
 use crate::logging::log;
-use crate::prefs::{prefs_view, save_prefs};
+use crate::prefs::{PagePrefs, PrefKey};
 use crate::setup::{self, Scan};
-use crate::state::{Rect, State};
-use crate::tray::build_menu;
+use crate::state::{AppState, Rect};
+use crate::tray::{build_menu, refresh_menu};
 use crate::update;
-use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
+
+/// A line from the page is cut to this many characters before it is logged.
+const LOG_LINE_MAX_CHARS: usize = 300;
 
 // ---- Roger's corner ----
 
+/// Something the page wants in the app's log (a call the app refused, mostly).
 #[tauri::command]
 pub fn log_line(line: String) {
-    log(&line.chars().take(300).collect::<String>());
+    log(&line.chars().take(LOG_LINE_MAX_CHARS).collect::<String>());
 }
 
+/// Where the page's clickable parts are now.
 #[tauri::command]
-pub fn hit_areas(rects: Vec<Rect>, state: tauri::State<State>) {
+pub fn hit_areas(rects: Vec<Rect>, state: State<AppState>) {
     let mut s = state.lock().unwrap();
     if s.hits.is_empty() && !rects.is_empty() {
+        let r = rects[0];
         log(&format!(
             "corner: clickable parts arrived ({}), first at {:.0},{:.0} {:.0}x{:.0}",
             rects.len(),
-            rects[0].x,
-            rects[0].y,
-            rects[0].width,
-            rects[0].height
+            r.x,
+            r.y,
+            r.width,
+            r.height
         ));
     }
     s.hits = rects;
 }
 
+/// A drag starts on the figure: the system moves the window from here.
 #[tauri::command]
 pub fn drag(window: WebviewWindow) {
     let _ = window.start_dragging();
 }
 
 #[tauri::command]
-pub fn prefs(state: tauri::State<State>) -> serde_json::Value {
-    prefs_view(&state.lock().unwrap().prefs)
+pub fn prefs(state: State<AppState>) -> PagePrefs {
+    state.lock().unwrap().prefs.for_page()
 }
 
 #[tauri::command]
-pub fn set_pref(app: AppHandle, key: String, on: bool) {
-    set_pref_inner(&app, &key, on);
+pub fn set_pref(app: AppHandle, key: PrefKey, on: bool) {
+    corner::set_pref(&app, key, on);
 }
 
+/// The app's menu, at the pointer (a right-click on the figure).
 #[tauri::command]
 pub fn menu(app: AppHandle, window: WebviewWindow) {
     if let Ok(m) = build_menu(&app) {
@@ -55,8 +64,9 @@ pub fn menu(app: AppHandle, window: WebviewWindow) {
     }
 }
 
+/// Asleep, the pointer is looked at less often.
 #[tauri::command]
-pub fn asleep(asleep: bool, state: tauri::State<State>) {
+pub fn asleep(asleep: bool, state: State<AppState>) {
     state.lock().unwrap().asleep = asleep;
 }
 
@@ -81,16 +91,16 @@ pub fn just_updated(app: AppHandle) -> Option<String> {
 /// A request or a finished chat came: hidden or tucked away, the companion comes back.
 #[tauri::command]
 pub fn come_back(app: AppHandle) {
-    let p = app.state::<State>().lock().unwrap().prefs.clone();
+    let p = app.state::<AppState>().lock().unwrap().prefs.clone();
     if !p.notify {
         return;
     }
     if !is_visible(&app) || p.hidden {
         log("corner: a chat finished or needs you: coming back");
-        show(&app, false);
+        corner::show(&app, false);
     }
     if p.tucked {
-        set_pref_inner(&app, "tucked", false);
+        corner::set_pref(&app, PrefKey::Tucked, false);
     }
 }
 
@@ -105,51 +115,47 @@ pub async fn scan() -> Scan {
 /// Node.js, the current long-term version, from nodejs.org into ~/.airband/runtime/node, checked
 /// against nodejs.org's own list of fingerprints.
 #[tauri::command]
-pub async fn install_node(app: AppHandle) -> Result<String, String> {
+pub async fn install_node(app: AppHandle) -> Result<String> {
     setup::node_from_nodejs(&setup::progress_to(&app))
 }
 
 /// Airband's engine, the latest npm package, into ~/.airband/engine, checked against npm's
 /// published fingerprint (its sha512 "integrity").
 #[tauri::command]
-pub async fn install_engine(app: AppHandle) -> Result<String, String> {
+pub async fn install_engine(app: AppHandle) -> Result<String> {
     setup::engine_from_npm(&setup::progress_to(&app))
 }
 
-/// Connects Airband to the agents found: its hook, tools and skills, and the `airband` command
-/// (the engine's own setup, as `npx airband` runs it).
+/// Connects Airband to the agents found: its hook, tools and skills, and the `airband` command.
 #[tauri::command]
-pub async fn connect_agents() -> Result<serde_json::Value, String> {
+pub async fn connect_agents() -> Result<serde_json::Value> {
     setup::connect()
 }
 
-/// The tour is done: Roger comes, and the tour window goes.
+/// The tour is done: Roger comes, and the tour window goes. Never refused: with something still
+/// missing, Airband waits in the menu bar, and "Set up Airband…" there finishes it.
 #[tauri::command]
-pub async fn finish(app: AppHandle) -> Result<(), String> {
-    // Never refused: with something still missing, Airband waits in the menu bar, and
-    // "Set up Airband…" there finishes it.
+pub async fn finish(app: AppHandle) -> Result<()> {
     let ready = engine::ready();
     {
-        let state = app.state::<State>();
+        let state = app.state::<AppState>();
         let mut s = state.lock().unwrap();
         s.prefs.set_up = true;
-        save_prefs(&s.prefs);
+        s.prefs.save();
     }
-    if ready && app.get_webview_window("main").is_none() {
+    if ready && corner::window(&app).is_none() {
         engine::start(&app);
     }
-    crate::tray::refresh_menu(&app);
-    if let Some(w) = app.get_webview_window("setup") {
-        let _ = w.close();
-    }
+    refresh_menu(&app);
+    setup::close(&app);
     Ok(())
 }
 
 /// Opens a page in the browser: only https addresses.
 #[tauri::command]
-pub fn open_url(url: String) -> Result<(), String> {
+pub fn open_url(url: String) -> Result<()> {
     if !url.starts_with("https://") {
         return Err("only https links".into());
     }
-    crate::process::open_url(&url).map_err(|e| e.to_string())
+    Ok(crate::process::open_url(&url)?)
 }

@@ -2,10 +2,10 @@
 //! it to write ~/.airband/station.json, opens Roger's corner on its page, and starts it again if it
 //! stops. The engine is the npm package the setup tour fetched (or AIRBAND_ENGINE_DIR, for
 //! development). Node is the computer's own, or the one the setup tour fetched.
-use crate::corner::open_corner;
 use crate::logging::log;
 use crate::paths::{self, engine_dir, runtime_dir, ENGINE_LOG};
 use crate::process::{command, find_command, is_alive, major, version_of};
+use crate::state::hooks;
 use crate::station::StationFile;
 use std::path::PathBuf;
 use std::process::{Child, Stdio};
@@ -18,6 +18,21 @@ static CHILD: Mutex<Option<Child>> = Mutex::new(None);
 
 /// The engine is stopped on purpose, to start again on newer files (after an update).
 static RESTART: AtomicBool = AtomicBool::new(false);
+
+/// How long a new Station has to write station.json, and how often it is looked for.
+const STATION_WAIT: Duration = Duration::from_secs(15);
+const STATION_POLL: Duration = Duration::from_millis(100);
+/// How often a running Station is checked on.
+const WATCH_EVERY: Duration = Duration::from_secs(1);
+/// How often a Station started elsewhere is checked on.
+const OTHER_STATION_EVERY: Duration = Duration::from_secs(2);
+/// A pause before starting one again that stopped by itself.
+const RESTART_PAUSE: Duration = Duration::from_secs(2);
+/// Starting again stops after this many tries in a row, or fewer if it never opened its page.
+const MAX_TRIES: u32 = 5;
+const MAX_TRIES_NEVER_OPENED: u32 = 2;
+/// A Station that ran this long before stopping isn't one that can't start: the tries count again.
+const HEALTHY_RUN: Duration = Duration::from_secs(600);
 
 /// The engine's command line (airband.js).
 pub fn engine_js() -> PathBuf {
@@ -64,10 +79,11 @@ pub fn was_ready() -> bool {
     READY.load(Ordering::Relaxed)
 }
 
+/// Tells the app the Station is up, so Roger's corner opens on its page.
 fn open(app: &AppHandle, station: &StationFile) {
     let Some(url) = station.page() else { return };
     let a = app.clone();
-    let _ = app.run_on_main_thread(move || open_corner(&a, &url));
+    let _ = app.run_on_main_thread(move || (hooks(&a).station_up)(&a, url));
 }
 
 /// Starts the engine and opens the corner on its page. A Station that already runs (an earlier
@@ -84,7 +100,7 @@ pub fn start(app: &AppHandle) {
                 log(&format!("engine: using the Station that already runs (process {pid})"));
                 open(&app, &station);
                 while is_alive(pid) {
-                    std::thread::sleep(Duration::from_secs(2));
+                    std::thread::sleep(OTHER_STATION_EVERY);
                 }
                 log("engine: that Station stopped");
                 continue;
@@ -106,8 +122,8 @@ pub fn start(app: &AppHandle) {
             let started = std::time::Instant::now();
             *CHILD.lock().unwrap() = Some(child);
             let mut opened = false;
-            for _ in 0..150 {
-                std::thread::sleep(Duration::from_millis(100));
+            for _ in 0..STATION_WAIT.as_millis() / STATION_POLL.as_millis() {
+                std::thread::sleep(STATION_POLL);
                 if let Some(station) = StationFile::written_since(since).filter(|s| s.page().is_some()) {
                     open(&app, &station);
                     opened = true;
@@ -121,7 +137,7 @@ pub fn start(app: &AppHandle) {
             }
             // Watch it: if it stops on its own, start it again (a few times, then stop trying).
             loop {
-                std::thread::sleep(Duration::from_millis(1000));
+                std::thread::sleep(WATCH_EVERY);
                 let mut guard = CHILD.lock().unwrap();
                 let Some(child) = guard.as_mut() else { return };
                 if child.try_wait().ok().flatten().is_some() {
@@ -136,15 +152,15 @@ pub fn start(app: &AppHandle) {
             }
             log("engine: stopped by itself");
             // A Station that ran a good while before stopping isn't one that can't start.
-            if started.elapsed() > Duration::from_secs(600) {
+            if started.elapsed() > HEALTHY_RUN {
                 tries = 0;
             }
             tries += 1;
-            if tries >= 5 || (!opened && tries >= 2) {
+            if tries >= MAX_TRIES || (!opened && tries >= MAX_TRIES_NEVER_OPENED) {
                 log("engine: gave up starting it again");
                 return;
             }
-            std::thread::sleep(Duration::from_secs(2));
+            std::thread::sleep(RESTART_PAUSE);
         }
     });
 }
@@ -158,6 +174,7 @@ pub fn restart() {
     }
 }
 
+/// Stops our Station, when the app quits or is replaced.
 pub fn stop() {
     if let Some(mut c) = CHILD.lock().unwrap().take() {
         let _ = c.kill();

@@ -10,6 +10,7 @@ mod commands;
 mod corner;
 mod engine;
 mod env;
+mod error;
 mod install;
 mod logging;
 mod macos;

@@ -1,38 +1,48 @@
 //! The app itself: its plugins, the menu-bar icon, the commands pages may call, and what happens
 //! at start and at exit.
-use crate::corner::{is_visible, show, watch_pointer};
+use crate::corner::{self, is_visible, watch_pointer, PageCommand};
 use crate::logging::log;
-use crate::prefs::{load_prefs, login_item};
-use crate::state::{Shared, State};
-use crate::tray::{build_menu, menu_event};
+use crate::prefs::{apply_start_at_login, Prefs};
+use crate::state::{AppState, Hooks, Shared};
+use crate::tray::{self, build_menu, menu_event, TRAY_ID};
 use crate::{commands, engine, setup, update};
 use std::sync::{Arc, Mutex};
 use tauri::tray::TrayIconBuilder;
-use tauri::{Emitter, Manager};
+use tauri::{AppHandle, Manager};
 
 /// Shows Roger, or opens and closes his panel, from anywhere.
 const SHORTCUT: &str = "Alt+CommandOrControl+R";
 
+/// What the modules below the app call when something changed.
+const HOOKS: Hooks = Hooks { menu_changed: tray::refresh_menu, station_up: |app, url| corner::open_corner(app, &url) };
+
+/// `airband --update` (in a terminal, or sent to the running app): update the app.
+fn wants_update(args: &[String]) -> bool {
+    args.iter().any(|a| a == "--update")
+}
+
+/// The global shortcut: Roger comes, or his panel opens or closes.
+fn on_shortcut(app: &AppHandle) {
+    let tucked = app.state::<AppState>().lock().unwrap().prefs.tucked;
+    if !is_visible(app) || tucked {
+        corner::show(app, true)
+    } else {
+        corner::tell(app, PageCommand::Toggle);
+    }
+}
+
 pub fn run() {
-    let state: State = Arc::new(Mutex::new(Shared {
-        prefs: load_prefs(),
-        hits: vec![],
-        passing: true,
-        asleep: false,
-        side: "right",
-        vertical: "bottom",
-        last_move: None,
-    }));
+    let state: AppState = Arc::new(Mutex::new(Shared::new(Prefs::load())));
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // `airband --update` while Airband runs: the running one updates.
-            if args.iter().any(|a| a == "--update") {
+            if wants_update(&args) {
                 update::check_and_install(app);
                 return;
             }
             // Opened again: show what is there instead of a second copy.
-            if app.get_webview_window("main").is_some() {
-                show(app, true);
+            if corner::window(app).is_some() {
+                corner::show(app, true);
             } else {
                 setup::open(app);
             }
@@ -45,17 +55,13 @@ pub fn run() {
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _shortcut, event| {
                     if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        let p = app.state::<State>().lock().unwrap().prefs.clone();
-                        if !is_visible(app) || p.tucked {
-                            show(app, true)
-                        } else if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.emit("command", "toggle");
-                        }
+                        on_shortcut(app);
                     }
                 })
                 .build(),
         )
         .manage(state.clone())
+        .manage(HOOKS)
         .invoke_handler(tauri::generate_handler![
             commands::log_line,
             commands::hit_areas,
@@ -78,7 +84,7 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
             // `--update` in a terminal: update the app, say what happened, and stop.
-            if std::env::args().any(|a| a == "--update") {
+            if wants_update(&std::env::args().collect::<Vec<_>>()) {
                 tauri::async_runtime::spawn(async move {
                     let code = update::from_terminal(&handle).await;
                     handle.exit(code);
@@ -92,7 +98,7 @@ pub fn run() {
             } else {
                 tauri::image::Image::from_bytes(include_bytes!("../icons/tray-color.png"))?
             };
-            TrayIconBuilder::with_id("main")
+            TrayIconBuilder::with_id(TRAY_ID)
                 .icon(tray_icon)
                 .icon_as_template(cfg!(target_os = "macos"))
                 .tooltip("Airband")
@@ -101,7 +107,7 @@ pub fn run() {
                 .on_menu_event(|app, e| menu_event(app, e.id().as_ref()))
                 .build(app)?;
             let p = state.lock().unwrap().prefs.clone();
-            login_item(&handle, p.start_at_login);
+            apply_start_at_login(&handle, p.start_at_login);
             watch_pointer(handle.clone(), state.clone());
             {
                 use tauri_plugin_global_shortcut::GlobalShortcutExt;
