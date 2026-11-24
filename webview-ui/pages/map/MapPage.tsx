@@ -4,11 +4,13 @@
 // (orange). Built by a parser on this computer, no AI.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronsUpDown, FolderGit2, FolderPlus, LayoutGrid, Maximize2, Minus, Plus, Search, X } from "lucide-react";
-import type { CodeHitView, CodeMapView, ViewState } from "../src/core/protocol";
-import { onMessage, remember, remembered, send } from "./lib/vscode";
-import { typing } from "./lib/keys";
-import { useDismiss } from "./lib/useDismiss";
-import { I } from "./Icons";
+import type { CodeHitView, CodeMapView } from "../../../src/core/protocol";
+import { useViewState } from "../../app/ViewStateContext";
+import { LAYER, useKeys } from "../../lib/useKeys";
+import { onMessage, remember, remembered, send } from "../../lib/vscode";
+import { typing } from "../../lib/keys";
+import { useDismiss } from "../../lib/useDismiss";
+import { I } from "../../components/Icons";
 import { buildModel, dotX, dotY, draw, fitCam, hitTest, litFor, sameTarget, type Cam, type Model, type Target, type Theme } from "./codeboard";
 
 
@@ -53,7 +55,8 @@ interface Live {
   found?: Set<number>;
 }
 
-export function CodePage({ state }: { state: ViewState }) {
+export function MapPage() {
+  const state = useViewState();
   const [data, setData] = useState<CodeMapView | undefined>();
   const [root, setRoot] = useState<string | undefined>(() => remembered<string | undefined>("codeRoot", undefined));
   const [selected, setSelected] = useState<Target | undefined>();
@@ -381,20 +384,17 @@ export function CodePage({ state }: { state: ViewState }) {
     setLayoutKey((n) => n + 1);
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "/") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      } else if (e.key === "Escape") {
-        setSelected(undefined);
-          } else if (e.key === "+" || e.key === "=") zoomBy(1.4);
-      else if (e.key === "-") zoomBy(1 / 1.4);
-      else if (e.key === "0") fit();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  useKeys(LAYER.page, (e) => {
+    if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return false;
+    if (e.key === "/") {
+      e.preventDefault();
+      searchRef.current?.focus();
+    } else if (e.key === "Escape") setSelected(undefined);
+    else if (e.key === "+" || e.key === "=") zoomBy(1.4);
+    else if (e.key === "-") zoomBy(1 / 1.4);
+    else if (e.key === "0") fit();
+    else return false;
+    return true;
   });
   useEffect(() => () => cancelAnimationFrame(live.raf), []); // eslint-disable-line react-hooks/exhaustive-deps
 

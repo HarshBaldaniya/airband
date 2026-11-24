@@ -1,16 +1,17 @@
 // Fuel: tokens per agent (today and in total), per chat, and what each channel carried.
 // The headline is new tokens (in + out + cache write); cache reads, the same
 // context re-read every turn at a tenth of the price, are shown on their own.
-import { useEffect, useMemo, useState } from "react";
-import type { ViewState } from "../src/core/protocol";
-import type { Usage } from "../src/core/types";
-import type { Tool } from "../src/core/agents";
-import { NO_USAGE } from "../src/core/types";
-import { agoText, charsToTokens, contextPct, fresh, tokens } from "./lib/format";
-import { send } from "./lib/vscode";
-import { ArrowLeftRight, ArrowRight, Coins, I, StatusDot, ToolMark } from "./Icons";
-import { PlanCards } from "./Plans";
-import { typing } from "./lib/keys";
+import { useMemo, useState } from "react";
+import type { Usage } from "../../../src/core/types";
+import type { Tool } from "../../../src/core/agents";
+import { NO_USAGE } from "../../../src/core/types";
+import { agoText, charsToTokens, contextPct, fresh, tokens } from "../../lib/format";
+import { send } from "../../lib/vscode";
+import { ArrowLeftRight, ArrowRight, Coins, I, StatusDot, ToolMark } from "../../components/Icons";
+import { PlanCards } from "./PlanCards";
+import { typing } from "../../lib/keys";
+import { LAYER, useKeys } from "../../lib/useKeys";
+import { useViewState } from "../../app/ViewStateContext";
 
 
 type Range = "today" | "total";
@@ -19,26 +20,22 @@ function add(a: Usage, b?: Usage): Usage {
   return b ? { input: a.input + b.input, output: a.output + b.output, cacheRead: a.cacheRead + b.cacheRead, cacheWrite: a.cacheWrite + b.cacheWrite } : a;
 }
 
-export function UsageView({ state }: { state: ViewState }) {
+export function FuelPage() {
+  const state = useViewState();
   const [range, setRange] = useState<Range>("today");
   const focusOn = !!state.focus;
-  // The usage page's own keys (B and U, to switch pages, work everywhere).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (focusOn) send({ type: "fullscreen" });
-        return;
-      }
-      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-      const k = e.key.toLowerCase();
-      if (k === "r") send({ type: "plans" });
-      else if (k === "d") setRange("today");
-      else if (k === "a") setRange("total");
-      else if (k === "f") send({ type: "fullscreen" });
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [focusOn]);
+  // The page's own keys. The keys that switch pages are the board's.
+  useKeys(LAYER.page, (e) => {
+    if (e.key === "Escape") return focusOn && (send({ type: "fullscreen" }), true);
+    if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return false;
+    const k = e.key.toLowerCase();
+    if (k === "r") send({ type: "plans" });
+    else if (k === "d") setRange("today");
+    else if (k === "a") setRange("total");
+    else if (k === "f") send({ type: "fullscreen" });
+    else return false;
+    return true;
+  });
   const tools = Object.keys(state.totals) as Tool[];
   const all = tools.reduce((u, t) => add(u, state.totals[t]![range]), NO_USAGE);
   const pick = (u?: Usage) => (range === "today" ? u : u);
@@ -68,7 +65,7 @@ export function UsageView({ state }: { state: ViewState }) {
 
   return (
     <div className="usage">
-      <PlanCards state={state} />
+      <PlanCards />
       <div className="usagehead">
         <div>
           <h2>Tokens</h2>

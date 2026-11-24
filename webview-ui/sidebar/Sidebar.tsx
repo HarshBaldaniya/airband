@@ -7,13 +7,13 @@
 // Linking: press a row's link icon and click the chats it should share with
 // (or drag one row onto another). No dialogs: the link works at once.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type HTMLAttributes } from "react";
-import type { ConnectionView, ViewState } from "../src/core/protocol";
-import type { ChatSession } from "../src/core/types";
-import type { Tool } from "../src/core/agents";
-import { agoText, contextPct, level, modelName, tokens, whereItOpens } from "./lib/format";
-import { DRAG_TYPE, folderHints, folderName, folderOf } from "./lib/folders";
-import { useDismiss } from "./lib/useDismiss";
-import { remember, remembered, send } from "./lib/vscode";
+import type { ConnectionView } from "../../src/core/protocol";
+import type { ChatSession } from "../../src/core/types";
+import type { Tool } from "../../src/core/agents";
+import { agoText, contextPct, level, modelName, tokens, whereItOpens } from "../lib/format";
+import { DRAG_TYPE, folderHints, folderName, folderOf } from "../lib/folders";
+import { useDismiss } from "../lib/useDismiss";
+import { remember, remembered, send } from "../lib/vscode";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -42,10 +42,11 @@ import {
   Unlink,
   X,
   Zap,
-} from "./Icons";
-import type { Modal } from "./Modals";
-import { ModelPicker } from "./ChatControls";
-import { PlanStrip } from "./Plans";
+} from "../components/Icons";
+import { ModelName } from "../components/ModelName";
+import { PlanStrip } from "../pages/fuel/PlanStrip";
+import { useSetModal } from "../app/ModalContext";
+import { useViewState } from "../app/ViewStateContext";
 
 type GroupKey = "needs" | "working" | "today" | "week" | "older";
 const GROUP_LABEL: Record<GroupKey, string> = { needs: "Needs you", working: "Working", today: "Today", week: "This week", older: "Older" };
@@ -67,7 +68,9 @@ interface Group {
 }
 const OLDER_STEP = 15;
 
-export function Sidebar({ state, setModal }: { state: ViewState; setModal: (m: Modal) => void }) {
+export function Sidebar() {
+  const state = useViewState();
+  const setModal = useSetModal();
   const [query, setQuery] = useState("");
   const [tool, setTool] = useState<Tool | "All">(remembered("tool", "All"));
   const [folded, setFolded] = useState<Record<string, boolean>>(remembered("folded", { older: true }));
@@ -354,7 +357,7 @@ export function Sidebar({ state, setModal }: { state: ViewState; setModal: (m: M
           seeAll={() => setScope("all")}
         />
       )}
-      <PlanStrip state={state} />
+      <PlanStrip />
     </div>
   );
 }
@@ -549,7 +552,7 @@ function Details({ s, links, waiting, waitingFrom, onPeek, onLink, onBranch }: R
           {s.model && (
             <div className="fact">
               <span className="muted">Model</span>
-              <ModelPicker s={s} />
+              <ModelName s={s} />
             </div>
           )}
           {s.context && pct !== undefined && (

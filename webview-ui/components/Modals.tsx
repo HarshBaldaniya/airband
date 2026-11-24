@@ -1,23 +1,21 @@
 // Dialogs both views use: Branch (start a new chat for a task, with this
 // chat's context) and Peek (what is waiting to reach a chat).
 import { useEffect, useRef, useState } from "react";
-import type { Ask } from "../src/core/protocol";
-import type { Tool } from "../src/core/agents";
-import { charsToTokens, tokens } from "./lib/format";
-import { send } from "./lib/vscode";
+import { useViewState } from "../app/ViewStateContext";
+import { LAYER, useKeys } from "../lib/useKeys";
+import type { Ask } from "../../src/core/protocol";
+import type { Tool } from "../../src/core/agents";
+import { charsToTokens, tokens } from "../lib/format";
+import { send } from "../lib/vscode";
 import { Check, ChevronRight, I, Plus, ToolMark, X } from "./Icons";
 
 export type Modal =
   | { kind: "loading"; label: string }
-  | { kind: "branch"; id: string; title: string; tool: Tool; asks: Ask[]; contextChars: number; hooksOn: boolean }
+  | { kind: "branch"; id: string; title: string; tool: Tool; asks: Ask[]; contextChars: number }
   | { kind: "peek"; title: string; text: string };
 
 export function Modals({ modal, close }: { modal: Modal | null; close: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [close]);
+  useKeys(LAYER.dialog, (e) => e.key === "Escape" && (close(), true), !!modal);
   if (!modal) return null;
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && close()}>
@@ -49,6 +47,8 @@ function BranchDialog({ m, close }: { m: Extract<Modal, { kind: "branch" }>; clo
   const [keep, setKeep] = useState(true);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [showAsks, setShowAsks] = useState(false);
+  const state = useViewState();
+  const hooksOn = state.hooks?.Claude ?? state.hooksOn;
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => ref.current?.focus(), []);
   const toggle = (id: string) =>
@@ -113,7 +113,7 @@ function BranchDialog({ m, close }: { m: Extract<Modal, { kind: "branch" }>; clo
           ))}
         </div>
       )}
-      {!m.hooksOn && <p className="muted small">Auto-sharing is off, so the context goes into the new chat’s message box.</p>}
+      {!hooksOn && <p className="muted small">Auto-sharing is off, so the context goes into the new chat’s message box.</p>}
       <div className="ntfoot">
         <button className="btn ghost" onClick={close}>
           Cancel

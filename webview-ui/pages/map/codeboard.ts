@@ -4,7 +4,7 @@
 // gently closer. Parts can be dragged and stay where they are put. Drawn on a canvas, so a project of
 // thousands of files still pans and zooms smoothly.
 import { forceCollide, forceLink, forceSimulation, forceX, forceY, type Simulation, type SimulationNodeDatum } from "d3-force";
-import type { CodeMapView } from "../src/core/protocol";
+import type { CodeMapView } from "../../../src/core/protocol";
 
 export interface Dot {
   i: number;

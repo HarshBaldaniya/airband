@@ -3,10 +3,12 @@
 // screen the list and the details take turns.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, Copy, Search, X } from "lucide-react";
-import type { LibraryView } from "../src/core/protocol";
-import type { Tool } from "../src/core/agents";
-import { onMessage, remember, remembered, send } from "./lib/vscode";
-import { I, ToolMark } from "./Icons";
+import type { LibraryView } from "../../../src/core/protocol";
+import type { Tool } from "../../../src/core/agents";
+import { typing } from "../../lib/keys";
+import { LAYER, useKeys } from "../../lib/useKeys";
+import { onMessage, remember, remembered, send } from "../../lib/vscode";
+import { I, ToolMark } from "../../components/Icons";
 
 type Cmd = LibraryView["commands"][number];
 type AgentId = "claude" | "codex" | "gemini";
@@ -17,7 +19,7 @@ const AGENTS: { id: AgentId; tool: Tool; name: string; form: (n: string) => stri
   { id: "gemini", tool: "Gemini", name: "Gemini", form: (n) => `/${n}` },
 ];
 
-export function LibraryPage() {
+export function CommandsPage() {
   const [data, setData] = useState<LibraryView | undefined>();
   const [q, setQ] = useState("");
   const [suggested, setSuggested] = useState<{ q: string; names: string[] } | undefined>();
@@ -71,29 +73,26 @@ export function LibraryPage() {
     if (scroll) requestAnimationFrame(() => listRef.current?.querySelector(`[data-cmd="${CSS.escape(name)}"]`)?.scrollIntoView({ block: "nearest" }));
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA");
-      if (e.key === "/" && !typing) {
-        e.preventDefault();
-        searchRef.current?.focus();
-        return;
-      }
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        if (typing && t !== searchRef.current) return;
-        e.preventDefault();
-        const i = Math.max(0, flat.findIndex((c) => c.name === chosen?.name));
-        const next = flat[Math.min(flat.length - 1, Math.max(0, i + (e.key === "ArrowDown" ? 1 : -1)))];
-        if (next) choose(next.name, true);
-      } else if (e.key === "Escape") {
-        if (t === searchRef.current && q) setQ("");
-        else setOpened(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+  useKeys(LAYER.page, (e) => {
+    const inField = typing(e);
+    if (e.key === "/" && !inField) {
+      e.preventDefault();
+      searchRef.current?.focus();
+      return true;
+    }
+    if (e.metaKey || e.ctrlKey || e.altKey) return false;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (inField && e.target !== searchRef.current) return false;
+      e.preventDefault();
+      const i = Math.max(0, flat.findIndex((c) => c.name === chosen?.name));
+      const next = flat[Math.min(flat.length - 1, Math.max(0, i + (e.key === "ArrowDown" ? 1 : -1)))];
+      if (next) choose(next.name, true);
+      return true;
+    }
+    if (e.key !== "Escape") return false;
+    if (e.target === searchRef.current && q) setQ("");
+    else setOpened(false);
+    return true;
   });
 
   if (!data) return <div className="libpage" />;

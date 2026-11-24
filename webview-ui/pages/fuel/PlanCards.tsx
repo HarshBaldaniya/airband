@@ -1,116 +1,11 @@
-// Plan limits, as each agent reports them: a one-line strip per agent at the foot of the sidebar,
-// and full cards (account, every limit with its reset, extra usage, where the use went) on the
-// Fuel page. Nothing here is worked out by Airband: every number is the agent's own.
-import type { ViewState } from "../src/core/protocol";
-import type { PlanUsage, PlanWindow } from "../src/core/types";
-import type { Tool } from "../src/core/agents";
-import { agoText, level } from "./lib/format";
-import { send } from "./lib/vscode";
-import { Clock, I, RefreshCw, ToolMark } from "./Icons";
-
-const ORDER: Tool[] = ["Claude", "Codex", "Gemini"];
-
-export function planList(state: ViewState): PlanUsage[] {
-  return ORDER.map((t) => state.plans?.[t]).filter((p): p is PlanUsage => !!p);
-}
-
-/** Agents with something to show: limits, or at least an account signed in. One not in use stays out of sight. */
-export function shownPlans(state: ViewState): PlanUsage[] {
-  return planList(state).filter((p) => p.windows.length > 0 || !!p.account?.email || !!p.account?.plan);
-}
-
-/** The limit nearest to running out: the one a person needs to watch. */
-export function headline(p: PlanUsage): PlanWindow | undefined {
-  return [...p.windows].filter((w) => w.pct != null).sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0))[0];
-}
-
-/** To the nearest minute: a limit that resets at 02:59:59.98 resets at 3:00, as the agent's own panel says. */
-const minute = (at: number) => Math.round(at / 60_000) * 60_000;
-
-/** "8:30 AM", always with AM or PM, whatever language the editor is in. */
-const clockOf = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-
-/** The time zone's short name: "IST", "PST", "BST"; "GMT+5:30" only when no name is known. */
-export function zoneOf(d: Date): string {
-  let fallback = "";
-  for (const locale of ["en-US", "en-IN", "en-GB", "en-AU"]) {
-    try {
-      const name = new Intl.DateTimeFormat(locale, { timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName")?.value ?? "";
-      if (name && !/^(GMT|UTC)[+-]/.test(name)) return name;
-      fallback ||= name;
-    } catch {
-      // A locale this runtime lacks.
-    }
-  }
-  return fallback;
-}
-
-function dayDiff(d: Date, now: number): number {
-  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  return Math.round((day(d) - day(new Date(now))) / 86_400_000);
-}
-
-/** "Resets today · 7:43 PM IST", "Resets tomorrow · 9:00 AM IST", "Resets Sat, Nov 14 · 8:30 AM IST". */
-export function resetText(at: number, now = Date.now()): string {
-  const d = new Date(minute(at));
-  const when = `${clockOf(d)} ${zoneOf(d)}`.trim();
-  const diff = dayDiff(d, now);
-  if (diff === 0) return `Resets today · ${when}`;
-  if (diff === 1) return `Resets tomorrow · ${when}`;
-  return `Resets ${d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${when}`;
-}
-
-/** For the sidebar: "today 7:43 PM IST", "tomorrow 9:00 AM IST", "Sat 8:30 AM IST" this week, "Nov 20" later. */
-export function resetShort(at: number, now = Date.now()): string {
-  const d = new Date(minute(at));
-  const when = `${clockOf(d)} ${zoneOf(d)}`.trim();
-  const diff = dayDiff(d, now);
-  if (diff === 0) return `today ${when}`;
-  if (diff === 1) return `tomorrow ${when}`;
-  if (diff < 7) return `${d.toLocaleDateString("en-US", { weekday: "short" })} ${when}`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-const shortLabel = (l: string) => l.replace("Current session (5-hour)", "5-hour").replace("Weekly (7 day)", "Weekly");
-
-/**
- * Foot of the sidebar: a small card per agent with its plan, the limit nearest to running out
- * (big %, a full-width bar) and exactly when it resets. Click: the Fuel page with everything.
- */
-export function PlanStrip({ state }: { state: ViewState }) {
-  // Only agents reporting limits: the foot of the sidebar is for numbers, not notes.
-  const plans = planList(state).filter((p) => headline(p));
-  if (!plans.length) return null;
-  return (
-    <footer className="planstrip" aria-label="Plan usage">
-      {plans.map((p) => {
-        const w = headline(p);
-        const name = p.account?.plan ?? p.tool;
-        if (!w) return null;
-        const lvl = level(w.pct);
-        return (
-          <button key={p.tool} className={`plancardmini ${lvl}`} onClick={() => send({ type: "openBoard", tab: "usage" })} data-tip="Open Fuel" aria-label={`${name}: ${w.pct}% of ${w.label} used. Open the Fuel page`}>
-            <span className="pcmtop">
-              <ToolMark tool={p.tool} size={14} />
-              <span className="pcmname ellipsis">{name}</span>
-              <span className={`pcmpct ${lvl}`}>
-                {w.pct}
-                <small>%</small>
-              </span>
-            </span>
-            <span className={`planbar wide ${lvl}`} aria-hidden="true">
-              <span style={{ width: `${Math.max(2, w.pct ?? 0)}%` }} />
-            </span>
-            <span className="pcmmeta ellipsis">
-              {shortLabel(w.label)}
-              {w.resetsAt ? ` · resets ${resetShort(w.resetsAt)}` : ""}
-            </span>
-          </button>
-        );
-      })}
-    </footer>
-  );
-}
+// The Fuel page's plans: one card per agent with everything it reports (account, every limit with
+// its reset, extra usage, where the use went).
+import type { Tool } from "../../../src/core/agents";
+import { useViewState } from "../../app/ViewStateContext";
+import { agoText, level } from "../../lib/format";
+import { send } from "../../lib/vscode";
+import { Clock, I, RefreshCw, ToolMark } from "../../components/Icons";
+import { headline, resetShort, resetText, shownPlans } from "./plans";
 
 /** A ring that fills as a limit is used, its % in the middle. */
 function Gauge({ pct, size = 92 }: { pct: number | null; size?: number }) {
@@ -139,7 +34,8 @@ const orgWorthShowing = (org?: string, email?: string) => !!org && !(email && or
 const SEGMENT = ["seg-a", "seg-b", "seg-c", "seg-d"];
 
 /** The Fuel page: one card per agent with everything it reports. */
-export function PlanCards({ state }: { state: ViewState }) {
+export function PlanCards() {
+  const state = useViewState();
   const plans = shownPlans(state);
   return (
     <section className="plans">

@@ -1,6 +1,6 @@
 // The keyboard shortcut sheet, opened from the top bar or with "?" on any page.
-import { I, Keyboard, X } from "../Icons";
-import type { KeySection } from "../pagekeys";
+import { I, Keyboard, X } from "./Icons";
+import type { KeySection } from "../board/page-keys";
 
 /** The shortcuts sheet: this page's keys first, then the ones that work everywhere. */
 export function KeySheet({ sections, close }: { sections: KeySection[]; close: () => void }) {
