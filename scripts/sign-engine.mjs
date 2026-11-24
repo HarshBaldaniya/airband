@@ -14,6 +14,10 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Paths are the repository's, wherever this is run from.
+process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 
 const REGISTRY = "https://registry.npmjs.org/";
 const version = process.argv[2] ?? JSON.parse(readFileSync("package.json", "utf8")).version;

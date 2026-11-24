@@ -6,9 +6,10 @@ use crate::logging::log;
 use crate::prefs::{apply_start_at_login, PrefKey};
 use crate::state::{hooks, lock, save_prefs, AppState, Side, Vertical};
 use serde::Serialize;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub use pointer::watch_pointer;
 
@@ -82,6 +83,25 @@ pub fn tell(app: &AppHandle, what: PageCommand) {
 /// What the Station's page is given to reach the app (bridge.js).
 const BRIDGE: &str = include_str!("bridge.js");
 
+/// The port of the Station the corner shows. The corner's window may show only the Station's own
+/// pages: its page can call the app (capabilities/corner.json), so a link or a redirect to anywhere
+/// else, another server on this computer included, is refused.
+static STATION_PORT: AtomicU16 = AtomicU16::new(0);
+
+/// `url` is one of the Station's pages, or an empty frame.
+fn is_station_page(url: &Url, station_port: u16) -> bool {
+    url.scheme() == "about"
+        || (url.scheme() == "http" && url.host_str() == Some("127.0.0.1") && url.port() == Some(station_port))
+}
+
+fn allow_navigation(url: &Url) -> bool {
+    let allowed = is_station_page(url, STATION_PORT.load(Ordering::Relaxed));
+    if !allowed {
+        log(&format!("corner: refused to leave the Station for {}", url.origin().ascii_serialization()));
+    }
+    allowed
+}
+
 /// The screen's area without the menu bar and the Dock or taskbar (logical pixels).
 #[derive(Clone, Copy)]
 struct Area {
@@ -150,7 +170,13 @@ fn settle(w: &WebviewWindow, state: &AppState) {
 /// Roger's corner, on the Station's page.
 pub fn open_corner(app: &AppHandle, url: &str) {
     let state = app.state::<AppState>().inner().clone();
-    let Ok(target) = url.parse() else { return };
+    let Ok(target) = Url::parse(url) else { return };
+    let port = target.port().unwrap_or(0);
+    if port == 0 || !is_station_page(&target, port) {
+        log("corner: not the Station's address, left closed");
+        return;
+    }
+    STATION_PORT.store(port, Ordering::Relaxed);
     if let Some(w) = window(app) {
         // Only a new address loads the page again: the same one is left as it is.
         if w.url().map(|u| u.as_str() != url).unwrap_or(true) {
@@ -179,6 +205,7 @@ pub fn open_corner(app: &AppHandle, url: &str) {
         .background_throttling(tauri::utils::config::BackgroundThrottlingPolicy::Disabled)
         .visible(false)
         .initialization_script(BRIDGE)
+        .on_navigation(allow_navigation)
         .on_page_load(move |w, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Finished {
                 place(&w, &place_state);
@@ -283,4 +310,22 @@ pub fn set_pref(app: &AppHandle, key: PrefKey, on: bool) {
         let _ = w.emit(event::PREFS, view);
     }
     (hooks(app).menu_changed)(app);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_corner_shows_only_the_stations_pages() {
+        let ok = |u: &str| is_station_page(&Url::parse(u).unwrap(), 4123);
+        assert!(ok("http://127.0.0.1:4123/app?mode=desktop&t=k"));
+        assert!(ok("http://127.0.0.1:4123/other"));
+        assert!(ok("about:blank"));
+        assert!(!ok("http://127.0.0.1:4124/app"));
+        assert!(!ok("http://localhost:4123/app"));
+        assert!(!ok("https://127.0.0.1:4123/app"));
+        assert!(!ok("https://example.com/"));
+        assert!(!ok("file:///etc/passwd"));
+    }
 }

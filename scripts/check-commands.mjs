@@ -9,6 +9,10 @@
 // Run: node scripts/check-commands.mjs (CI runs it in .github/workflows/test.yml).
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Paths are the repository's, wherever this is run from.
+process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 
 const app = "desktop/src-tauri";
 const files = (dir, ext) =>
