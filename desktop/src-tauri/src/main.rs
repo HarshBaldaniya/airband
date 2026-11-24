@@ -75,7 +75,16 @@ pub struct Prefs {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { sound: true, notify: true, start_at_login: true, hidden: false, tucked: false, greeted: false, set_up: false, window_at: None }
+        Prefs {
+            sound: true,
+            notify: true,
+            start_at_login: true,
+            hidden: false,
+            tucked: false,
+            greeted: false,
+            set_up: false,
+            window_at: None,
+        }
     }
 }
 
@@ -293,7 +302,8 @@ pub fn open_corner(app: &AppHandle, url: &str) {
             let (st, win) = (moved_state.clone(), moved_w.clone());
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(450));
-                let quiet = st.lock().unwrap().last_move.map(|t| t.elapsed() >= Duration::from_millis(420)).unwrap_or(false);
+                let quiet =
+                    st.lock().unwrap().last_move.map(|t| t.elapsed() >= Duration::from_millis(420)).unwrap_or(false);
                 if quiet {
                     st.lock().unwrap().last_move = None;
                     settle(&win, &st);
@@ -324,21 +334,34 @@ fn watch_pointer(app: AppHandle, state: State) {
             if !w.is_visible().unwrap_or(false) {
                 continue;
             }
-            let (Ok(c), Ok(pos), Ok(scale)) = (app.cursor_position(), w.outer_position(), w.scale_factor()) else { continue };
+            let (Ok(c), Ok(pos), Ok(scale)) = (app.cursor_position(), w.outer_position(), w.scale_factor()) else {
+                continue;
+            };
             let (cx, cy) = ((c.x - pos.x as f64) / scale, (c.y - pos.y as f64) / scale);
             let (over, side, vertical, passing) = {
                 let s = state.lock().unwrap();
-                (s.hits.iter().any(|r| cx >= r.x && cx <= r.x + r.width && cy >= r.y && cy <= r.y + r.height), s.side, s.vertical, s.passing)
+                (
+                    s.hits.iter().any(|r| cx >= r.x && cx <= r.x + r.width && cy >= r.y && cy <= r.y + r.height),
+                    s.side,
+                    s.vertical,
+                    s.passing,
+                )
             };
             if over == passing {
                 let _ = w.set_ignore_cursor_events(!over);
                 state.lock().unwrap().passing = !over;
-                log(&format!("pointer: {} at {cx:.0},{cy:.0}", if over { "over Roger: takes clicks" } else { "away: clicks pass through" }));
+                log(&format!(
+                    "pointer: {} at {cx:.0},{cy:.0}",
+                    if over { "over Roger: takes clicks" } else { "away: clicks pass through" }
+                ));
             }
             let point = if over { format!("{cx:.0},{cy:.0}") } else { String::new() };
             if point != last_point {
                 last_point = point;
-                let _ = w.emit("pointer", if over { serde_json::json!({ "x": cx, "y": cy }) } else { serde_json::Value::Null });
+                let _ = w.emit(
+                    "pointer",
+                    if over { serde_json::json!({ "x": cx, "y": cy }) } else { serde_json::Value::Null },
+                );
             }
             if asleep {
                 continue;
@@ -465,12 +488,31 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     if !p.set_up || !engine::was_ready() {
         items.append(&MenuItem::with_id(app, "setup", "Set up Airband…", true, None::<&str>)?)?;
     } else {
-        items.append(&MenuItem::with_id(app, "toggle", if visible && !p.hidden { format!("Hide {name}") } else { format!("Show {name}") }, true, None::<&str>)?)?;
-        items.append(&MenuItem::with_id(app, "tuck", if p.tucked { format!("Bring {name} back") } else { format!("Tuck {name} away") }, true, None::<&str>)?)?;
+        items.append(&MenuItem::with_id(
+            app,
+            "toggle",
+            if visible && !p.hidden { format!("Hide {name}") } else { format!("Show {name}") },
+            true,
+            None::<&str>,
+        )?)?;
+        items.append(&MenuItem::with_id(
+            app,
+            "tuck",
+            if p.tucked { format!("Bring {name} back") } else { format!("Tuck {name} away") },
+            true,
+            None::<&str>,
+        )?)?;
         items.append(&MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?)?;
         items.append(&PredefinedMenuItem::separator(app)?)?;
         items.append(&CheckMenuItem::with_id(app, "sound", "Sounds", true, p.sound, None::<&str>)?)?;
-        items.append(&CheckMenuItem::with_id(app, "notify", format!("{name} comes back when a chat needs you"), true, p.notify, None::<&str>)?)?;
+        items.append(&CheckMenuItem::with_id(
+            app,
+            "notify",
+            format!("{name} comes back when a chat needs you"),
+            true,
+            p.notify,
+            None::<&str>,
+        )?)?;
         items.append(&CheckMenuItem::with_id(app, "login", "Start at login", true, p.start_at_login, None::<&str>)?)?;
         items.append(&PredefinedMenuItem::separator(app)?)?;
         items.append(&MenuItem::with_id(app, "setup", "Run the setup tour again…", true, None::<&str>)?)?;
@@ -532,7 +574,14 @@ fn log_line(line: String) {
 fn hit_areas(rects: Vec<Rect>, state: tauri::State<State>) {
     let mut s = state.lock().unwrap();
     if s.hits.is_empty() && !rects.is_empty() {
-        log(&format!("corner: clickable parts arrived ({}), first at {:.0},{:.0} {:.0}x{:.0}", rects.len(), rects[0].x, rects[0].y, rects[0].width, rects[0].height));
+        log(&format!(
+            "corner: clickable parts arrived ({}), first at {:.0},{:.0} {:.0}x{:.0}",
+            rects.len(),
+            rects[0].x,
+            rects[0].y,
+            rects[0].width,
+            rects[0].height
+        ));
     }
     s.hits = rects;
 }
@@ -645,9 +694,17 @@ fn self_check() -> Option<i32> {
 /// temporary folder (only a test puts them there), and the variables of the AI agent session that
 /// started the app, which belong to that session, not to Roger.
 fn clean_environment() {
-    let temporary = |v: &str| ["/tmp/", "/private/tmp/", "/var/folders/", "/private/var/folders/"].iter().any(|t| v.starts_with(t));
+    let temporary =
+        |v: &str| ["/tmp/", "/private/tmp/", "/var/folders/", "/private/var/folders/"].iter().any(|t| v.starts_with(t));
     let mut dropped = vec![];
-    for key in ["AIRBAND_HOME", "AIRBAND_DEBUG_DIR", "AIRBAND_ENGINE_DIR", "CLAUDE_CONFIG_DIR", "CODEX_HOME", "GEMINI_CLI_HOME"] {
+    for key in [
+        "AIRBAND_HOME",
+        "AIRBAND_DEBUG_DIR",
+        "AIRBAND_ENGINE_DIR",
+        "CLAUDE_CONFIG_DIR",
+        "CODEX_HOME",
+        "GEMINI_CLI_HOME",
+    ] {
         if std::env::var(key).is_ok_and(|v| temporary(&v)) {
             std::env::remove_var(key);
             dropped.push(key.to_string());
@@ -659,7 +716,11 @@ fn clean_environment() {
         dropped.push("AIRBAND_SKIP_SETUP".into());
     }
     for (key, _) in std::env::vars() {
-        if key == "CLAUDECODE" || key.starts_with("CLAUDE_CODE_") || key == "CLAUDE_PID" || key == "CLAUDE_AGENT_SDK_VERSION" {
+        if key == "CLAUDECODE"
+            || key.starts_with("CLAUDE_CODE_")
+            || key == "CLAUDE_PID"
+            || key == "CLAUDE_AGENT_SDK_VERSION"
+        {
             std::env::remove_var(&key);
             dropped.push(key);
         }
@@ -676,7 +737,15 @@ fn main() {
     }
     // Started from the disk image: move to Applications and start from there.
     install::offer_move();
-    let state: State = Arc::new(Mutex::new(Shared { prefs: load_prefs(), hits: vec![], passing: true, asleep: false, side: "right", vertical: "bottom", last_move: None }));
+    let state: State = Arc::new(Mutex::new(Shared {
+        prefs: load_prefs(),
+        hits: vec![],
+        passing: true,
+        asleep: false,
+        side: "right",
+        vertical: "bottom",
+        last_move: None,
+    }));
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // `airband --update` while Airband runs: the running one updates.

@@ -29,7 +29,13 @@ pub fn take_out(purge: bool) -> Vec<String> {
             c.args(["remove", "--command"]);
             hide_window(&mut c);
             match c.output() {
-                Ok(o) => said.extend(String::from_utf8_lossy(&o.stdout).lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with("Your data stays")).map(String::from)),
+                Ok(o) => said.extend(
+                    String::from_utf8_lossy(&o.stdout)
+                        .lines()
+                        .map(str::trim)
+                        .filter(|l| !l.is_empty() && !l.starts_with("Your data stays"))
+                        .map(String::from),
+                ),
                 Err(e) => said.push(format!("Couldn't run Airband's engine: {e}")),
             }
         }
@@ -43,7 +49,11 @@ pub fn take_out(purge: bool) -> Vec<String> {
         crate::LOG_OFF.store(true, std::sync::atomic::Ordering::Relaxed);
         let dir = home();
         if dir.exists() {
-            let r = if cfg!(target_os = "macos") { to_bin(&dir, "Airband data").map(|_| ()) } else { std::fs::remove_dir_all(&dir).map_err(|e| e.to_string()) };
+            let r = if cfg!(target_os = "macos") {
+                to_bin(&dir, "Airband data").map(|_| ())
+            } else {
+                std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())
+            };
             said.push(match r {
                 Ok(()) if cfg!(target_os = "macos") => "Airband's data moved to the Bin.".into(),
                 Ok(()) => format!("Deleted {}.", dir.display()),
@@ -56,7 +66,11 @@ pub fn take_out(purge: bool) -> Vec<String> {
 
 /// The Station keeps running on its own (Roger's engine): it is stopped first.
 fn stop_station() {
-    let Some(pid) = std::fs::read_to_string(home().join("station.json")).ok().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()).and_then(|v| v["pid"].as_u64()) else {
+    let Some(pid) = std::fs::read_to_string(home().join("station.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .and_then(|v| v["pid"].as_u64())
+    else {
         return;
     };
     let mut c = if cfg!(windows) {
@@ -86,7 +100,18 @@ fn to_bin(path: &Path, name: &str) -> Result<PathBuf, String> {
         Ok(()) => Ok(to),
         // Another disk, or a folder the Bin can't be renamed into: Finder moves it.
         Err(_) => {
-            let ok = Command::new("osascript").args(["-e", "on run argv", "-e", "tell application \"Finder\" to delete (POSIX file (item 1 of argv) as alias)", "-e", "end run", &path.to_string_lossy()]).output().is_ok_and(|o| o.status.success());
+            let ok = Command::new("osascript")
+                .args([
+                    "-e",
+                    "on run argv",
+                    "-e",
+                    "tell application \"Finder\" to delete (POSIX file (item 1 of argv) as alias)",
+                    "-e",
+                    "end run",
+                    &path.to_string_lossy(),
+                ])
+                .output()
+                .is_ok_and(|o| o.status.success());
             if ok {
                 Ok(bin)
             } else {
@@ -164,7 +189,11 @@ pub fn start(app: &AppHandle) {
             }
         }
         // The app itself: …/Airband.app/Contents/MacOS/airband.
-        if let Some(bundle) = std::env::current_exe().ok().and_then(|e| e.ancestors().nth(3).map(Path::to_path_buf)).filter(|b| b.extension().is_some_and(|x| x == "app")) {
+        if let Some(bundle) = std::env::current_exe()
+            .ok()
+            .and_then(|e| e.ancestors().nth(3).map(Path::to_path_buf))
+            .filter(|b| b.extension().is_some_and(|x| x == "app"))
+        {
             if let Err(e) = to_bin(&bundle, "Airband.app") {
                 log(&format!("uninstall: the app stays: {e}"));
             }

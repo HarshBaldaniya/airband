@@ -31,7 +31,8 @@ pub struct AppUpdate {
     pub error: Option<String>,
 }
 
-static NOW: Mutex<AppUpdate> = Mutex::new(AppUpdate { version: None, installing: false, step: None, progress: None, error: None });
+static NOW: Mutex<AppUpdate> =
+    Mutex::new(AppUpdate { version: None, installing: false, step: None, progress: None, error: None });
 
 pub fn current() -> AppUpdate {
     NOW.lock().unwrap().clone()
@@ -70,7 +71,14 @@ pub fn just_updated(app: &AppHandle) -> Option<String> {
 
 /// "0.1.10" is newer than "0.1.9".
 pub fn newer(a: &str, b: &str) -> bool {
-    let parts = |v: &str| v.trim().trim_start_matches('v').split(['.', '-', '+']).take(3).map(|x| x.parse::<u64>().unwrap_or(0)).collect::<Vec<_>>();
+    let parts = |v: &str| {
+        v.trim()
+            .trim_start_matches('v')
+            .split(['.', '-', '+'])
+            .take(3)
+            .map(|x| x.parse::<u64>().unwrap_or(0))
+            .collect::<Vec<_>>()
+    };
     parts(a) > parts(b)
 }
 
@@ -186,7 +194,13 @@ pub fn install(app: &AppHandle) {
 }
 
 async fn download_and_install(app: &AppHandle) -> Result<String, String> {
-    let u = app.updater().map_err(|e| e.to_string())?.check().await.map_err(|e| e.to_string())?.ok_or_else(|| "this is already the newest".to_string())?;
+    let u = app
+        .updater()
+        .map_err(|e| e.to_string())?
+        .check()
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "this is already the newest".to_string())?;
     let mut got: u64 = 0;
     let (a, b) = (app.clone(), app.clone());
     let to = u.version.clone();

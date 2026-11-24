@@ -56,7 +56,8 @@ pub struct Scan {
 
 fn app_exists(mac: &str, win_dirs: &[&str]) -> bool {
     if cfg!(target_os = "macos") {
-        return Path::new(mac).exists() || home_dir().join("Applications").join(Path::new(mac).file_name().unwrap_or_default()).exists();
+        return Path::new(mac).exists()
+            || home_dir().join("Applications").join(Path::new(mac).file_name().unwrap_or_default()).exists();
     }
     let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
     let pf = std::env::var("ProgramFiles").unwrap_or_default();
@@ -90,7 +91,13 @@ pub fn look() -> Scan {
         Found { name, found: p.is_some(), detail: p.as_deref().and_then(version_of), link }
     };
     Scan {
-        os: if cfg!(target_os = "macos") { "mac" } else if cfg!(windows) { "windows" } else { "linux" },
+        os: if cfg!(target_os = "macos") {
+            "mac"
+        } else if cfg!(windows) {
+            "windows"
+        } else {
+            "linux"
+        },
         node: node_version,
         node_ok,
         node_min: NODE_MIN,
@@ -102,8 +109,21 @@ pub fn look() -> Scan {
             agent("Gemini CLI", "gemini", "https://geminicli.com"),
         ],
         editors: vec![
-            Found { name: "VS Code", found: app_exists("/Applications/Visual Studio Code.app", &["Programs\\Microsoft VS Code", "Microsoft VS Code"]), detail: None, link: "https://code.visualstudio.com" },
-            Found { name: "Cursor", found: app_exists("/Applications/Cursor.app", &["Programs\\cursor", "cursor"]), detail: None, link: "https://cursor.com" },
+            Found {
+                name: "VS Code",
+                found: app_exists(
+                    "/Applications/Visual Studio Code.app",
+                    &["Programs\\Microsoft VS Code", "Microsoft VS Code"],
+                ),
+                detail: None,
+                link: "https://code.visualstudio.com",
+            },
+            Found {
+                name: "Cursor",
+                found: app_exists("/Applications/Cursor.app", &["Programs\\cursor", "cursor"]),
+                detail: None,
+                link: "https://cursor.com",
+            },
         ],
     }
 }
@@ -157,7 +177,10 @@ fn sha512_b64(file: &Path) -> Result<String, String> {
 fn untar(archive: &Path, into: &Path) -> Result<(), String> {
     std::fs::create_dir_all(into).map_err(|e| e.to_string())?;
     let mut c = Command::new("tar");
-    c.arg(if archive.extension().and_then(|e| e.to_str()) == Some("zip") { "-xf" } else { "-xzf" }).arg(archive).arg("-C").arg(into);
+    c.arg(if archive.extension().and_then(|e| e.to_str()) == Some("zip") { "-xf" } else { "-xzf" })
+        .arg(archive)
+        .arg("-C")
+        .arg(into);
     hide_window(&mut c);
     let out = c.output().map_err(|e| format!("couldn't run tar: {e}"))?;
     if out.status.success() {
@@ -177,8 +200,12 @@ pub async fn install_node(app: AppHandle) -> Result<String, String> {
 }
 
 pub fn node_from_nodejs(progress: Progress) -> Result<String, String> {
-    let index: serde_json::Value = serde_json::from_str(&fetch_text("https://nodejs.org/dist/index.json")?).map_err(|_| "nodejs.org's list didn't read")?;
-    let lts = index.as_array().and_then(|a| a.iter().find(|r| r["lts"].is_string())).ok_or("no long-term Node version listed")?;
+    let index: serde_json::Value = serde_json::from_str(&fetch_text("https://nodejs.org/dist/index.json")?)
+        .map_err(|_| "nodejs.org's list didn't read")?;
+    let lts = index
+        .as_array()
+        .and_then(|a| a.iter().find(|r| r["lts"].is_string()))
+        .ok_or("no long-term Node version listed")?;
     let version = lts["version"].as_str().ok_or("no version")?.to_string();
     let arch = if cfg!(target_arch = "aarch64") { "arm64" } else { "x64" };
     let (name, inner) = if cfg!(windows) {
@@ -188,7 +215,12 @@ pub fn node_from_nodejs(progress: Progress) -> Result<String, String> {
     };
     let base = format!("https://nodejs.org/dist/{version}");
     let sums = fetch_text(&format!("{base}/SHASUMS256.txt"))?;
-    let want = sums.lines().find(|l| l.ends_with(&format!("  {name}"))).and_then(|l| l.split_whitespace().next()).ok_or("no fingerprint for this computer's Node")?.to_string();
+    let want = sums
+        .lines()
+        .find(|l| l.ends_with(&format!("  {name}")))
+        .and_then(|l| l.split_whitespace().next())
+        .ok_or("no fingerprint for this computer's Node")?
+        .to_string();
     let runtime = home().join("runtime");
     std::fs::create_dir_all(&runtime).map_err(|e| e.to_string())?;
     let archive = runtime.join(&name);
@@ -217,7 +249,8 @@ pub async fn install_engine(app: AppHandle) -> Result<String, String> {
 
 /// The newest engine on npm.
 pub fn latest_engine() -> Result<String, String> {
-    let meta: serde_json::Value = serde_json::from_str(&fetch_text("https://registry.npmjs.org/airband/latest")?).map_err(|_| "npm's answer didn't read")?;
+    let meta: serde_json::Value = serde_json::from_str(&fetch_text("https://registry.npmjs.org/airband/latest")?)
+        .map_err(|_| "npm's answer didn't read")?;
     meta["version"].as_str().map(String::from).ok_or_else(|| "no version on npm".into())
 }
 
@@ -225,10 +258,15 @@ pub fn engine_from_npm(progress: Progress) -> Result<String, String> {
     if std::env::var("AIRBAND_ENGINE_DIR").is_ok() {
         return engine_version().ok_or_else(|| "AIRBAND_ENGINE_DIR has no airband package".into());
     }
-    let meta: serde_json::Value = serde_json::from_str(&fetch_text("https://registry.npmjs.org/airband/latest")?).map_err(|_| "npm's answer didn't read")?;
+    let meta: serde_json::Value = serde_json::from_str(&fetch_text("https://registry.npmjs.org/airband/latest")?)
+        .map_err(|_| "npm's answer didn't read")?;
     let version = meta["version"].as_str().ok_or("no version on npm")?.to_string();
     let tarball = meta["dist"]["tarball"].as_str().ok_or("no package on npm")?.to_string();
-    let integrity = meta["dist"]["integrity"].as_str().and_then(|i| i.strip_prefix("sha512-")).ok_or("no fingerprint on npm")?.to_string();
+    let integrity = meta["dist"]["integrity"]
+        .as_str()
+        .and_then(|i| i.strip_prefix("sha512-"))
+        .ok_or("no fingerprint on npm")?
+        .to_string();
     if !tarball.starts_with("https://registry.npmjs.org/") {
         return Err("the package isn't on npm's own address".into());
     }

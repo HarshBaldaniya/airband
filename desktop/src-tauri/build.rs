@@ -3,9 +3,23 @@
 // (the Station's, on this computer) may only call what is named for it.
 fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(tauri_build::AppManifest::new().commands(&[
-        "hit_areas", "drag", "prefs", "set_pref", "menu", "hide", "asleep", "come_back", "log_line",
-        "scan", "install_node", "install_engine", "connect_agents", "finish", "open_url",
-        "update_info", "install_update",
+        "hit_areas",
+        "drag",
+        "prefs",
+        "set_pref",
+        "menu",
+        "hide",
+        "asleep",
+        "come_back",
+        "log_line",
+        "scan",
+        "install_node",
+        "install_engine",
+        "connect_agents",
+        "finish",
+        "open_url",
+        "update_info",
+        "install_update",
     ])))
     .expect("the app's commands");
 }

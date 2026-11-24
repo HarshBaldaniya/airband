@@ -25,7 +25,11 @@ pub fn offer_move() {
     let ask = r#"display dialog "Move Airband to your Applications folder? It opens from there and sets itself up." with title "Airband" buttons {"Not now", "Move to Applications"} default button "Move to Applications" with icon note"#;
     let answer = Command::new("osascript").args(["-e", ask]).output();
     match &answer {
-        Ok(o) => crate::log(&format!("install: asked from {path}: {} {}", String::from_utf8_lossy(&o.stdout).trim(), String::from_utf8_lossy(&o.stderr).trim())),
+        Ok(o) => crate::log(&format!(
+            "install: asked from {path}: {} {}",
+            String::from_utf8_lossy(&o.stdout).trim(),
+            String::from_utf8_lossy(&o.stderr).trim()
+        )),
         Err(e) => crate::log(&format!("install: couldn't ask: {e}")),
     }
     let moving = matches!(&answer, Ok(o) if String::from_utf8_lossy(&o.stdout).contains("Move to Applications"));
@@ -53,7 +57,11 @@ pub fn offer_move() {
         .filter(|v| v.join("Airband.app").exists())
         .map(|v| format!("'{}'", v.to_string_lossy().replace('\'', "")))
         .collect();
-    let eject = if volumes.is_empty() { String::new() } else { format!("; sleep 2; for v in {}; do hdiutil detach \"$v\" -quiet; done", volumes.join(" ")) };
+    let eject = if volumes.is_empty() {
+        String::new()
+    } else {
+        format!("; sleep 2; for v in {}; do hdiutil detach \"$v\" -quiet; done", volumes.join(" "))
+    };
     let _ = Command::new("sh").args(["-c", &format!("sleep 1; open /Applications/Airband.app{eject}")]).spawn();
     std::process::exit(0);
 }

@@ -1,0 +1,3 @@
+# Wide enough for the one-line struct literals and builder chains the app is written in.
+max_width = 120
+use_small_heuristics = "Max"

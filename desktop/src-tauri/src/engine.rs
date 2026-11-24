@@ -78,7 +78,12 @@ fn usual_places(name: &str) -> Vec<PathBuf> {
             programs.join("nodejs").join(format!("{name}.exe")),
         ]
     } else {
-        vec![home.join(".local").join("bin").join(name), PathBuf::from(format!("/opt/homebrew/bin/{name}")), PathBuf::from(format!("/usr/local/bin/{name}")), PathBuf::from(format!("/usr/bin/{name}"))]
+        vec![
+            home.join(".local").join("bin").join(name),
+            PathBuf::from(format!("/opt/homebrew/bin/{name}")),
+            PathBuf::from(format!("/usr/local/bin/{name}")),
+            PathBuf::from(format!("/usr/bin/{name}")),
+        ]
     }
 }
 
@@ -100,7 +105,11 @@ pub fn refresh_path() {
             Some(expand(&value, |k| std::env::var(k).ok()))
         };
         let now = std::env::var("PATH").unwrap_or_default();
-        let saved = [r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", r"HKCU\Environment"].iter().filter_map(|k| read(k)).collect::<Vec<_>>().join(";");
+        let saved = [r"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", r"HKCU\Environment"]
+            .iter()
+            .filter_map(|k| read(k))
+            .collect::<Vec<_>>()
+            .join(";");
         let merged = merge_path(&now, &saved);
         if merged != now {
             std::env::set_var("PATH", merged);
@@ -289,7 +298,8 @@ pub fn start(app: &AppHandle) {
                     opened = true;
                     break;
                 }
-                let exited = CHILD.lock().unwrap().as_mut().map(|c| c.try_wait().ok().flatten().is_some()).unwrap_or(true);
+                let exited =
+                    CHILD.lock().unwrap().as_mut().map(|c| c.try_wait().ok().flatten().is_some()).unwrap_or(true);
                 if exited {
                     break;
                 }
@@ -352,7 +362,10 @@ mod tests {
 
     #[test]
     fn adds_only_new_folders() {
-        assert_eq!(merge_path(r"C:\Windows;C:\npm\", r"c:\windows\;C:\npm;C:\Users\me\.local\bin;"), r"C:\Windows;C:\npm\;C:\Users\me\.local\bin");
+        assert_eq!(
+            merge_path(r"C:\Windows;C:\npm\", r"c:\windows\;C:\npm;C:\Users\me\.local\bin;"),
+            r"C:\Windows;C:\npm\;C:\Users\me\.local\bin"
+        );
         assert_eq!(merge_path("", "C:\\a"), "C:\\a");
     }
 }
