@@ -13,12 +13,11 @@
 .companion-figure.mood-hello .figure-motion { animation: figure-arrive-hop 0.9s cubic-bezier(0.3, 0.7, 0.4, 1) 1, figure-float 4.6s ease-in-out 0.9s infinite; }
 .companion-figure.mood-talking .figure-motion { animation: figure-nod 1.3s ease-in-out infinite; }
 .companion-figure.mood-dizzy .figure-motion { animation: figure-wobble 0.5s ease-in-out infinite; }
-/* Resting: it lands and sits. In each scene (Companion.tsx) it takes one slow breath while three
-   "z"s rise and the bubble swells: one beat for all. Between scenes it lies still, costing nothing. */
-.companion-figure.mood-resting .figure-motion { animation: none; transform: translateY(6%) scale(1.03, 0.96); transition: transform 0.9s cubic-bezier(0.3, 0.7, 0.3, 1); }
-.companion-figure.mood-resting .figure-shadow { animation: none; opacity: 0.55; transform: scale(1.15); }
-.companion-figure.mood-resting.scene .figure-motion { animation: figure-breathe 5.2s ease-in-out 1; }
-.companion-figure.mood-resting.scene .figure-shadow { animation: figure-shadow-breathe 5.2s ease-in-out 1; }
+/* Resting: it lands where dozing left it and breathes slowly the whole time it sleeps, so it never
+   looks frozen. A breath is a transform the graphics chip plays on its own, like the float. In
+   each scene (Companion.tsx) three "z"s rise and the bubble swells on the same beat. */
+.companion-figure.mood-resting .figure-motion { animation: figure-breathe 5.2s ease-in-out infinite; }
+.companion-figure.mood-resting .figure-shadow { animation: figure-shadow-breathe 5.2s ease-in-out infinite; }
 .companion-figure.gesture-wiggle .figure-motion { animation: figure-wiggle 0.9s ease-in-out; }
 .companion-figure.gesture-hop .figure-motion { animation: figure-arrive-hop 0.8s cubic-bezier(0.3, 0.7, 0.4, 1); }
 
@@ -28,7 +27,7 @@
 .companion-figure.phase-waking .figure-shadow { animation: figure-shadow-hop 1.2s ease-out; }
 
 /* Still: the float holds where it is, hovering, until something happens. Asleep, it still breathes. */
-.companion-figure.still:not(.scene) .figure-motion, .companion-figure.still:not(.scene) .figure-shadow { animation-play-state: paused; }
+.companion-figure.still:not(.scene):not(.mood-resting) .figure-motion, .companion-figure.still:not(.scene):not(.mood-resting) .figure-shadow { animation-play-state: paused; }
 
 @keyframes figure-breathe { 0%, 100% { transform: translateY(6%) scale(1.03, 0.96); } 50% { transform: translateY(4.6%) scale(1.005, 0.99); } }
 @keyframes figure-shadow-breathe { 0%, 100% { opacity: 0.55; transform: scale(1.15); } 50% { opacity: 0.45; transform: scale(1.08); } }
@@ -63,17 +62,18 @@
 @keyframes fx-glow { 0%, 100% { opacity: 0.35; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.15); } }
 @keyframes fx-wave { 0% { opacity: 0.9; transform: scale(0.5); } 100% { opacity: 0; transform: scale(2.8); } }
 
-/* Asleep: one small "z" rests over the head the whole time, so a glance always shows it sleeps (a
-   layer that holds still costs nothing to show, like the antenna's glow). In each scene three "z"s
-   drift up one after another, and the bubble swells with each breath. */
+/* Asleep: one small "z" stays over the head the whole time, rising a little and brightening with
+   each breath, so a glance always shows it sleeps. In each scene three "z"s drift up one after
+   another, and the bubble swells with the breath. */
 .companion-figure.mood-resting .fx-zzz, .companion-figure.mood-resting.scene .fx-bubble { display: block; }
 .companion-figure.mood-resting:not(.scene) .fx-zzz i { animation: none; opacity: 0; }
-.companion-figure.mood-resting:not(.scene) .fx-zzz i:first-child { opacity: 0.7; transform: translate(0.5em, -1.4em) scale(0.85) rotate(4deg); }
+.companion-figure.mood-resting:not(.scene) .fx-zzz i:first-child { animation: fx-z-rest 5.2s ease-in-out infinite; }
 .fx-zzz i { position: absolute; left: 0; top: 0; font: 700 1.5em/1 ui-rounded, -apple-system, "SF Pro Rounded", system-ui, sans-serif; font-style: normal; color: #cfd8ff; text-shadow: 0 0.05em 0.2em rgba(0, 0, 0, 0.35); opacity: 0; will-change: transform, opacity; animation: fx-z 3.6s ease-out 1 both; }
 .fx-zzz i:nth-child(2) { font-size: 1.2em; animation-delay: 0.8s; }
 .fx-zzz i:nth-child(3) { font-size: 0.95em; animation-delay: 1.6s; }
 /* They rise over the head with a little sway, so they stay inside the window at any screen edge. */
 @keyframes fx-z { 0% { opacity: 0; transform: translate(0, 0) scale(0.6) rotate(-8deg); } 18% { opacity: 0.95; } 55% { transform: translate(0.7em, -2em) scale(0.95) rotate(6deg); } 100% { opacity: 0; transform: translate(0.2em, -3.6em) scale(1.15) rotate(-4deg); } }
+@keyframes fx-z-rest { 0%, 100% { opacity: 0.5; transform: translate(0.5em, -1.2em) scale(0.8) rotate(2deg); } 50% { opacity: 0.85; transform: translate(0.65em, -1.75em) scale(0.92) rotate(7deg); } }
 .fx-bubble { width: 2.1em; height: 2.1em; margin: -1.05em 0 0 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.9), rgba(200, 228, 255, 0.4) 42%, rgba(200, 228, 255, 0.12) 72%); box-shadow: inset 0 0 0 0.06em rgba(255, 255, 255, 0.5); transform-origin: 0% 50%; will-change: transform, opacity; animation: fx-bubble 5.2s ease-in-out 1 both; }
 @keyframes fx-bubble { 0%, 100% { opacity: 0.5; transform: scale(0.3); } 50% { opacity: 0.95; transform: scale(1); } }
 

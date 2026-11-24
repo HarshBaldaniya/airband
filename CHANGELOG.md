@@ -13,8 +13,9 @@
   - A turn over 16 MB is still shared, from its end.
   - Hooks of several chats writing at once no longer lose each other's place. Each chat now keeps
     its place in its own file, and the inbox and the list of links change one writer at a time.
-- **Roger always looks asleep when he is.** Between his breathing scenes, one small "z" stays over
-  his head, with Reduce Motion on too.
+- **Roger always looks asleep when he is.** He breathes slowly the whole time he sleeps, and one
+  small "z" over his head rises and fades with each breath. Before, he lay frozen for up to a
+  minute and a half between scenes. With Reduce Motion on, the "z" stays still.
 - **Done means done, and working means working.** A finished chat showed as working again for a
   while, because the Claude app writes notes to the chat after a turn ends. Those no longer count.
   A chat that a Stop hook sends back to work now shows as working, not done.
