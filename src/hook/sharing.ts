@@ -28,7 +28,7 @@ const GEMINI_HOOK_MAX = 32 * MiB;
  * Codex append JSON lines (the cursor is a byte offset); Gemini CLI's file also
  * edits and rewinds earlier messages, so it is read whole (the cursor is a message count).
  */
-export function readSince(tool: AgentId, file: string, cursor: number, seen?: string[]): { messages: ChatMessage[]; files: string[]; next: number; seen?: string[] } {
+function readSince(tool: AgentId, file: string, cursor: number, seen?: string[]): { messages: ChatMessage[]; files: string[]; next: number; seen?: string[] } {
   if (tool === "gemini") {
     const chat = loadGeminiChat(file);
     if (!chat) return { messages: [], files: [], next: cursor, ...(seen ? { seen } : {}) };
@@ -133,7 +133,7 @@ export function keepRecord(input: HookInput, tool: AgentId = "claude"): void {
  * ended to its file, but hands it to the hook. It goes out now, and is remembered so the copy
  * that lands in the file later is not sent a second time.
  */
-export function withLatestReply(id: string, messages: ChatMessage[], input: HookInput): void {
+function withLatestReply(id: string, messages: ChatMessage[], input: HookInput): void {
   const before = getSentReply(id);
   if (before) {
     // Last time's reply, now in the file: it opens this read (after nothing, or after a tool step).

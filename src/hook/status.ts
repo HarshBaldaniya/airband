@@ -10,8 +10,8 @@ import { describeRequest } from "../station/reply";
 import type { HookInput } from "./input";
 
 /** The status events the hook writes itself: a chat sent back to work, and a Claude app chat starting. */
-export const CONTINUED = "Continued";
-export const STARTING = "Starting";
+const CONTINUED = "Continued";
+const STARTING = "Starting";
 
 export function statusFor(input: HookInput): Status | undefined {
   switch (input.hook_event_name) {
@@ -35,7 +35,7 @@ export function statusFor(input: HookInput): Status | undefined {
 }
 
 /** What a chat's status keeps from one event to the next: its agent, its file and the ask it works on. */
-export function carried(id: string, input: HookInput, tool: AgentId | undefined, status: Status): Pick<HookStatus, "tool" | "file" | "ask"> {
+function carried(id: string, input: HookInput, tool: AgentId | undefined, status: Status): Pick<HookStatus, "tool" | "file" | "ask"> {
   const was = readHookStatus(id);
   const said = input.prompt ? cleanText(input.prompt).replace(/\s+/g, " ").trim() : "";
   const ask = status === "idle" ? undefined : said ? said.slice(0, 200) : was?.ask;
