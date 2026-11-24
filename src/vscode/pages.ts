@@ -5,7 +5,7 @@ import * as path from "node:path";
 import type { CodeMap } from "../codemap/index";
 import { memberName } from "../codemap/graph";
 import type { CodeHitView, CodeMapView, CodeModuleView, LibraryView } from "../core/protocol";
-import { listHeads, readAsks } from "../core/record";
+import { listHeads, readAsks } from "../core/record/store";
 import { agentStates } from "../core/toolkit";
 import { allCommands, PACKS, userLibraryDir } from "../library/index";
 

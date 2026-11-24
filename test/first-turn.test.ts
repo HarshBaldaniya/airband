@@ -9,7 +9,7 @@ import * as path from "node:path";
 import { record } from "../src/hook/status";
 import { readHookStatus } from "../src/core/status";
 import { forgetReads, liveChats } from "../src/station/chats";
-import { updateRecord } from "../src/core/record";
+import { updateRecord } from "../src/core/record/update";
 import { claudeAppHost } from "../src/core/apps";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

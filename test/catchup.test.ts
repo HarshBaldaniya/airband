@@ -7,7 +7,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { CatchUp, needsCatchUp } from "../src/station/catchup";
 import { projectOf } from "../src/station/chats";
-import { readAsks, readHead } from "../src/core/record";
+import { readAsks, readHead } from "../src/core/record/store";
 import { statusDir } from "../src/core/paths";
 import type { Adapter } from "../src/adapters/adapter";
 import type { ChatSession } from "../src/core/types";

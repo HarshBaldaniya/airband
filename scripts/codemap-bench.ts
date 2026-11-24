@@ -8,7 +8,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { CodeMap } from "../src/codemap/index";
 import { words } from "../src/codemap/search";
-import { readAsksFrom } from "../src/core/record";
+import { readAsksFrom } from "../src/core/record/extract";
 import { claudeProjectFolder } from "../src/core/paths";
 
 const STOPISH = new Set(["the", "and", "for", "with", "this", "that", "here", "there", "what", "how", "lets", "let", "please", "make", "sure", "fix", "can", "also", "like", "way", "now", "all", "any", "some", "thing", "things", "want", "need"]);

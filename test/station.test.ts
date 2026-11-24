@@ -18,7 +18,7 @@ import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/st
 import { knowledge } from "../src/station/knowledge";
 import { cleanDesign, cleanName, DEFAULT_COMPANION } from "../src/station/companion";
 import { forgetReads, liveChats, renamedTitle, type LiveChat } from "../src/station/chats";
-import { readHead } from "../src/core/record";
+import { readHead } from "../src/core/record/store";
 import { editorCommand, windowsResumeLine } from "../src/station/open";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

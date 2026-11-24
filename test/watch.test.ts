@@ -9,7 +9,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { ChatWatch, WATCHED, chatOfFile, readWritten } from "../src/station/watch";
 import { readHookStatus } from "../src/core/status";
-import { readAsks, readHead } from "../src/core/record";
+import { readAsks, readHead } from "../src/core/record/store";
 import { statusDir, writeFileAtomic } from "../src/core/paths";
 import { forgetReads, liveChats } from "../src/station/chats";
 
@@ -104,7 +104,7 @@ test("an old chat that only gets a title, or is taken over by an app, is not wor
   const file = claudeChat();
   fs.writeFileSync(file, user("old ask") + reply("old reply"));
   // Its record is caught up to the end: what follows is all that is read.
-  const { updateRecord } = await import("../src/core/record");
+  const { updateRecord } = await import("../src/core/record/update");
   updateRecord(ID, "claude", file, { cwd: "/work/shop-frontend" });
   fs.appendFileSync(file, j({ type: "ai-title", aiTitle: "Old" }) + j({ type: "cost-state", totalCostUSD: 1 }));
   watch.touched(file);

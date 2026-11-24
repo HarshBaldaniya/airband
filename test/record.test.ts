@@ -5,18 +5,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
-import {
-  catchUpRecord,
-  exchangeText,
-  pruneRecords,
-  readAsks,
-  readAsksFrom,
-  readHead,
-  recordContext,
-  renderAsk,
-  setRecordTitle,
-  updateRecord,
-} from "../src/core/record";
+import { catchUpRecord, updateRecord } from "../src/core/record/update";
+import { exchangeText, readAsksFrom } from "../src/core/record/extract";
+import { pruneRecords, readAsks, readHead, setRecordTitle } from "../src/core/record/store";
+import { recordContext, renderAsk } from "../src/core/record/render";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 beforeEach(() => {
@@ -237,7 +229,7 @@ test("tickets, issues, bare PR numbers and Figma links are kept, from the ask an
 // ---- the summary a phone notification carries ----
 
 test("a finished reply becomes a short summary: the outcome, then up to three key points", async () => {
-  const { briefOf } = await import("../src/core/record");
+  const { briefOf } = await import("../src/core/record/summary");
   const reply = [
     "Airband 0.0.8 is released, and every part on your Mac now runs it.",
     "",
@@ -261,7 +253,7 @@ test("a finished reply becomes a short summary: the outcome, then up to three ke
 });
 
 test("a reply that leaves the next step to the person is your turn; a finished one is not", async () => {
-  const { briefOf, sentenceClip } = await import("../src/core/record");
+  const { briefOf, sentenceClip } = await import("../src/core/record/summary");
   const handBack = "I've prepared 0.0.8, committed and tagged it locally, but nothing is pushed yet: npm has to get 0.0.8 first, and only you can publish there.\n\n## Your step\nRun npm publish, then tell me \"published\".";
   assert.match(briefOf(handBack), /only you can publish there\.$/m);
   assert.equal(sentenceClip("One sentence here. And a second one that is long enough to go past the limit we set.", 40), "One sentence here.");

@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as http from "node:http";
 import * as path from "node:path";
 import { airbandFile, safeId, statusDir, writeFileAtomic } from "../core/paths";
-import { readHead } from "../core/record";
+import { readHead } from "../core/record/store";
 import { appendInbox } from "../core/store";
 import type { Status } from "../core/types";
 import { VERSION } from "../core/version";

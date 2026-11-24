@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { ClaudeAdapter } from "../adapters/claude";
 import { codexUsage } from "../adapters/codex";
 import { geminiUsage, loadGeminiChat } from "../adapters/gemini";
-import { listHeads, readAsks, recordName, type RecordAsk, type RecordHead } from "./record";
+import { listHeads, readAsks, recordName, type RecordAsk, type RecordHead } from "./record/store";
 import { addUsage, readLinesFrom } from "./transcript";
 import { NO_USAGE, type ChatSession, type Usage } from "./types";
 import { AGENTS } from "./agents";

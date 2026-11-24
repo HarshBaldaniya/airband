@@ -8,7 +8,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { fenced, fenceNote, newFenceTag } from "../core/fence";
 import { listNotes, readNote, saveNote } from "../core/notes";
-import { catchUpRecord, exchangeText, listHeads, readAsks, recordBehind, recordName, type RecordAsk, type RecordHead } from "../core/record";
+import { catchUpRecord, recordBehind } from "../core/record/update";
+import { exchangeText } from "../core/record/extract";
+import { listHeads, readAsks, recordName, type RecordAsk, type RecordHead } from "../core/record/store";
 import { CodeMap } from "../codemap/index";
 import { diffReport, renderDiff } from "../codemap/diff";
 import { findProject } from "../codemap/where";

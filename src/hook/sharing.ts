@@ -3,7 +3,10 @@
 import { toolOf, type AgentId } from "../core/agents";
 import { buildUpdate, formatDelivery } from "../core/delivery";
 import { sameFolder } from "../core/paths";
-import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
+import { HOOK_STEP_MAX, readHead } from "../core/record/store";
+import { readAsksFrom } from "../core/record/extract";
+import { recordBehind, updateRecord } from "../core/record/update";
+import { renderAsks } from "../core/record/render";
 import { addConnection, appendInbox, getSentReply, logDelivery, matchPending, readConnections, readCursor, readInbox, removePending, setCursor, setSentReply, takeInbox } from "../core/store";
 import { claudeMessages, cleanText, fileSize, readLinesFrom } from "../core/transcript";
 import type { ChatMessage, InboxItem } from "../core/types";
