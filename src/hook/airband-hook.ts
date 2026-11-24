@@ -41,6 +41,7 @@ import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder 
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
 import { askStation } from "../station/client";
+import { readHookStatus } from "../core/status";
 import { describeRequest, permissionReply } from "../station/reply";
 import { briefFor, checkOutgoing, checkWrittenDoc, forgetGiven, holdOnce, notYetGiven, outgoingText, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
 
@@ -97,11 +98,20 @@ export function statusFor(input: HookInput): Status | undefined {
   }
 }
 
-export function record(input: HookInput, now = Date.now()): void {
+/** What a chat's status keeps from one event to the next: its agent, its file and the ask it works on. */
+function carried(id: string, input: HookInput, tool: HookTool | undefined, status: Status): Pick<HookStatus, "tool" | "file" | "ask"> {
+  const was = readHookStatus(id);
+  const ask = status === "idle" ? undefined : input.prompt?.trim() ? input.prompt.trim().slice(0, 200) : was?.ask;
+  const file = input.transcript_path ?? was?.file;
+  const t = tool ?? was?.tool;
+  return { ...(t ? { tool: t } : {}), ...(file ? { file } : {}), ...(ask ? { ask } : {}) };
+}
+
+export function record(input: HookInput, now = Date.now(), tool?: HookTool): void {
   const id = input.session_id;
   const status = statusFor(input);
   if (!id || !status || !safeId(id)) return;
-  const entry: HookStatus = { status, at: now, event: input.hook_event_name!, cwd: input.cwd };
+  const entry: HookStatus = { status, at: now, event: input.hook_event_name!, cwd: input.cwd, ...carried(id, input, tool, status) };
   if (status === "waiting" && input.message) entry.message = input.message.slice(0, 200);
   else if (status === "waiting" && input.tool_name) {
     const d = describeRequest(input.tool_name, input.tool_input);
@@ -287,7 +297,7 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
   // The app's own questions to Claude Code (what its companion looks up) are not chats of yours.
   if (process.env.AIRBAND_COMPANION) return undefined;
   const input = normalise(raw, tool);
-  record(input, now);
+  record(input, now, tool);
   switch (input.hook_event_name) {
     case "Stop": {
       // The person's own message, sent through the app while the chat worked: it goes in before
@@ -451,7 +461,7 @@ export async function permission(raw: HookInput, tool: HookTool, now = Date.now(
   // Answered or not, the chat is no longer waiting on the app.
   if (answer && raw.session_id && safeId(raw.session_id)) {
     try {
-      writeFileAtomic(path.join(statusDir(), `${raw.session_id}.json`), JSON.stringify({ status: "working", at: Date.now(), event: "PermissionAnswered", cwd: raw.cwd } satisfies HookStatus));
+      writeFileAtomic(path.join(statusDir(), `${raw.session_id}.json`), JSON.stringify({ status: "working", at: Date.now(), event: "PermissionAnswered", cwd: raw.cwd, ...carried(raw.session_id, raw, tool, "working") } satisfies HookStatus));
     } catch {
       // Only a status.
     }

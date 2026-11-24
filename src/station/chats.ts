@@ -2,12 +2,12 @@
 // now: read from Airband's own records (the flightlog) and the status each chat's hook writes.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { airbandHome } from "../core/paths";
+import { airbandHome, safeId, statusDir } from "../core/paths";
 import { listHeads, readAsks, setRecordTitle, type RecordHead, type RecordTool } from "../core/record";
 import { chatApp, type ChatApp } from "../core/apps";
 import { agentSummary } from "../core/setup";
 import { readHookStatus, resolveStatus } from "../core/status";
-import type { Status } from "../core/types";
+import type { HookStatus, Status } from "../core/types";
 
 export type Agent = RecordTool;
 export const AGENT_NAME: Record<Agent, string> = { claude: "Claude Code", codex: "Codex", gemini: "Gemini CLI" };
@@ -212,7 +212,45 @@ export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60):
       since: hook?.at ?? last,
     });
   }
+  out.push(...startingChats(new Set(out.map((c) => c.id)), now, windowMs));
   return out.sort((a, b) => ORDER[a.status] - ORDER[b.status] || b.updatedAt - a.updatedAt).slice(0, limit);
+}
+
+/** A new chat gets its record when its first turn ends, so until then the hook's status is all
+ *  there is: a chat working on its first ask (or asking you something in it) is listed from it. */
+const STARTING_MS = 30 * 60_000;
+function startingChats(listed: Set<string>, now: number, windowMs: number): LiveChat[] {
+  let names: string[];
+  try {
+    names = fs.readdirSync(statusDir()).filter((n) => n.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const out: LiveChat[] = [];
+  for (const name of names) {
+    const id = name.slice(0, -5);
+    if (listed.has(id) || !safeId(id)) continue;
+    const hook = readHookStatus(id) as HookStatus | undefined;
+    if (!hook?.tool || !AGENT_NAME[hook.tool] || (hook.status !== "working" && hook.status !== "waiting")) continue;
+    if (now - hook.at > Math.min(windowMs, STARTING_MS)) continue;
+    const r = resolveStatus(mtime(hook.file) ?? hook.at, hook, now);
+    if (r.status !== "working" && r.status !== "waiting") continue;
+    const app = hook.file ? chatApp(hook.tool, hook.file) : undefined;
+    out.push({
+      id,
+      agent: hook.tool,
+      title: short(hook.ask, 70) ?? id.slice(0, 8),
+      project: projectOf(hook.cwd),
+      ...(hook.cwd ? { cwd: hook.cwd } : {}),
+      ...(app ? { app } : {}),
+      status: r.status,
+      ...(r.line ? { line: short(r.line, 200) } : {}),
+      ...(hook.ask ? { lastAsk: short(hook.ask, 200) } : {}),
+      updatedAt: hook.at,
+      since: hook.at,
+    });
+  }
+  return out;
 }
 
 /** Words that say nothing about which chat is meant. */

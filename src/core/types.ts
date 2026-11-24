@@ -153,6 +153,11 @@ export interface HookStatus {
   event: string;
   cwd?: string;
   message?: string;
+  /** The agent and the chat's own file, so Roger can list a new chat before its record exists. */
+  tool?: "claude" | "codex" | "gemini";
+  file?: string;
+  /** The person's latest ask, while the chat works on it (a new chat's title until then). */
+  ask?: string;
 }
 
 /** One plan limit as the agent reports it: how much of it is used, and when it starts over. */

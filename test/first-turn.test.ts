@@ -1,0 +1,75 @@
+// A new chat has no record until its first turn ends, so Roger lists it from the hook's status:
+// working on its first ask, with that ask as its title, and done once its record exists. The
+// Claude app's own id for a chat comes from its running agent too, so Open can show it there.
+import { test, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { record } from "../src/hook/airband-hook";
+import { readHookStatus } from "../src/core/status";
+import { forgetReads, liveChats } from "../src/station/chats";
+import { updateRecord } from "../src/core/record";
+import { claudeAppHost } from "../src/core/apps";
+
+const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
+const j = (o: unknown) => JSON.stringify(o) + "\n";
+const ID = "bbbb2222-0000-4000-8000-000000000002";
+
+let file = "";
+beforeEach(() => {
+  process.env.AIRBAND_HOME = tmp("airband-first-home-");
+  const dir = path.join(tmp("airband-first-claude-"), "-work-shop");
+  fs.mkdirSync(dir, { recursive: true });
+  file = path.join(dir, `${ID}.jsonl`);
+  fs.writeFileSync(file, j({ type: "user", cwd: "/work/shop", entrypoint: "claude-desktop", message: { role: "user", content: "Fix the cart total" } }));
+  forgetReads();
+});
+
+test("the hook's status keeps the agent, the chat's file and the ask from one event to the next", () => {
+  const now = Date.now();
+  record({ session_id: ID, hook_event_name: "UserPromptSubmit", cwd: "/work/shop", transcript_path: file, prompt: "Fix the cart total" }, now, "claude");
+  record({ session_id: ID, hook_event_name: "PostToolUse", cwd: "/work/shop", tool_name: "Bash" }, now + 1, "claude");
+  assert.deepEqual(readHookStatus(ID), { status: "working", at: now + 1, event: "PostToolUse", cwd: "/work/shop", tool: "claude", file, ask: "Fix the cart total" });
+  record({ session_id: ID, hook_event_name: "SessionEnd", cwd: "/work/shop" }, now + 2, "claude");
+  assert.equal(readHookStatus(ID)?.ask, undefined, "an ended chat works on nothing");
+});
+
+test("a new chat shows as working on its first ask, before it has a record, and once only after", () => {
+  const now = Date.now();
+  record({ session_id: ID, hook_event_name: "UserPromptSubmit", cwd: "/work/shop", transcript_path: file, prompt: "Fix the cart total" }, now, "claude");
+  const listed = liveChats(now).filter((c) => c.id === ID);
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0].status, "working");
+  assert.equal(listed[0].title, "Fix the cart total");
+  assert.equal(listed[0].project, "shop");
+  assert.equal(listed[0].app, "claude-app", "Open shows it where it runs");
+
+  // The turn ends: the hook writes the record, and the chat is listed from it, once.
+  fs.appendFileSync(file, j({ type: "assistant", message: { id: "m1", role: "assistant", content: [{ type: "text", text: "Fixed." }] } }));
+  updateRecord(ID, "claude", file, { cwd: "/work/shop" });
+  record({ session_id: ID, hook_event_name: "Stop", cwd: "/work/shop", transcript_path: file }, now + 5, "claude");
+  forgetReads();
+  const after = liveChats(now + 5).filter((c) => c.id === ID);
+  assert.equal(after.length, 1);
+  assert.equal(after[0].status, "done");
+});
+
+test("a status with no agent (an older hook), or one that only finished, adds no chat", () => {
+  const now = Date.now();
+  record({ session_id: ID, hook_event_name: "UserPromptSubmit", cwd: "/work/shop", prompt: "hi" }, now);
+  assert.equal(liveChats(now).some((c) => c.id === ID), false);
+  record({ session_id: ID, hook_event_name: "Stop", cwd: "/work/shop", transcript_path: file }, now, "claude");
+  assert.equal(liveChats(now).some((c) => c.id === ID), false);
+});
+
+test("the Claude app's id for a chat its agent runs now", () => {
+  const dir = tmp("airband-first-sessions-");
+  fs.writeFileSync(path.join(dir, "19045.json"), JSON.stringify({ pid: 19045, sessionId: ID, hostSessionId: "local_9739f939", entrypoint: "claude-desktop" }));
+  fs.writeFileSync(path.join(dir, "200.json"), JSON.stringify({ pid: 200, sessionId: "other", hostSessionId: "local_x" }));
+  fs.writeFileSync(path.join(dir, "300.json"), JSON.stringify({ pid: 300, sessionId: "cli-chat" }));
+  fs.writeFileSync(path.join(dir, "400.json"), "{ half");
+  assert.equal(claudeAppHost(ID, dir), "local_9739f939");
+  assert.equal(claudeAppHost("cli-chat", dir), undefined, "a chat in a terminal has no app id");
+  assert.equal(claudeAppHost(ID, path.join(dir, "missing")), undefined);
+});

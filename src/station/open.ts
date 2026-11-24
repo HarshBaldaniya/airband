@@ -15,7 +15,7 @@
 import { execFileSync, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { claudeAppChats, claudeAppLink, codexAppLink } from "../core/apps";
+import { claudeAppChats, claudeAppHost, claudeAppLink, codexAppLink } from "../core/apps";
 import { addOpenRequest, windowFor } from "../core/folders";
 import { findCommand } from "../core/hooks";
 import { claudeHome } from "../core/paths";
@@ -248,7 +248,7 @@ function openLink(url: string): boolean {
 function openInApp(chat: Pick<LiveChat, "id" | "agent">, app: "claude-app" | "codex-app"): string | undefined {
   if (app === "codex-app") return chat.agent === "codex" && openLink(codexAppLink(chat.id)) ? "Showing it in the Codex app." : undefined;
   if (chat.agent !== "claude") return undefined;
-  const local = claudeAppChats().get(chat.id);
+  const local = claudeAppChats().get(chat.id) ?? claudeAppHost(chat.id);
   return local && openLink(claudeAppLink(local)) ? "Showing it in the Claude app." : undefined;
 }
 
@@ -311,6 +311,11 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" |
     const said = openInApp(chat, "claude-app");
     if (said) return said;
   }
+  // A chat of the Claude app or the Codex app is never resumed in Terminal: the terminal's agent
+  // may be older than the app's, and a second copy fights the app over a chat it still holds. When
+  // the app's link didn't show it, the app itself comes forward.
+  const home = chat.app === "claude-app" && chat.agent === "claude" ? "Claude" : chat.app === "codex-app" && chat.agent === "codex" ? "Codex" : undefined;
+  if (home && process.platform === "darwin" && run("open", ["-a", home])) return `Showing the ${home} app. The chat is in its list.`;
   // 6. Resume it in a new terminal window: the lightest way to see it.
   const resume = RESUME[chat.agent](chat.id);
   const line = chat.cwd ? `cd ${quote(chat.cwd)} && ${resume}` : resume;

@@ -5,6 +5,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { claudeHome } from "./paths";
 
 export type ChatApp = "claude-app" | "codex-app" | "vscode" | "terminal";
 
@@ -110,6 +111,27 @@ export function claudeAppChats(dir = claudeAppDir()): Map<string, string> {
     }
   }
   return out;
+}
+
+/** The Claude app's own id for a chat its agent runs now: Claude Code's record of a running chat
+ *  (<config>/sessions/<pid>.json) names the app's chat as `hostSessionId`. Found even before the
+ *  app lists the chat. */
+export function claudeAppHost(id: string, dir = path.join(claudeHome(), "sessions")): string | undefined {
+  let files: string[];
+  try {
+    files = fs.readdirSync(dir).filter((f) => /^\d+\.json$/.test(f));
+  } catch {
+    return undefined;
+  }
+  for (const f of files) {
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")) as { sessionId?: string; hostSessionId?: string };
+      if (j.sessionId === id && typeof j.hostSessionId === "string" && /^local_[A-Za-z0-9-]{1,64}$/.test(j.hostSessionId)) return j.hostSessionId;
+    } catch {
+      // A file being written.
+    }
+  }
+  return undefined;
 }
 
 /** The link that shows one chat in the Claude app's Code tab. */

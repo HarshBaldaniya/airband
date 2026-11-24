@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+- **A new chat shows as working from its first message.** Roger listed a chat only once its first
+  turn had ended, so a new chat appeared already done. It now shows as working on your first ask,
+  with that ask as its title.
+- **A Claude app chat is never resumed in Terminal.** If the app's link can't show the chat,
+  Roger brings the Claude app forward instead. A Terminal copy of a chat the app still holds
+  failed with "No conversation found". Roger also finds the app's chat from its running agent, so
+  a chat the app hasn't listed yet still opens there. The Codex app works the same way.
+
 ## 0.1.6
 - **Open shows a chat in the app it lives in.** A chat in the Claude app's Code tab opens there,
   at that exact chat, and so does a Claude Code chat the Claude app lists, instead of a new
