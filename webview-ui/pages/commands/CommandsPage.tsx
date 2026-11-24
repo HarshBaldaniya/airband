@@ -166,14 +166,21 @@ export function CommandsPage() {
   );
 }
 
+/** How long "Copied" shows. */
+const COPIED_MS = 1400;
+
 /** What a command is for, and how to use it. */
 function Details({ c, agents, agent, setAgent, back }: { c: Cmd; agents: typeof AGENTS; agent: (typeof AGENTS)[number]; setAgent: (id: AgentId) => void; back: () => void }) {
   const [copied, setCopied] = useState(false);
   const main = c.args.find((a) => a.required);
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), COPIED_MS);
+    return () => clearTimeout(t);
+  }, [copied]);
   const copy = () => {
     send({ type: "libraryCopy", name: c.name, text: agent.form(c.name) });
     setCopied(true);
-    setTimeout(() => setCopied(false), 1400);
   };
   return (
     <article className="libdetail">

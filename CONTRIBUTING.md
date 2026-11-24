@@ -43,10 +43,11 @@ when `AIRBAND_TEST_DIR` names a folder that has some; otherwise they are skipped
 | `src/cli/` | The `airband` command |
 | `src/station/` | The Station: the local server Roger and the phone page talk to |
 | `src/remote/` | The end-to-end lock and Web Push for the iPhone link |
-| `src/vscode/` | The VS Code extension: the sidebar, the board pages and their services |
-| `webview-ui/` | The extension's pages (React): Tower, Fuel, Map, Commands, the sidebar |
-| `companion/` | Roger's screens (React), served by the Station: `figure/` (Roger himself), `views/` (the desktop corner), `phone/` (the iPhone app) |
-| `desktop/` | The desktop app (Tauri and Rust) and its setup tour; see [desktop/README.md](desktop/README.md) |
+| `src/vscode/` | The VS Code extension: the controller, the message router, one service per job (chats, sharing, opening chats, plans, setup, the Map and Commands pages) and the webview protocol |
+| `webview-ui/` | The extension's pages (React): `app/` (the shell and its contexts), `sidebar/`, `board/` (the tabs and the Tower), `pages/` (Fuel, Map, Commands, Writing), `components/`, `lib/` and `styles/` (one file per area, in cascade order) |
+| `companion/` | Roger's screens (React), served by the Station: `figure/` (Roger himself), `state/` (his mood and words), `api/` (the Station and the desktop app), `components/`, `views/` (the desktop corner), `phone/` (the iPhone app) |
+| `shared/` | What every screen shares: the agents' logos, the time-ago rounding, the brand and status colours |
+| `desktop/` | The desktop app (Tauri and Rust) and its setup tour (`desktop/tour/`); see [desktop/README.md](desktop/README.md) |
 | `relay/` | The Cloudflare Worker that carries the locked iPhone messages |
 | `skills/` | The skills set up in each agent |
 | `site/` | The website, [airband.harshbaldaniya.com](https://airband.harshbaldaniya.com); see [site/README.md](site/README.md) |
