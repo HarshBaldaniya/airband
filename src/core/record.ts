@@ -9,7 +9,7 @@ import { redact } from "./redact";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { codexMessages } from "../adapters/codex";
-import { geminiMessages, loadGeminiChat } from "../adapters/gemini";
+import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../adapters/gemini";
 import { claudeProjectsDir, codexSessionsDir, airbandFile, geminiTmpDir, readJson, safeId, writeFileAtomic } from "./paths";
 import { claudeMessages, fileSize, readLinesFrom } from "./transcript";
 import { fullPath, relativeTo } from "./updates";
@@ -48,6 +48,8 @@ export interface RecordHead {
   cursor: number;
   /** Asks recorded. */
   n: number;
+  /** Gemini CLI: the ids of the last messages read, to find the place again after a rewind. */
+  seen?: string[];
   /** The first thing asked: what the chat set out to do. */
   goal?: string;
   updatedAt: number;
@@ -445,17 +447,19 @@ export function readAsksFrom(
   file: string,
   cursor: number,
   firstN: number,
-  opts: { maxBytes?: number; lastReply?: string; now?: number; holdOpen?: boolean } = {},
-): { asks: RecordAsk[]; next: number; trailing?: string } {
+  opts: { maxBytes?: number; lastReply?: string; now?: number; holdOpen?: boolean; seen?: string[] } = {},
+): { asks: RecordAsk[]; next: number; trailing?: string; seen?: string[] } {
   const now = opts.now ?? Date.now();
   let ex: Exchange[];
   let next: number;
+  let seen: string[] | undefined;
   if (tool === "gemini") {
     const all = loadGeminiChat(file)?.messages ?? [];
-    const from = Math.min(cursor, all.length);
+    const from = geminiStart(all, cursor, opts.seen);
     const { messages, files } = geminiMessages(all.slice(from));
     ex = exchangesInMessages(messages, files, from, now);
     next = all.length;
+    seen = geminiSeen(all, next);
   } else {
     // Read in slices, an ask is only recorded once its whole reply is in: the last ask of a slice
     // is read again with the next one, and a slice holding a single huge ask grows until it ends.
@@ -486,7 +490,7 @@ export function readAsksFrom(
     last.reply = last.reply ? `${last.reply}\n\n${opts.lastReply}` : opts.lastReply;
     last.last = opts.lastReply;
   }
-  return { asks: ex.map((e, i) => toAsk(e, firstN + i)), next, trailing };
+  return { asks: ex.map((e, i) => toAsk(e, firstN + i)), next, trailing, ...(seen ? { seen } : {}) };
 }
 
 /**
@@ -511,13 +515,13 @@ export function updateRecord(
     fs.rmSync(asksFile(id), { force: true });
     head = { ...head, cursor: 0, n: 0 };
   }
-  const { asks, next } = readAsksFrom(tool, file, head.cursor, head.n + 1, { maxBytes: opts.maxBytes, lastReply: opts.lastReply, now, holdOpen: opts.holdOpen });
+  const { asks, next, seen } = readAsksFrom(tool, file, head.cursor, head.n + 1, { maxBytes: opts.maxBytes, lastReply: opts.lastReply, now, holdOpen: opts.holdOpen, seen: head.seen });
   if (asks.length) {
     fs.mkdirSync(dir(), { recursive: true });
     fs.appendFileSync(asksFile(id), asks.map((a) => JSON.stringify(a)).join("\n") + "\n");
   }
   const goal = head.goal ?? (asks[0] ? clip(asks[0].ask, 240) : undefined);
-  writeHead({ ...head, file, goal, cwd: opts.cwd ?? head.cwd, title: opts.title ?? head.title, cursor: next, n: head.n + asks.length, updatedAt: asks.length || next !== head.cursor ? now : head.updatedAt });
+  writeHead({ ...head, file, goal, cwd: opts.cwd ?? head.cwd, title: opts.title ?? head.title, cursor: next, n: head.n + asks.length, ...(seen ? { seen } : {}), updatedAt: asks.length || next !== head.cursor ? now : head.updatedAt });
   return asks;
 }
 

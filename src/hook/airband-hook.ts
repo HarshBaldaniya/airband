@@ -23,20 +23,23 @@ import { safeId, statusDir, writeFileAtomic } from "../core/paths";
 import {
   addConnection,
   appendInbox,
-  getCursor,
   getSentReply,
   logDelivery,
   matchPending,
   readConnections,
   removePending,
   setCursor,
+  readCursor,
   readInbox,
   setSentReply,
+  setStopBlock,
   takeInbox,
+  takeStopBlock,
+  type StopBlock,
 } from "../core/store";
 import { claudeMessages, cleanText, fileSize, readLinesFrom } from "../core/transcript";
 import { codexMessages } from "../adapters/codex";
-import { geminiMessages, loadGeminiChat } from "../adapters/gemini";
+import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../adapters/gemini";
 import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
@@ -79,7 +82,9 @@ const TOOL_NAME: Record<HookTool, Tool> = { claude: "Claude", codex: "Codex", ge
 
 export function normalise(input: HookInput, tool: HookTool): HookInput {
   const name = input.hook_event_name ?? "";
-  return { ...input, hook_event_name: EVENT_ALIASES[tool][name] ?? name };
+  // Gemini CLI hands over the reply that just ended as prompt_response: one name for it everywhere.
+  const reply = input.last_assistant_message ?? input.prompt_response;
+  return { ...input, hook_event_name: EVENT_ALIASES[tool][name] ?? name, ...(reply != null ? { last_assistant_message: reply } : {}) };
 }
 
 export function statusFor(input: HookInput): Status | undefined {
@@ -148,24 +153,31 @@ export function record(input: HookInput, now = Date.now(), tool?: HookTool): voi
  * Codex append JSON lines (the cursor is a byte offset); Gemini CLI's file also
  * edits and rewinds earlier messages, so it is read whole (the cursor is a message count).
  */
-export function readSince(tool: HookTool, file: string, cursor: number): { messages: ChatMessage[]; files: string[]; next: number } {
+export function readSince(tool: HookTool, file: string, cursor: number, seen?: string[]): { messages: ChatMessage[]; files: string[]; next: number; seen?: string[] } {
   if (tool === "gemini") {
     const chat = loadGeminiChat(file);
-    if (!chat) return { messages: [], files: [], next: cursor };
+    if (!chat) return { messages: [], files: [], next: cursor, ...(seen ? { seen } : {}) };
     const all = chat.messages ?? [];
-    return { ...geminiMessages(all.slice(Math.min(cursor, all.length))), next: all.length };
+    return { ...geminiMessages(all.slice(geminiStart(all, cursor, seen))), next: all.length, seen: geminiSeen(all, all.length) };
   }
   const { lines, next } = readLinesFrom(file, cursor);
   return { ...(tool === "codex" ? codexMessages(lines) : claudeMessages(lines)), next };
 }
 
-/** Where a chat's record ends now, in its tool's cursor units. */
-/** Gemini CLI keeps a chat as one JSON file, read whole: past this size the hook leaves it to the extension. */
+/** Gemini CLI keeps a chat as one JSON file, read whole: past this size the hook doesn't read it. */
 const GEMINI_HOOK_MAX = 32 * 1024 * 1024;
 
+/** Where a chat's file ends now, in its tool's cursor units. */
 export function endOf(tool: HookTool, file: string): number {
   if (tool !== "gemini") return fileSize(file);
   return loadGeminiChat(file)?.messages?.length ?? 0;
+}
+
+/** Moves a chat's bookmark to the end of its file: nothing said so far is sent on. */
+function markRead(id: string, tool: HookTool, file: string): void {
+  if (tool !== "gemini") return setCursor(id, fileSize(file));
+  const all = loadGeminiChat(file)?.messages ?? [];
+  setCursor(id, all.length, geminiSeen(all, all.length));
 }
 
 /**
@@ -174,35 +186,38 @@ export function endOf(tool: HookTool, file: string): number {
  */
 export function sendUpdates(input: HookInput, now = Date.now(), tool: HookTool = "claude"): number {
   const id = input.session_id;
-  if (!id || !input.transcript_path) return 0;
+  const file = input.transcript_path;
+  if (!id || !file) return 0;
   const outgoing = readConnections().filter((c) => c.from.id === id && !c.paused);
+  const cursor = readCursor(id);
   if (!outgoing.length) {
     // Not shared right now: the bookmark still moves with each reply, so a link made later starts
     // from then (its context covers the past) instead of sending everything said since.
-    if (getCursor(id) !== undefined) setCursor(id, endOf(tool, input.transcript_path));
+    if (cursor) markRead(id, tool, file);
     return 0;
   }
-  const from = getCursor(id);
-  if (from === undefined) {
+  if (!cursor) {
     // Never read before: start from here rather than resend its whole past.
-    setCursor(id, endOf(tool, input.transcript_path));
+    markRead(id, tool, file);
     return 0;
   }
-  // A chat that grew a lot while sharing was off (hundreds of MB) is not read here: the hook has a
-  // few seconds, and a read that never finishes would never move the bookmark either. Skip ahead;
-  // what was said is in the flightlog, which the extension catches up on its own.
-  if (tool === "gemini" && fileSize(input.transcript_path) > GEMINI_HOOK_MAX) return 0;
-  if (tool !== "gemini" && fileSize(input.transcript_path) - from > HOOK_STEP_MAX) {
-    setCursor(id, fileSize(input.transcript_path));
+  // Too big to read in the few seconds a hook has: the bookmark moves on, so the next reply is
+  // shared again.
+  if (tool === "gemini" && fileSize(file) > GEMINI_HOOK_MAX) {
+    markRead(id, tool, file);
     return 0;
   }
-  // The words themselves are read only when a link asks for them.
-  const words = outgoing.some((c) => c.level === "full") ? readSince(tool, input.transcript_path, from) : undefined;
-  if (words) withLatestReply(id, words.messages, input);
-  const { asks, next, trailing } = readAsksFrom(tool, input.transcript_path, from, 1, { lastReply: input.last_assistant_message ?? undefined });
-  setCursor(id, words?.next ?? next);
-  // A reply read with no ask before it: the end of one already sent (skipped), or more work on it.
+  // The bookmark moves with every reply, so this much new text is one turn (big tool output,
+  // pictures). Its end is read: that is where the turn's reply is.
+  const from = tool !== "gemini" && fileSize(file) - cursor.at > HOOK_STEP_MAX ? fileSize(file) - HOOK_STEP_MAX : cursor.at;
+  // The reply already sent, read before this reply takes its place.
   const sentBefore = getSentReply(id);
+  // The words themselves are read only when a link asks for them.
+  const words = outgoing.some((c) => c.level === "full") ? readSince(tool, file, from, cursor.seen) : undefined;
+  if (words) withLatestReply(id, words.messages, input);
+  const { asks, next, trailing, seen } = readAsksFrom(tool, file, from, 1, { lastReply: input.last_assistant_message ?? undefined, seen: cursor.seen });
+  setCursor(id, words?.next ?? next, words?.seen ?? seen);
+  // A reply read with no ask before it: the end of one already sent (skipped), or more work on it.
   if (trailing && !(sentBefore && trailing.includes(sentBefore.trim().slice(0, 200)))) {
     asks.unshift({ n: 0, at: now, ask: "(continuing)", did: trailing.replace(/\s+/g, " ").trim().slice(0, 400), files: [], refs: [], src: [from, from] });
   }
@@ -325,32 +340,40 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
     case "Stop": {
       // The person's own message, sent through the app while the chat worked: it goes in before
       // the chat stops, so the turn carries on with it (in every agent, the hook's "block").
-      // A "block" sends the chat back to work: it is working, not done, until its next Stop.
-      const goOn = (reply: string) => {
+      // A "block" sends the chat back to work: it is working, not done, until its next Stop, and
+      // that Stop is told apart by why it was sent back.
+      const goOn = (why: StopBlock, reply: string) => {
+        if (input.session_id && safeId(input.session_id)) setStopBlock(input.session_id, why);
         continued(input, now, tool);
         return reply;
       };
+      // Sent back to work by Airband with linked chats' updates, this turn only acknowledged them.
+      // Any other turn after a block (the person's own message, another tool's Stop hook) is work.
+      const ackOnly = !!input.stop_hook_active && !!input.session_id && takeStopBlock(input.session_id) === "updates";
       if (personWaiting(input.session_id)) {
-        if (!input.stop_hook_active) {
+        if (!ackOnly) {
           keepRecord(input, tool);
           sendUpdates(input, now, tool);
         }
         const d = deliver(input, now);
         if (d) {
           const notice = tool === "claude" && noticesOn() ? deliveryNotice(d.items) : undefined;
-          return goOn(JSON.stringify({ decision: "block", reason: `${d.text}\n\n${PERSON_ASK}`, ...(notice ? { systemMessage: notice } : {}) }));
+          return goOn("person", JSON.stringify({ decision: "block", reason: `${d.text}\n\n${PERSON_ASK}`, ...(notice ? { systemMessage: notice } : {}) }));
         }
       }
-      if (input.stop_hook_active) {
-        // This turn only acknowledged delivered updates: skip it, so linked chats never ping-pong.
+      if (ackOnly) {
+        // Skipped, so linked chats never ping-pong. Its reply is remembered, so the copy that lands
+        // in the file after this hook is not taken for new work next time.
         if (input.session_id && input.transcript_path) {
-          setCursor(input.session_id, endOf(tool, input.transcript_path));
-          setSentReply(input.session_id, undefined);
+          markRead(input.session_id, tool, input.transcript_path);
+          setSentReply(input.session_id, input.last_assistant_message ? cleanText(input.last_assistant_message) || undefined : undefined);
         }
         return undefined;
       }
       keepRecord(input, tool);
       sendUpdates(input, now, tool);
+      // Already sent back to work once in this turn: it stops now.
+      if (input.stop_hook_active) return undefined;
       // Updates that arrived while this chat worked go in now, before it stops: a "block" with a
       // reason makes Claude Code, Codex and Gemini CLI (AfterAgent) keep the reply and continue
       // the turn with the reason as the next message, flagged stop_hook_active.
@@ -358,9 +381,11 @@ export function handle(raw: HookInput, now = Date.now(), tool: HookTool = "claud
       const d = deliver(input, now);
       if (!d) return undefined;
       const notice = tool === "claude" && noticesOn() ? deliveryNotice(d.items) : undefined;
-      return goOn(JSON.stringify({ decision: "block", reason: `${d.text}\n\n${AUTO_DELIVERY_ASK}`, ...(notice ? { systemMessage: notice } : {}) }));
+      return goOn("updates", JSON.stringify({ decision: "block", reason: `${d.text}\n\n${AUTO_DELIVERY_ASK}`, ...(notice ? { systemMessage: notice } : {}) }));
     }
     case "UserPromptSubmit": {
+      // A new message starts a new turn: a block left from a turn that never stopped is forgotten.
+      if (input.session_id) takeStopBlock(input.session_id);
       bindBranch(input, now, tool);
       const d = deliver(input, now);
       const w = writingRules(input);

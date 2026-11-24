@@ -1,6 +1,16 @@
 # Changelog
 
 ## Unreleased
+- **Linked chats lose nothing and get nothing twice.** Fixed six cases:
+  - Work a chat did after your message from Roger now reaches the chats it is linked to.
+  - A Gemini chat that was rewound shares the turns after the rewind.
+  - A chat linked at two levels no longer sends its last reply twice.
+  - A chat's acknowledgement of updates is never sent on.
+  - A turn over 16 MB is still shared, from its end.
+  - Hooks of several chats writing at once no longer lose each other's place. Each chat now keeps
+    its place in its own file, and the inbox and the list of links change one writer at a time.
+- **Roger always looks asleep when he is.** Between his breathing scenes, one small "z" stays over
+  his head, with Reduce Motion on too.
 - **Done means done, and working means working.** A finished chat showed as working again for a
   while, because the Claude app writes notes to the chat after a turn ends. Those no longer count.
   A chat that a Stop hook sends back to work now shows as working, not done.

@@ -320,3 +320,31 @@ function textOf(content: unknown): string {
 function oneLine(t: string): string {
   return t.replace(/\s+/g, " ").trim();
 }
+
+/** How many of the last message ids read are kept, to find a chat's place again after a rewind. */
+const SEEN_MAX = 200;
+
+/** The ids of the messages read so far (the last ones only), kept with a read position. */
+export function geminiSeen(all: GeminiMessage[], upTo: number): string[] {
+  return all
+    .slice(Math.max(0, upTo - SEEN_MAX), upTo)
+    .map((m) => m.id)
+    .filter((id): id is string => typeof id === "string");
+}
+
+/**
+ * Where to read a Gemini chat from, read before up to `count` messages whose last ids were `seen`.
+ * Gemini CLI rewinds a chat ($rewindTo) and goes on from there, so a count alone could point past
+ * the new messages: reading starts right after the last message both versions share.
+ */
+export function geminiStart(all: GeminiMessage[], count: number, seen?: string[]): number {
+  const at = Math.min(count, all.length);
+  if (!seen?.length) return at;
+  if (all[count - 1]?.id === seen[seen.length - 1]) return count;
+  const known = new Set(seen);
+  for (let i = at; i > 0; i--) if (all[i - 1].id && known.has(all[i - 1].id!)) return i;
+  // Nothing read is left. All of it was remembered, so the chat changed from its start; otherwise
+  // the change came before what is remembered, and the count is the best place there is.
+  return seen.length >= count ? 0 : at;
+}
+
