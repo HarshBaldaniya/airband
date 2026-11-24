@@ -222,6 +222,7 @@ export function DesktopView() {
   }, [c.asleep]);
 
   const onDown = (e: React.PointerEvent) => {
+    window.getSelection()?.removeAllRanges();
     c.wake();
     if (e.button !== 0) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -343,6 +344,9 @@ export function DesktopView() {
         className={`companion${tucked ? " tucked" : ""}${entering ? " entering" : ""}`}
         data-hit
         onPointerDown={onDown}
+        // A press on him never starts a text selection: a triple-click (a poke) selected him
+        // whole, drawn as a blue box that stayed, and grey while the window was not in front.
+        onMouseDown={(e) => e.preventDefault()}
         onPointerEnter={c.wake}
         onPointerMove={onMove}
         onPointerUp={onUp}

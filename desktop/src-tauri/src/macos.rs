@@ -103,27 +103,6 @@ pub fn app_bundle() -> Option<PathBuf> {
     bundle.extension().is_some_and(|x| x == "app").then_some(bundle)
 }
 
-#[cfg(target_os = "macos")]
-#[link(name = "CoreGraphics", kind = "framework")]
-extern "C" {
-    /// Whether a mouse button is held, from the system's own event state.
-    fn CGEventSourceButtonState(state: i32, button: u32) -> bool;
-}
-
-/// Whether the left mouse button is held now; None where it can't be asked.
-pub fn left_button_down() -> Option<bool> {
-    #[cfg(target_os = "macos")]
-    {
-        // kCGEventSourceStateCombinedSessionState, kCGMouseButtonLeft.
-        // SAFETY: a plain query of the system's event state, with no pointers.
-        Some(unsafe { CGEventSourceButtonState(0, 0) })
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        None
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

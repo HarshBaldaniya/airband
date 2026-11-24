@@ -35,10 +35,10 @@ pub fn hit_areas(rects: Vec<Rect>, state: State<AppState>) {
     }
 }
 
-/// A drag starts on the figure: the system moves the window from here.
+/// A drag starts on the figure: the window follows the pointer from here.
 #[tauri::command]
-pub fn drag(window: WebviewWindow) {
-    let _ = window.start_dragging();
+pub fn drag(window: WebviewWindow, state: State<AppState>) {
+    corner::drag(&window, state.inner());
 }
 
 #[tauri::command]

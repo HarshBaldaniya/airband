@@ -14,6 +14,7 @@ mod error;
 mod install;
 mod logging;
 mod macos;
+mod mouse;
 mod paths;
 mod prefs;
 mod process;

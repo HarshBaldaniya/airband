@@ -2,13 +2,14 @@
 //! lets clicks through everywhere but on what the page draws.
 mod landing;
 mod pointer;
+mod screens;
 
 use crate::logging::log;
 use crate::prefs::{apply_start_at_login, PrefKey};
 use crate::state::{hooks, lock, save_prefs, AppState, Side, Vertical};
-use landing::{Area, Spot};
+use landing::Spot;
 use serde::Serialize;
-use std::sync::atomic::{AtomicU16, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
@@ -28,8 +29,9 @@ pub const FIG_PAD: f64 = 10.0;
 
 /// Where the mouse button can't be asked, a drag is over once the window has not moved for this long.
 const MOVE_SETTLES_AFTER: Duration = Duration::from_millis(450);
-/// How often a drag looks at the mouse button, and a glide moves the window: a frame or two.
+/// How often a drag looks at the pointer and the button, and a glide moves the window.
 const DRAG_LOOK: Duration = Duration::from_millis(12);
+const DRAG_STEP: Duration = Duration::from_millis(6);
 const GLIDE_STEP: Duration = Duration::from_millis(8);
 /// Landing on the other half of the screen, Roger fades out this fast, moves to his window's other
 /// side while unseen, and pops back.
@@ -113,25 +115,18 @@ fn allow_navigation(url: &Url) -> bool {
     allowed
 }
 
-fn work_area(w: &WebviewWindow) -> Option<Area> {
-    let m = w.current_monitor().ok().flatten().or_else(|| w.primary_monitor().ok().flatten())?;
-    let s = m.scale_factor();
-    let a = m.work_area();
-    Some(Area {
-        x: a.position.x as f64 / s,
-        y: a.position.y as f64 / s,
-        w: a.size.width as f64 / s,
-        h: a.size.height as f64 / s,
-    })
-}
-
 /// Puts Roger where he was left, or at the bottom right, wholly on the screen.
 fn place(w: &WebviewWindow, state: &AppState) {
-    let Some(a) = work_area(w) else { return };
     let (figure_at, window_at) = {
         let s = lock(state);
         (s.prefs.figure_at, s.prefs.window_at)
     };
+    // The screen he was left on; one that is gone, the nearest.
+    let near = figure_at
+        .map(|(x, y)| (x + FIG_W / 2.0, y + FIG_H / 2.0))
+        .or(window_at.map(|(x, y)| (x + WIN_W / 2.0, y + WIN_H / 2.0)))
+        .unwrap_or((0.0, 0.0));
+    let Some(a) = screens::screen_at(w, near).map(|s| s.work) else { return };
     let at = match (figure_at, window_at) {
         (Some((x, y)), _) => Spot { x, y },
         // Saved by an older app: the window's place, with the cards opening as they did then.
@@ -195,15 +190,14 @@ fn glide(w: &WebviewWindow, from: (f64, f64), to: (f64, f64)) {
 /// open towards the middle from there. Landing on the other half of the screen, he hops to his
 /// window's other side first, unseen, so he never jumps across it. Where he is, is kept.
 fn land(w: &WebviewWindow, state: &AppState) {
-    let Some(a) = work_area(w) else { return };
-    let Ok(pos) = w.outer_position() else { return };
-    let scale = w.scale_factor().unwrap_or(1.0);
-    let win = (pos.x as f64 / scale, pos.y as f64 / scale);
+    let Some(win) = screens::window_at(w) else { return };
     let (side, vertical) = {
         let s = lock(state);
         (s.side, s.vertical)
     };
     let now = landing::figure_in(win, side, vertical);
+    // The screen he is over, not the one most of his empty window covers.
+    let Some(a) = screens::screen_at(w, (now.x + FIG_W / 2.0, now.y + FIG_H / 2.0)).map(|s| s.work) else { return };
     let to = landing::landing(now, a);
     let (new_side, new_vertical) = landing::dock_for(to, a);
     let mut from = win;
@@ -226,12 +220,63 @@ fn land(w: &WebviewWindow, state: &AppState) {
     save_prefs(state);
 }
 
-/// Waits for each drag to end, then lands Roger. A drag is over the moment the button is let go;
-/// where the button can't be asked, once the window has stood still for a moment.
+/// A drag is under way: a second one asked for meanwhile is the same drag.
+static DRAGGING: AtomicBool = AtomicBool::new(false);
+
+/// The person drags Roger. The app moves the window under the pointer itself, a few milliseconds
+/// a step, then lands him when the button is let go. The system's own window drag would keep a
+/// window below the menu bar, and Roger, at the bottom of a tall window, could never reach the
+/// top of the screen. He stays wholly on the screen the pointer is on, any screen. Where the
+/// button can't be asked (Linux), the system drags the window and he lands once it stops.
+pub fn drag(w: &WebviewWindow, state: &AppState) {
+    if crate::mouse::main_button_down().is_none() {
+        let _ = w.start_dragging();
+        return;
+    }
+    if DRAGGING.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    let (w, state) = (w.clone(), state.clone());
+    std::thread::spawn(move || {
+        follow(&w, &state);
+        land(&w, &state);
+        DRAGGING.store(false, Ordering::Release);
+    });
+}
+
+/// Moves the window with the pointer until the button is let go.
+fn follow(w: &WebviewWindow, state: &AppState) {
+    let (Some(start), Some(win)) = (screens::pointer(w), screens::window_at(w)) else { return };
+    let grab = (start.0 - win.0, start.1 - win.1);
+    let (side, vertical) = {
+        let s = lock(state);
+        (s.side, s.vertical)
+    };
+    let mut last = win;
+    while crate::mouse::main_button_down() == Some(true) {
+        if let Some(p) = screens::pointer(w) {
+            let at = landing::figure_in((p.0 - grab.0, p.1 - grab.1), side, vertical);
+            let centre = (at.x + FIG_W / 2.0, at.y + FIG_H / 2.0);
+            let at = screens::screen_at(w, centre).map(|s| landing::on_screen(at, s.whole)).unwrap_or(at);
+            let to = landing::window_for(at, side, vertical);
+            if (to.0 - last.0).abs() >= 0.5 || (to.1 - last.1).abs() >= 0.5 {
+                move_window(w, to);
+                last = to;
+            }
+        }
+        std::thread::sleep(DRAG_STEP);
+    }
+}
+
+/// Waits for each drag the system made to end, then lands Roger: the moment the button is let
+/// go, or where the button can't be asked, once the window has stood still for a moment.
 fn watch_drags(w: WebviewWindow, state: AppState, moves: mpsc::Receiver<()>) {
     while moves.recv().is_ok() {
+        if DRAGGING.load(Ordering::Acquire) {
+            continue;
+        }
         loop {
-            match crate::macos::left_button_down() {
+            match crate::mouse::main_button_down() {
                 Some(true) => std::thread::sleep(DRAG_LOOK),
                 Some(false) => break,
                 None => {
