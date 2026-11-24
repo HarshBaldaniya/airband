@@ -23,7 +23,7 @@ code, kbd, pre, .mono { font-family: var(--font-mono), ui-monospace, monospace; 
 kbd { font-size: 0.82em; padding: 0.1em 0.45em; border-radius: 6px; border: 1px solid var(--line-2); border-bottom-width: 2px; background: var(--glass); }
 h1, h2, h3 { margin: 0; font-family: var(--font-display), var(--font-sans), sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 1.04; }
 /* Every title in a card is the heading face, bold. */
-.way b, .tile b, .four b, .then b, .how .step b, .mock-head b, .mock-title, .answer .who b, .latest header b, .cards b, .gs h2, .gs-steps b, .gs-tiles b { font-family: var(--font-display), var(--font-sans), sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+.way b, .four b, .then b, .how .step b, .mock-head b, .mock-title, .latest header b, .gs h2, .gs-steps b, .gs-tiles b { font-family: var(--font-display), var(--font-sans), sans-serif; font-weight: 700; letter-spacing: -0.02em; }
 p { margin: 0; }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid rgba(224, 122, 79, 0.55); outline-offset: 2px; }
@@ -184,8 +184,7 @@ p { margin: 0; }
 
 /* Roger's corner, drawn as the app draws it. */
 .mock { position: relative; width: min(400px, 88%); }
-.mock-head { padding: 0 2px; }
-.mock-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px 2px; }
+.mock-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px 2px; padding: 0 2px; }
 .mock-head b { display: block; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
 .mock-head span { display: block; font-size: 13px; color: var(--muted); }
 .mock-card { padding: 16px; border-radius: 18px; border: 1px solid var(--line-2); background: #1c1c21; box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.9); animation: card 0.6s 0.25s var(--ease) both; }
@@ -221,9 +220,7 @@ p { margin: 0; }
 @keyframes aim { 0% { opacity: 0; transform: translate(120px, 60px); } 20% { opacity: 1; } 100% { opacity: 1; transform: translate(-60px, -150px); } }
 @keyframes click { 50% { scale: 0.82; } }
 
-/* Sharing: the note travels down the beam, and the other chat lights up. */
-.beam .packet { position: absolute; left: 50%; top: 0; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--brand-2); box-shadow: 0 0 16px var(--brand); animation: travel 1.4s 0.8s var(--ease) infinite; opacity: 0; }
-@keyframes travel { 0% { opacity: 0; transform: translateY(-6px); } 20% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(30px); } }
+/* Sharing: the other chat lights up as the note arrives. */
 .term.arrive { animation: lit 0.8s 1.6s var(--ease) both; }
 @keyframes lit { from { border-color: var(--line-2); box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.9); } to { border-color: rgba(224, 122, 79, 0.5); box-shadow: 0 0 0 4px rgba(224, 122, 79, 0.08), 0 24px 60px -24px rgba(0, 0, 0, 0.9); } }
 
@@ -244,9 +241,6 @@ p { margin: 0; }
 .lock-btns { position: absolute; left: 22px; right: 22px; bottom: 34px; display: flex; justify-content: space-between; }
 .lock-btns i { width: 38px; height: 38px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); backdrop-filter: blur(8px); }
 .home { position: absolute; left: 50%; bottom: 9px; width: 90px; height: 4px; margin-left: -45px; border-radius: 4px; background: rgba(255, 255, 255, 0.7); }
-
-
-.pair { display: grid; gap: 18px; width: min(440px, 86%); }
 .term { border-radius: 16px; border: 1px solid var(--line-2); background: rgba(10, 10, 13, 0.92); overflow: hidden; box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.9); }
 .term .t { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
 .term .t img { width: 15px; height: 15px; }
@@ -254,9 +248,6 @@ p { margin: 0; }
 .term .ok { color: var(--ok); }
 .term .air { color: var(--brand-2); }
 .term .dim { color: var(--faint); }
-.beam { position: relative; height: 34px; margin: -9px 0; }
-.beam i { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: repeating-linear-gradient(180deg, var(--teal) 0 6px, transparent 6px 12px); background-size: 2px 24px; animation: down 0.8s linear infinite; }
-@keyframes down { to { background-position: 0 24px; } }
 @media (max-width: 900px) {
   .how { grid-template-columns: 1fr; }
   .how .list { grid-template-columns: repeat(2, minmax(0, 1fr)); order: 2; }
@@ -344,12 +335,12 @@ p { margin: 0; }
   .agents .with { flex-basis: 100%; text-align: center; justify-content: center; }
   .hr-talk { max-width: 340px; }
   .hr-bubble { font-size: 14.5px; }
-  .close-act, .alt { flex-direction: column; align-items: stretch; }
+  .alt { flex-direction: column; align-items: stretch; }
   .alt > b { text-align: center; margin: 0 0 4px; }
   .alt .cmd, .alt .pill { justify-content: center; }
   .alt .cmd { justify-content: space-between; }
   .pills .pill { flex: 1 1 100%; justify-content: center; max-width: 340px; }
-  .tile .btn, .way .btn, .way .cmd { height: 48px; }
+  .way .btn, .way .cmd { height: 48px; }
 }
 
 /* ---- inner pages ---- */

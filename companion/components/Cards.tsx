@@ -173,7 +173,7 @@ export function RequestCard({ request, onError, compact = false }: { request: Pe
   );
 }
 
-export function FinishedCard({ finished, onSay }: { finished: FinishedView; onSay?: (text: string) => void }) {
+export function FinishedCard({ finished }: { finished: FinishedView }) {
   const f = finished;
   return (
     <div className="card done" data-hit>
@@ -226,7 +226,7 @@ export function ThinkingCard({ name, question, since }: { name: string; question
 }
 
 /** A chat that finished, as one line by the companion: it fades away by itself (the panel keeps it). */
-export function FinishedToast({ finished, onSay, onClose }: { finished: FinishedView; onSay?: (text: string) => void; onClose: () => void }) {
+export function FinishedToast({ finished, onClose }: { finished: FinishedView; onClose: () => void }) {
   const f = finished;
   return (
     <div className="toast" data-hit>

@@ -24,7 +24,6 @@ export {
   ArrowLeftRight,
   ArrowRight,
   BarChart3,
-  Bell,
   CalendarDays,
   ChevronDown,
   Network,
@@ -51,7 +50,6 @@ export {
   Search,
   SquareTerminal,
   Unlink,
-  Wand2,
   X,
   Zap,
 } from "lucide-react";

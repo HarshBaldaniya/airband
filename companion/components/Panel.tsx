@@ -426,7 +426,7 @@ export function Panel({ state, name, design, onClose, onAsk, asking, onSay, onEr
               ))}
             </div>
           )}
-          {MODE === "phone" && state.finished.slice(0, 2).map((f) => <FinishedCard key={`${f.chatId}:${f.at}`} finished={f} onSay={onSay} />)}
+          {MODE === "phone" && state.finished.slice(0, 2).map((f) => <FinishedCard key={`${f.chatId}:${f.at}`} finished={f} />)}
           {anyChats ? (
             <>
               <div className="tabs" role="tablist">

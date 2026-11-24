@@ -565,21 +565,4 @@ export function draw(ctx: CanvasRenderingContext2D, m: Model, s: DrawState): voi
   ctx.globalAlpha = 1;
 }
 
-/** A gentle arc from one circle's edge to another's. */
-function curve(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, r1: number, r2: number) {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len;
-  const uy = dy / len;
-  const ax = x1 + ux * r1;
-  const ay = y1 + uy * r1;
-  const bx = x2 - ux * r2;
-  const by = y2 - uy * r2;
-  const bend = Math.min(60, len * 0.12);
-  ctx.beginPath();
-  ctx.moveTo(ax, ay);
-  ctx.quadraticCurveTo((ax + bx) / 2 - uy * bend, (ay + by) / 2 + ux * bend, bx, by);
-}
-
 export { sameTarget };

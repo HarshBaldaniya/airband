@@ -10,9 +10,6 @@ import { join } from "node:path";
 import { SITE } from "./site";
 import type { Download } from "./download";
 
-export type { Download } from "./download";
-export { mb } from "./download";
-
 const repo = join(process.cwd(), "..");
 
 export const VERSION: string = JSON.parse(readFileSync(join(repo, "package.json"), "utf8")).version;
@@ -34,17 +31,6 @@ interface GitHubRelease {
   draft: boolean;
   prerelease: boolean;
   assets: { name: string; size: number; digest?: string; browser_download_url: string }[];
-}
-
-/** When this version was published on GitHub, if GitHub answers. */
-export async function publishedAt(): Promise<string | undefined> {
-  try {
-    const r = await fetch(`https://api.github.com/repos/HarshBaldaniya/airband/releases/tags/v${VERSION}`, { headers: { accept: "application/vnd.github+json" } });
-    if (r.ok) return (await r.json()).published_at;
-  } catch {
-    // Offline build.
-  }
-  return undefined;
 }
 
 /** When each version was published on GitHub ("0.1.1" → ISO date), as far as GitHub answers. */

@@ -19,7 +19,6 @@ import {
   ChevronRight,
   GitBranch,
   I,
-  Inbox,
   LayoutGrid,
   Link2,
   Eye,
@@ -413,7 +412,7 @@ function Row(p: RowProps) {
           onClick={() => (picking ? p.onPickLink() : send({ type: "open", id: s.id }))}
           data-tip={picking ? (p.linked ? "Click to disconnect" : "Click to connect") : s.title.length > 30 ? s.title : undefined}
         >
-          <ChatAvatar s={s} showTool={p.manyTools} />
+          <ChatAvatar s={s} />
           <span className="rowtext">
             <span className="rowtop">
               <span className="rowtitle">{s.title}</span>
@@ -511,7 +510,7 @@ function FolderTag({ s }: { s: ChatSession }) {
 }
 
 /** The agent's own logo in a tile tinted with its colour; the tile's ring shows the status. */
-function ChatAvatar({ s }: { s: ChatSession; showTool?: boolean }) {
+function ChatAvatar({ s }: { s: ChatSession }) {
   return (
     <span className={`avatar tool-${s.tool.toLowerCase()} ${s.status}`} aria-hidden="true">
       <ToolMark tool={s.tool} size={16} />

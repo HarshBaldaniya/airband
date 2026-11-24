@@ -120,18 +120,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, .linkish:focu
 /* ---------- sidebar ---------- */
 .sidebar { padding: 10px 8px 24px; display: flex; flex-direction: column; gap: 10px; }
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.stattile {
-  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 6px; align-items: center;
-  padding: 7px 9px; border-radius: 9px; border: 1px solid var(--line-soft); background: var(--raised); text-align: left; color: var(--muted);
-}
-button.stattile { cursor: pointer; }
-button.stattile:hover:not(:disabled) { border-color: var(--line); color: var(--vscode-foreground); }
-button.stattile:disabled { cursor: default; }
-.stattile svg { grid-row: 1; }
-.statnum { grid-row: 1; font-size: 15px; font-weight: 700; color: var(--vscode-foreground); font-variant-numeric: tabular-nums; }
-.statlabel { grid-column: 1 / -1; font-size: 11px; }
-.stattile.attn { border-color: color-mix(in srgb, var(--ct-waiting) 55%, transparent); color: var(--ct-waiting); }
-.stattile.busy svg { color: var(--ct-working); }
 .hint { margin: 2px; font-size: 12px; color: var(--muted); }
 
 .linkbar {
@@ -140,7 +128,6 @@ button.stattile:disabled { cursor: default; }
   background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
   border: 1px solid var(--ct-live); box-shadow: 0 6px 18px rgba(0,0,0,.25);
 }
-.linkbaricon { display: inline-flex; padding: 6px; border-radius: 8px; color: var(--ct-live); background: color-mix(in srgb, var(--ct-live) 14%, transparent); }
 
 .group { display: flex; flex-direction: column; gap: 2px; }
 .grouphead {
@@ -170,22 +157,11 @@ button.stattile:disabled { cursor: default; }
   display: flex; align-items: center; gap: 9px; padding: 7px 6px 7px 8px; border-radius: 8px;
 }
 .rowmain:focus-visible { outline: 1px solid var(--focus); }
-.rowlead { position: relative; display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; flex: none; }
-.rowlead .dot { position: absolute; right: -2px; bottom: -1px; width: 7px; height: 7px; border: 1.5px solid var(--vscode-sideBar-background, var(--vscode-editor-background)); box-sizing: content-box; }
 .rowtext { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .rowtitle { font-weight: 500; line-height: 1.3; }
 .rowmeta { display: flex; align-items: center; gap: 9px; font-size: 11px; color: var(--muted); min-width: 0; line-height: 1.3; }
-.metaitem { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
-.metaitem.live { color: var(--ct-live); }
-.waitingtag { color: var(--vscode-foreground); }
-.attnline { color: var(--ct-waiting); }
 .rowactions { display: none; align-items: center; padding-right: 3px; }
 .row:hover .rowactions, .row:focus-within .rowactions, .row.open .rowactions { display: flex; }
-.pickpill {
-  font-size: 11px; padding: 2px 10px; margin-right: 6px; border-radius: 999px; flex: none;
-  border: 1px dashed color-mix(in srgb, var(--ct-live) 70%, transparent); color: var(--muted);
-}
-.pickpill.on { border-style: solid; background: var(--ct-live); color: #1d1404; font-weight: 600; }
 
 .details {
   display: flex; flex-direction: column; gap: 12px; padding: 10px 10px 10px 35px; font-size: 12px;
@@ -194,21 +170,11 @@ button.stattile:disabled { cursor: default; }
 .detailblock { display: flex; flex-direction: column; gap: 6px; }
 .detailhead { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .explain { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
-.usagegrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 12px; font-variant-numeric: tabular-nums; }
 
 .linkname { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 500; }
 .dirtag { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; color: var(--ct-live); background: color-mix(in srgb, var(--ct-live) 13%, transparent); }
 .dirtag.in { color: var(--ct-working); background: color-mix(in srgb, var(--ct-working) 13%, transparent); }
 .dirtag.both { color: var(--ct-done); background: color-mix(in srgb, var(--ct-done) 13%, transparent); }
-.waitingbox {
-  all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px; cursor: pointer;
-  border: 1px dashed color-mix(in srgb, var(--ct-live) 55%, transparent);
-}
-.waitingbox:hover { background: color-mix(in srgb, var(--ct-live) 8%, transparent); }
-.waitingbox:focus-visible { outline: 1px solid var(--focus); }
-.flow { width: 18px; height: 2px; flex: none; background: repeating-linear-gradient(90deg, var(--ct-idle) 0 4px, transparent 4px 7px); }
-.flow.live { background: repeating-linear-gradient(90deg, var(--ct-live) 0 4px, transparent 4px 7px); background-size: 14px 2px; animation: march .9s linear infinite; }
-@keyframes march { to { background-position: 14px 0; } }
 .detailactions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 8px 2px; color: var(--muted); }
 .empty p { margin: 0; }
@@ -226,18 +192,9 @@ button.stattile:disabled { cursor: default; }
 .dialog p { margin: 0; }
 .label { font-size: 12px; font-weight: 600; }
 .actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-.ta {
-  width: 100%; background: var(--vscode-input-background); color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border, var(--line)); border-radius: 8px; padding: 8px 10px; line-height: 1.5; font: inherit;
-}
-textarea.ta { resize: vertical; }
 .check { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; cursor: pointer; }
 .check input { margin-top: 3px; accent-color: var(--vscode-button-background); }
 .asks { display: flex; flex-direction: column; gap: 6px; }
-.asklist { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
-.askrow { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; cursor: pointer; font-size: 12px; min-width: 0; }
-.askrow:hover { background: var(--hover); }
-.askrow.on { background: color-mix(in srgb, var(--vscode-button-background) 15%, transparent); }
 .peek { margin: 0; max-height: 50vh; overflow: auto; white-space: pre-wrap; font-family: var(--vscode-editor-font-family); font-size: 12px; line-height: 1.5; background: var(--vscode-textCodeBlock-background, rgba(127,127,127,.1)); border-radius: 8px; padding: 10px; }
 .toasts { position: fixed; bottom: 14px; left: 12px; right: 12px; z-index: 60; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .toast {
@@ -307,12 +264,6 @@ textarea.ta { resize: vertical; }
 }
 .bcardtitle:hover { color: var(--vscode-textLink-foreground); }
 .bcardtitle:focus-visible { outline: 1px solid var(--focus); }
-.hoveronly { opacity: 0; }
-.bcard:hover .hoveronly, .bcard:focus-within .hoveronly { opacity: 1; }
-.bcardrow { display: flex; align-items: center; gap: 8px; }
-.bcardstats { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--muted); }
-.bcardstats span { display: inline-flex; align-items: center; gap: 4px; }
-.bcardstats .live { color: var(--ct-live); }
 .bcardactions { display: flex; gap: 2px; border-top: 1px solid var(--line-soft); padding-top: 6px; margin: 0 -6px; }
 .port.react-flow__handle {
   width: 12px; height: 12px; border-radius: 50%;
@@ -325,17 +276,9 @@ textarea.ta { resize: vertical; }
 .react-flow__connectionline path, .react-flow__connection-path { stroke: var(--ct-live); stroke-width: 2.5; stroke-dasharray: 6 6; }
 
 /* link lines */
-.flowline { stroke-linecap: round; }
-.flowline.track { stroke: color-mix(in srgb, var(--ct-live) 18%, transparent); stroke-width: 7; }
-.flowline.dash { stroke: var(--ct-live); stroke-width: 2.2; stroke-dasharray: 7 7; animation: flow 1s linear infinite; }
-.flowline.paused.track { stroke: color-mix(in srgb, var(--ct-idle) 15%, transparent); }
-.flowline.paused.dash { stroke: var(--ct-idle); animation: none; }
-.flowline.fresh.track { stroke: color-mix(in srgb, var(--ct-live) 40%, transparent); animation: freshglow 1.4s ease-in-out infinite; }
-.flowline.selected.dash { stroke-width: 3; }
 .arrowhead.live { fill: var(--ct-live); }
 .arrowhead.paused { fill: var(--ct-idle); }
 @keyframes flow { to { stroke-dashoffset: -14; } }
-@keyframes freshglow { 50% { stroke-width: 12; } }
 .edgelabel { position: absolute; pointer-events: all; z-index: 10; }
 .edgepill {
   display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; cursor: pointer;
@@ -349,8 +292,6 @@ textarea.ta { resize: vertical; }
   display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 11px;
   background: var(--surface); border: 1px solid var(--vscode-editorWidget-border, var(--line)); box-shadow: 0 12px 30px rgba(0,0,0,.35);
 }
-.menuhead { padding: 4px 8px 8px; font-size: 11.5px; line-height: 1.4; color: var(--muted); border-bottom: 1px solid var(--line-soft); margin-bottom: 4px; }
-.menuhead b { color: var(--vscode-foreground); }
 .edgemenu button { all: unset; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; cursor: pointer; font-size: 12px; }
 .edgemenu button:hover, .edgemenu button:focus-visible { background: var(--hover); }
 .edgemenu button.danger { color: var(--vscode-errorForeground); }
@@ -360,17 +301,10 @@ textarea.ta { resize: vertical; }
 .usagehead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .usagehead h2 { margin: 0 0 2px; font-size: 18px; }
 .usagehead p { margin: 0; }
-.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
 .tile { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 7px; background: var(--surface); }
-.tile.hero { border-color: color-mix(in srgb, var(--ct-live) 40%, transparent); }
 .tilelabel { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
 .tilefig { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .tilefig.small { font-size: 22px; }
-.bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; background: var(--hover); }
-.bar .in, .key.in { background: var(--ct-in); }
-.bar .out, .key.out { background: var(--ct-out); }
-.bar .cw, .key.cw { background: var(--ct-cw); }
-.key { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
 .breakdown { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .breakdown span { display: inline-flex; align-items: center; gap: 5px; }
 .section { margin: 0 0 10px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
@@ -399,7 +333,6 @@ textarea.ta { resize: vertical; }
 .rowmeta .state { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rowmeta .state.working { color: var(--ct-working); }
 .rowmeta .state.waiting { color: var(--ct-waiting); font-weight: 500; }
-.modeltag { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .linkedtag { display: inline-flex; align-items: center; gap: 3px; color: var(--ct-live); max-width: 45%; }
 .linkedtag svg { flex: none; }
 .ring { flex: none; }
@@ -416,7 +349,6 @@ textarea.ta { resize: vertical; }
 .ctxbar > span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--ct-done); }
 .ctxbar.high > span { background: var(--ct-waiting); }
 .ctxbar.full > span { background: var(--vscode-errorForeground, #e5534b); }
-.bcardstats .ctxbar { width: 46px; }
 
 .linklist { display: flex; flex-direction: column; gap: 4px; }
 .linkrow {
@@ -455,7 +387,6 @@ textarea.ta { resize: vertical; }
 .bcardlink.in { color: var(--ct-working); }
 .bcardlink.both { color: var(--ct-done); }
 .bcardlink .ellipsis { color: var(--vscode-foreground); }
-.bcardwaiting { display: flex; align-items: center; gap: 5px; }
 .bcard .bcardactions { display: flex; gap: 6px; margin: 0; padding: 10px 12px 12px; border-top: 1px solid var(--line-soft); }
 .bcard .bcardactions .btn { flex: 1; }
 
@@ -467,8 +398,6 @@ textarea.ta { resize: vertical; }
   transition: stroke .3s, stroke-opacity .3s, stroke-width .2s;
 }
 .link .arrowhead { fill: none; stroke: var(--ct-live); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.link .particle { fill: var(--ct-live); filter: drop-shadow(0 0 3px var(--ct-live)); }
-.link .particle.back { fill: color-mix(in srgb, var(--ct-live) 70%, white); }
 .link:hover .linkbase, .link.selected .linkbase { stroke-opacity: 1; stroke-width: 2.4; }
 .link:hover .linkglow, .link.selected .linkglow { stroke-opacity: .18; }
 .link.fresh .linkglow { animation: glowpulse 1.2s ease-in-out infinite; }
@@ -495,7 +424,7 @@ textarea.ta { resize: vertical; }
 @keyframes ripple { 0% { opacity: .6; transform: scale(.6); } 100% { opacity: 0; transform: scale(1.6); } }
 .react-flow__connectionline path, .react-flow__connection-path { animation: flow .8s linear infinite; }
 
-.row, .linkrow, .waitingbox, .trayitem { transition: background-color .15s, border-color .15s; }
+.row, .linkrow, .trayitem { transition: background-color .15s, border-color .15s; }
 .details { animation: unfold .18s ease-out; }
 @keyframes unfold { from { opacity: 0; transform: translateY(-3px); } }
 .toast { animation: rise .2s cubic-bezier(.2, .8, .2, 1); }
@@ -503,17 +432,7 @@ textarea.ta { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .link .linkbase { stroke-dashoffset: 0; }
-  .link .particle { display: none; }
 }
-
-.metaitem.incoming { color: var(--ct-working); }
-button.bcardwaiting {
-  all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 6px; cursor: pointer; line-height: 1.35;
-  color: var(--ct-working); padding: 4px 7px; margin: -4px -7px; border-radius: 6px;
-}
-button.bcardwaiting:hover { background: color-mix(in srgb, var(--ct-working) 12%, transparent); }
-button.bcardwaiting:focus-visible { outline: 1px solid var(--focus); }
-button.bcardwaiting svg { margin-top: 2px; }
 
 /* ---------- tooltip ---------- */
 .tooltip {
@@ -546,7 +465,7 @@ button.bcardwaiting svg { margin-top: 2px; }
   .rowmeta { gap: 8px; }
 }
 @container (max-width: 270px) {
-  .modeltag .mtext, .linkedtag .ltext { display: none; }
+  .linkedtag .ltext { display: none; }
   .detailactions .blabel { display: none; }
   .detailactions .btn.small { padding: 0 8px; }
   .rowmain { gap: 8px; padding-left: 6px; }
@@ -576,7 +495,6 @@ button.bcardwaiting svg { margin-top: 2px; }
 .tool-codex { --tool: var(--ct-codex); }
 .tool-gemini { --tool: var(--ct-gemini); }
 .stop.tool-claude, .stop.tool-codex, .stop.tool-gemini { stop-color: var(--tool); }
-.link .particle[class*="tool-"] { fill: var(--tool); filter: drop-shadow(0 0 3px var(--tool)); }
 .link .arrowhead[class*="tool-"] { stroke: var(--tool); }
 .link.paused .arrowhead[class*="tool-"] { stroke: var(--ct-idle); }
 .link .linkglow { stroke-opacity: .14; }
@@ -584,8 +502,6 @@ button.bcardwaiting svg { margin-top: 2px; }
 .edgepill .pillsep { width: 1px; height: 12px; background: var(--line); margin: 0 2px; }
 .edgelabel.paused .edgepill .toolmark { filter: grayscale(1); opacity: .6; }
 .bcardlogo { background: color-mix(in srgb, var(--tool, var(--ct-idle)) 13%, transparent); border-color: color-mix(in srgb, var(--tool, var(--ct-idle)) 32%, transparent); }
-.linklogos { display: inline-flex; align-items: center; flex: none; }
-.linklogos .toolmark + .toolmark { margin-left: -3px; }
 
 /* ---------- card motion ---------- */
 @property --spin { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
@@ -607,7 +523,6 @@ button.bcardwaiting svg { margin-top: 2px; }
 @keyframes doneflash { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ct-done) 60%, transparent); border-color: var(--ct-done); } 100% { box-shadow: 0 0 0 14px color-mix(in srgb, var(--ct-done) 0%, transparent); } }
 .statuschip { animation: chipin .3s cubic-bezier(.2, .8, .2, 1); }
 @keyframes chipin { from { opacity: 0; transform: translateY(2px) scale(.94); } }
-button.bcardwaiting { animation: arrive .7s cubic-bezier(.2, .9, .2, 1.2); }
 @keyframes arrive { 0% { opacity: 0; transform: scale(.9); } 60% { opacity: 1; transform: scale(1.04); } 100% { transform: scale(1); } }
 .bcard:active { transform: scale(.995); }
 
@@ -619,8 +534,6 @@ button.bcardwaiting { animation: arrive .7s cubic-bezier(.2, .9, .2, 1.2); }
 .sidebar .details .linkrow > .toolmark { flex: none; }
 .sidebar .details .linkrow .linkname { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; }
 .sidebar .details .linkrow .linkname .ellipsis { max-width: 100%; }
-.sidebar .details .waitingbox { padding: 6px 9px; font-size: 12px; border-style: solid; border-color: color-mix(in srgb, var(--ct-working) 35%, transparent); background: color-mix(in srgb, var(--ct-working) 7%, transparent); color: var(--vscode-foreground); }
-.sidebar .details .waitingbox svg { color: var(--ct-working); }
 
 @media (prefers-reduced-motion: reduce) {
   .bcard::after { animation: none !important; }
@@ -648,7 +561,6 @@ button.bcardwaiting { animation: arrive .7s cubic-bezier(.2, .9, .2, 1.2); }
 .tablewrap { overflow-x: auto; border-radius: 10px; }
 .tablewrap .table { min-width: 560px; }
 .usage { padding: 18px clamp(12px, 3vw, 24px) 40px; }
-.tiles { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
 .listrow { grid-template-columns: minmax(0, 1fr) auto auto; }
 .listrow .num:nth-last-child(-n + 2) { display: none; }
 @media (min-width: 720px) { .listrow { grid-template-columns: minmax(0, 1fr) 70px 90px 70px 80px; } .listrow .num:nth-last-child(-n + 2) { display: block; } }
@@ -675,21 +587,14 @@ button.bcardwaiting { animation: arrive .7s cubic-bezier(.2, .9, .2, 1.2); }
   animation: arrive .6s cubic-bezier(.2, .9, .2, 1.15);
 }
 .details .incoming { margin: 0; }
-.incount {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; flex: none;
-  background: var(--ct-working); color: #fff; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
-}
 .intext { flex: 1; min-width: 0; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .intext b { font-weight: 600; }
 .btn.tiny { min-height: 24px; padding: 0 8px; font-size: 11.5px; gap: 4px; border-radius: 6px; }
-.newdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ct-working); margin-right: 2px; }
-.metaitem.incoming { color: var(--ct-working); display: inline-flex; align-items: center; }
 
 /* ---------- calmer links ---------- */
 .link .linkglow { stroke-width: 5; stroke-opacity: .07; }
 .link:hover .linkglow, .link.selected .linkglow { stroke-opacity: .13; }
 .link .linkbase { stroke-width: 1.7; stroke-opacity: .85; }
-.link .particle[class*="tool-"] { filter: drop-shadow(0 0 2px var(--tool)); opacity: .95; }
 .link.fresh .linkglow { animation: glowsoft 2s ease-in-out infinite; }
 @keyframes glowsoft { 0%, 100% { stroke-opacity: .08; stroke-width: 5; } 50% { stroke-opacity: .2; stroke-width: 9; } }
 .edgelabel { display: inline-flex; align-items: center; gap: 4px; }
@@ -718,9 +623,8 @@ button.bcardwaiting { animation: arrive .7s cubic-bezier(.2, .9, .2, 1.2); }
 .sidebar .rowmeta { gap: 8px; font-size: 11.5px; }
 .sidebar .rowmeta > .linkedtag { color: var(--muted); }
 .sidebar .rowmeta > .linkedtag .ltext { display: inline; color: var(--muted); }
-.sidebar .rowmeta > .linkedtag .linklogos { opacity: .95; }
 .sidebar .rowmeta > * + *::before { content: "·"; margin-right: 8px; color: color-mix(in srgb, var(--muted) 60%, transparent); }
-.sidebar .rowmeta > .modeltag::before, .sidebar .rowmeta > .linkedtag::before { display: inline; }
+.sidebar .rowmeta > .linkedtag::before { display: inline; }
 
 /* ---------- sidebar row: letter tile, words not symbols ---------- */
 .avatar {
@@ -735,16 +639,11 @@ body.vscode-light .avatar, body.vscode-high-contrast-light .avatar { color: hsl(
 .avatar.working::after { border-color: var(--ct-working); border-right-color: transparent; border-bottom-color: transparent; animation: logospin 1.1s linear infinite; }
 .avatar.waiting::after { border-color: var(--ct-waiting); animation: breathe-ring 1.6s ease-in-out infinite; }
 @keyframes breathe-ring { 50% { opacity: .35; } }
-.avatartool {
-  position: absolute; right: -4px; bottom: -4px; display: inline-flex; padding: 2px; border-radius: 6px;
-  background: var(--vscode-sideBar-background, var(--vscode-editor-background)); box-shadow: 0 0 0 1px var(--line-soft);
-}
 .sidebar .rowmain { align-items: center; gap: 11px; padding: 7px 8px 7px 8px; }
 .sidebar .rowmain > .toolmark { display: none; }
 .row.working .rowmain > .toolmark, .row.working:not(.tool-claude) .rowmain > .toolmark { animation: none; }
 .sidebar .rowmeta { gap: 0; color: var(--muted); }
 .sidebar .rowmeta > * + *::before { content: "·"; margin: 0 7px; color: color-mix(in srgb, var(--muted) 55%, transparent); }
-.sidebar .rowmeta > .modeltag::before { content: none; }
 .ctxtag { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
 .ctxtag.high { color: var(--ct-waiting); }
 .ctxtag.full { color: var(--vscode-errorForeground, #e5534b); }
@@ -911,7 +810,6 @@ body.vscode-light .avatar, body.vscode-high-contrast-light .avatar { background:
 .row.picking:hover .pickcheck { border-color: var(--ct-done); color: var(--ct-done); }
 .pickcheck.on { background: var(--ct-done); border-color: var(--ct-done); color: #fff; animation: pickpop .25s cubic-bezier(.2, .9, .2, 1.3); }
 @keyframes pickpop { from { transform: scale(.6); } }
-.pickpill { display: none; }
 
 /* ---------- board: search, arrange menu, lanes, card-to-card linking ---------- */
 .tsearch { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: 7px; color: var(--muted); background: var(--hover); cursor: text; }
@@ -931,11 +829,6 @@ body.vscode-light .avatar, body.vscode-high-contrast-light .avatar { background:
 .tmenu button:hover, .tmenu button:focus-visible { background: var(--hover); }
 .tmenu button.on { background: color-mix(in srgb, var(--focus) 14%, transparent); }
 .tmenu button.on svg { color: var(--focus); }
-.lanehead {
-  position: absolute; display: flex; align-items: center; justify-content: space-between; padding: 0 4px 8px; pointer-events: none;
-  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line);
-}
-.lanehead span { font-weight: 500; letter-spacing: 0; }
 .react-flow__node.dimmed { opacity: .25; transition: opacity .2s; }
 .react-flow__node.match .bcard { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 30%, transparent), 0 12px 30px rgba(0,0,0,.28); }
 .bcard .bcardactions { gap: 4px; }
@@ -978,50 +871,10 @@ button.pickcheck:hover:not(.on) { border-color: var(--ct-done); color: var(--ct-
 .tmode { color: var(--focus); }
 @media (prefers-reduced-motion: reduce) { .react-flow__node-chat { transition: none; } }
 
-/* ---------- model picker and compact ---------- */
-.selectwrap { display: inline-flex; position: relative; }
-.modelselect {
-  appearance: none; -webkit-appearance: none; font: inherit; font-size: 12px; color: var(--vscode-foreground); cursor: pointer;
-  background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 1px 20px 1px 6px; margin-left: -6px;
-  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position: calc(100% - 10px) 55%, calc(100% - 6px) 55%; background-size: 4px 4px; background-repeat: no-repeat;
-}
-.modelselect:hover { border-color: var(--line); background-color: var(--hover); }
-.modelselect:focus-visible { outline: 1px solid var(--focus); }
-.modelselect option { background: var(--vscode-dropdown-background, var(--surface)); color: var(--vscode-dropdown-foreground, var(--vscode-foreground)); }
-.compactbtn {
-  display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 1px 7px; border-radius: 6px; cursor: pointer; white-space: nowrap;
-  border: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 11px; font-weight: 500;
-}
-.compactbtn:hover { color: var(--vscode-foreground); background: var(--hover); }
-.compactbtn.urgent { color: var(--ct-waiting); border-color: color-mix(in srgb, var(--ct-waiting) 50%, transparent); background: color-mix(in srgb, var(--ct-waiting) 10%, transparent); }
+/* ---------- context in a card's facts ---------- */
 .fact .ctx { min-width: 0; }
 .fact { grid-template-columns: 62px minmax(0, 1fr) auto; }
-.fact > .compactbtn { margin-left: 0; }
 .bcardfacts .ctx { display: flex; align-items: center; gap: 7px; }
-.bcardfacts .compactbtn { margin-left: auto; }
-
-/* ---------- model menu (the tool's own list) and a plain Compact ---------- */
-.modelpick { position: relative; display: inline-flex; }
-.modelbtn { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 1px 6px; margin-left: -6px; border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--vscode-foreground); }
-.modelbtn svg { color: var(--muted); }
-.modelbtn:hover, .modelbtn[aria-expanded="true"] { background: var(--hover); }
-.modelmenu {
-  position: absolute; z-index: 60; top: calc(100% + 6px); left: -6px; width: min(300px, 86vw); max-height: 340px; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 1px; padding: 5px; border-radius: 11px;
-  background: var(--surface); border: 1px solid var(--line); box-shadow: 0 14px 34px rgba(0,0,0,.4); animation: rise .14s ease-out;
-}
-.modelmenu button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 6px 9px; border-radius: 8px; cursor: pointer; }
-.modelmenu button:hover, .modelmenu button:focus-visible { background: var(--hover); }
-.modelmenu button.on svg { color: var(--vscode-foreground); flex: none; }
-.mname { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; }
-.mname small { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menuempty { padding: 8px 9px; font-size: 12px; color: var(--muted); }
-.react-flow__node:has(.modelmenu) { z-index: 1000 !important; }
-.compactbtn, .compactbtn.urgent { border: 0; background: none; padding: 0 2px; margin-left: 8px; font-size: 11.5px; font-weight: 500; color: var(--muted); cursor: pointer; }
-.compactbtn:hover { color: var(--vscode-foreground); text-decoration: underline; text-underline-offset: 2px; }
-.compactbtn.urgent { color: var(--ct-waiting); }
-.compactbtn svg { display: none; }
 
 /* one continuous chat list */
 .chatlist { display: flex; flex-direction: column; gap: 1px; position: relative; }
@@ -1030,16 +883,11 @@ button.pickcheck:hover:not(.on) { border-color: var(--ct-done); color: var(--ct-
 .chatlist .grouphead.needs { color: var(--ct-waiting); }
 .chatlist .rowwrap { will-change: transform; }
 
-/* the model menu lives in the page's top layer */
-.modelmenu { position: fixed; z-index: 200; top: auto; left: auto; width: 300px; max-height: 340px; background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, #252526)); opacity: 1; }
-body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-background, var(--vscode-editor-background, #1e1e1e)); }
-
 /* ---------- details facts at any width (the last word on these rules) ---------- */
 .sidebar .details .fact { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; min-width: 0; }
 .sidebar .details .fact > :nth-child(2) { min-width: 0; }
 .sidebar .details .fact .ctx { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; white-space: nowrap; }
 .sidebar .details .fact .ctxbar { flex: 1 1 auto; width: auto; min-width: 28px; max-width: 120px; }
-.sidebar .details .fact .compactbtn { margin-left: 0; justify-self: end; }
 @container (max-width: 340px) {
   .sidebar .details .fact .ofwin { display: none; }
   .sidebar .details .fact { grid-template-columns: 52px minmax(0, 1fr) auto; column-gap: 8px; }
@@ -1054,23 +902,17 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
   .incoming .inactions .btn.tiny { padding: 0 5px; }
   .linkbar .linkbarhint { display: none; }
 }
-.modelbtn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- board cards: drag by the header, click everything else ---------- */
 .react-flow__node-chat, .react-flow__node-chat.dragging { cursor: default; }
 .react-flow__node-chat .bcardhead { cursor: grab; }
 .react-flow__node-chat.dragging .bcardhead { cursor: grabbing; }
-.bcard button, .bcard select, .bcard .bcardtitle, .bcard .modelbtn, .bcard .compactbtn { cursor: pointer; }
+.bcard button, .bcard select, .bcard .bcardtitle { cursor: pointer; }
 .bcard .bcardhead .bcardtitle { cursor: pointer; }
 
 /* React Flow's own grab cursor covers the whole node; only the header drags. */
 .react-flow .react-flow__node.react-flow__node-chat.draggable, .react-flow .react-flow__node.react-flow__node-chat.selectable { cursor: default; }
 .react-flow .react-flow__node.react-flow__node-chat .bcardhead { cursor: grab; }
-
-/* ---------- auto-compact note ---------- */
-.compactwrap { display: inline-flex; align-items: center; gap: 8px; justify-self: end; white-space: nowrap; }
-.compactwrap .compactbtn { margin-left: 0; }
-.autonote { font-size: 11px; color: var(--muted); }
 
 /* ---------- New task dialog ---------- */
 .dialog.newtask { max-width: 520px; gap: 12px; padding: 16px 16px 14px; }
@@ -1123,9 +965,6 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 .react-flow__node .port.left { left: -6px; right: auto; top: calc(50% - 6px); bottom: auto; }
 .react-flow__node .port.right { right: -6px; left: auto; top: calc(50% - 6px); bottom: auto; }
 .react-flow__node .port.react-flow__handle::before { content: ""; position: absolute; inset: -8px; border-radius: 50%; }
-/* A board card is too narrow for "compacts itself when full" beside Compact; the sidebar's details keep the note. */
-.bcard .autonote { display: none; }
-.bcard .compactwrap { min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ---- Folders: this folder or every folder, and where a chat from elsewhere lives ---- */
 .scope { display: flex; gap: 2px; padding: 2px; margin-bottom: 8px; border-radius: 8px; background: color-mix(in srgb, var(--vscode-foreground) 6%, transparent); }
@@ -1150,11 +989,9 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 }
 .sidebar .grouphead.folder:hover { background: var(--hover); }
 .sidebar .grouphead.folder .chev { color: var(--muted); flex: none; }
-.sidebar .grouphead.folder .ficon { color: var(--muted); flex: none; }
 .sidebar .grouphead.folder .fname { min-width: 0; flex: 0 1 auto; }
 .fhint { min-width: 0; flex: 0 1000 auto; font-weight: 400; font-size: 11.5px; color: var(--muted); }
 .fhint::before { content: "· "; }
-.fhere { flex: none; font-size: 10.5px; font-weight: 500; padding: 1px 6px; border-radius: 999px; color: var(--muted); background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent); }
 .fdot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
 .fdot.waiting { background: var(--ct-waiting); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ct-waiting) 22%, transparent); }
 .fdot.working { background: var(--ct-working); animation: fdotpulse 1.6s ease-in-out infinite; }
@@ -1166,11 +1003,6 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 /* which folders show */
 .fpicker { margin-bottom: 8px; border-radius: 8px; border: 1px solid var(--line); }
 .fpicker.open { background: color-mix(in srgb, var(--vscode-foreground) 3%, transparent); }
-.fpickbtn { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 6px; padding: 5px 9px; font-size: 12px; color: var(--muted); cursor: pointer; border-radius: 8px; }
-.fpickbtn:hover { color: var(--vscode-foreground); background: var(--hover); }
-.fpickbtn:focus-visible { outline: 1px solid var(--focus); }
-.fpickbtn .chev { flex: none; }
-.fpanel { padding: 2px 6px 8px; border-top: 1px solid var(--line-soft); }
 .fsearch { margin: 6px 0 4px; }
 .flist { display: flex; flex-direction: column; gap: 1px; max-height: 260px; overflow-y: auto; padding: 4px 0; }
 .fitem { position: relative; display: flex; align-items: center; gap: 7px; padding: 5px 6px; border-radius: 6px; font-size: 12.5px; cursor: pointer; color: var(--muted); }
@@ -1182,8 +1014,6 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 .fitem.on .fcheck { background: var(--focus); border-color: var(--focus); color: #fff; }
 .fitem .fname { min-width: 0; flex: 0 1 auto; }
 .fitem .count { color: var(--muted); }
-.factions { display: flex; align-items: center; gap: 12px; padding: 6px 2px 0; border-top: 1px solid var(--line-soft); font-size: 12px; }
-.factions .linkish:disabled { opacity: .4; cursor: default; }
 
 /* ---- Board cards: a clear surface and edge in any theme ---- */
 .canvas {
@@ -1202,14 +1032,6 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 .bcardfacts dd.bfolder { display: flex; align-items: center; gap: 5px; min-width: 0; color: var(--vscode-foreground); }
 .bcardfacts dd.bfolder svg { flex: none; color: var(--muted); }
 .bcardfacts dd.bfolder .ellipsis { min-width: 0; }
-
-/* row headings on the board ("By time", "By agent", "By folder") */
-.lanehead { font-size: 12.5px; padding: 0 6px 9px; border-bottom: 1px solid var(--card-line, var(--line)); color: var(--vscode-foreground); }
-.lanehead .lanename { display: inline-flex; align-items: center; gap: 7px; min-width: 0; font-weight: 700; letter-spacing: .05em; }
-.lanehead .lanename svg { flex: none; color: var(--muted); }
-.lanehead.folder .lanename { text-transform: none; letter-spacing: 0; font-size: 14px; }
-.lanehead .fhere { text-transform: none; letter-spacing: 0; }
-.lanehead .lanecount { font-weight: 500; letter-spacing: 0; color: var(--muted); padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent); }
 
 /* the toolbar's search never cuts its own hint */
 .tsearch input { width: 104px; }
@@ -1234,15 +1056,11 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 
 /* a folder heading: name on top, "13 chats · 2m ago" under it, live dots on the right */
 .sidebar .grouphead.folder { align-items: center; gap: 8px; padding: 6px 8px 6px 4px; margin-top: 3px; border-radius: 8px; }
-.sidebar .grouphead.folder .ficon { color: var(--muted); }
-.sidebar .grouphead.folder .ficon.here { color: var(--focus); }
 .fmain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .ftop { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .ftop .fname { min-width: 0; flex: 0 1 auto; font-size: 12.5px; font-weight: 600; }
 .fmeta { font-size: 11px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar .grouphead.folder[aria-expanded="true"] { background: var(--soft-bg); }
-/* "current": the folder open in this window, said quietly in the accent colour */
-.fhere { flex: none; font-size: 10.5px; font-weight: 500; padding: 0; border-radius: 0; background: none; color: var(--focus); letter-spacing: .01em; }
 
 /* chats inside a folder hang from it on a guide line */
 .sidebar .rowwrap.nested { margin-left: 11px; padding-left: 8px; border-left: 1px solid var(--soft-line); }
@@ -1251,11 +1069,6 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 /* the folder picker: heading opens and closes it; ticks apply at once */
 .fpicker { margin-bottom: 10px; border: 1px solid var(--soft-line); border-radius: 9px; background: none; overflow: hidden; }
 .fpicker.open { background: var(--soft-bg); }
-.fpickbtn { padding: 6px 10px; gap: 7px; border-radius: 0; }
-.fpicklabel { font-weight: 500; color: var(--vscode-foreground); }
-.fsum { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.fsum.some { color: var(--focus); font-weight: 600; }
-.fpanel { padding: 4px 8px 8px; border-top: 1px solid var(--soft-line); }
 .fquick { display: flex; gap: 4px; padding: 6px 0 4px; }
 .fquick button { all: unset; box-sizing: border-box; flex: 1 1 0; text-align: center; padding: 4px 8px; border-radius: 6px; font-size: 11.5px; cursor: pointer; color: var(--muted); border: 1px solid var(--soft-line); }
 .fquick button:hover { color: var(--vscode-foreground); }
@@ -1288,8 +1101,6 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 .ftop .fname { font-size: 13px; font-weight: 600; color: var(--vscode-foreground); }
 .fmeta { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; }
 .fmeta .ellipsis { min-width: 0; }
-.fmeta .fhere { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--focus); }
-.fmeta .fhere::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .fside { flex: none; display: flex; align-items: center; gap: 7px; }
 .ftools { display: inline-flex; }
 .ftool { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--vscode-sideBar-background, #181818); border: 1px solid var(--soft-line); }
@@ -1409,8 +1220,6 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 .planbar.high > span { background: var(--ct-waiting); }
 .planbar.full > span { background: var(--vscode-errorForeground, #f14c4c); }
 .planbar.wide { width: 100%; height: 7px; }
-.planbar.thin { width: 100%; height: 4px; }
-.planbar.thin > span { background: color-mix(in srgb, var(--vscode-foreground) 45%, transparent); }
 .planpct { flex: none; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .planpct.high { color: var(--ct-waiting); }
 .planpct.full { color: var(--vscode-errorForeground, #f14c4c); }
@@ -1421,17 +1230,9 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
   display: flex; flex-direction: column; gap: 2px;
   background: var(--vscode-sideBar-background, #181818); border-top: 1px solid var(--soft-line, var(--line));
 }
-.planrow { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; min-width: 0; font-size: 11.5px; }
-.planrow:hover { background: var(--hover); }
-.planrow:focus-visible { outline: 1px solid var(--focus); }
-.planrow .planpct { min-width: 30px; text-align: right; font-size: 11.5px; }
-.planmeta { min-width: 0; color: var(--muted); }
 
 /* the Fuel page's plan cards */
 .plans { display: flex; flex-direction: column; gap: 14px; }
-.planshead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.planshead h2 { margin: 0 0 2px; font-size: 18px; }
-.planshead p { margin: 0; }
 /* The Refresh icon turning while plans are read. Its own name: "spin" already turns the colour
    around a working card's edge, and a second "spin" replaced it, swinging the card's glow outside it. */
 .spin { animation: airband-icon-turn 1s linear infinite; }
@@ -1444,17 +1245,7 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 .planbadge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; color: var(--vscode-foreground); background: color-mix(in srgb, var(--focus) 18%, transparent); border: 1px solid color-mix(in srgb, var(--focus) 40%, transparent); }
 .plangroup { display: flex; flex-direction: column; gap: 8px; }
 .plangrouphead { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.planfacts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 0; font-size: 12.5px; }
-.planfacts dt { color: var(--muted); }
-.planfacts dd { margin: 0; text-align: right; min-width: 0; }
-.planwindows { display: flex; flex-direction: column; gap: 12px; }
-.planwindow { display: flex; flex-direction: column; gap: 6px; }
-.planwindowtop { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
-.planreset { font-size: 11.5px; color: var(--muted); }
 .plannote { margin: 0; }
-.planbreak { display: flex; flex-direction: column; gap: 7px; }
-.planbreakrow { display: grid; grid-template-columns: minmax(80px, 120px) 1fr 40px; align-items: center; gap: 10px; font-size: 12.5px; }
-.planbreakrow .planpct { text-align: right; font-weight: 500; color: var(--muted); }
 .planfoot { margin-top: auto; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--vscode-foreground) 9%, transparent); }
 .planfoot a { color: var(--vscode-textLink-foreground); text-decoration: none; }
 .planfoot a:hover { text-decoration: underline; }
@@ -1483,9 +1274,6 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 .pcmpct.full, .pcmpct.full small { color: var(--vscode-errorForeground, #f14c4c); }
 .plancardmini .planbar.wide { height: 6px; }
 .pcmmeta { font-size: 11.5px; color: var(--muted); min-width: 0; }
-.planquiet { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; font-size: 11.5px; color: var(--muted); cursor: pointer; min-width: 0; }
-.planquiet:hover { background: var(--hover); color: var(--vscode-foreground); }
-.planquiet:focus-visible { outline: 1px solid var(--focus); }
 
 /* ===== Fuel page, redesigned ===== */
 .usage { gap: 30px; }
@@ -1545,13 +1333,11 @@ body[data-view="board"] .modelmenu { background: var(--vscode-editorWidget-backg
 .planchip.on { color: var(--vscode-foreground); background: color-mix(in srgb, var(--ct-done) 16%, transparent); border-color: color-mix(in srgb, var(--ct-done) 40%, transparent); }
 
 /* token figures in the same style as the plan cards */
-.usage .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 14px; }
-.usage .tile, .usage .tile.hero { padding: 16px 18px; border-radius: 14px; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 3.5%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground, #ccc) 12%, transparent); box-shadow: none; }
+.usage .tile { padding: 16px 18px; border-radius: 14px; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 3.5%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground, #ccc) 12%, transparent); box-shadow: none; }
 .usage .tilelabel { font-size: 12px; color: var(--muted); }
 .usage .tilefig { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
 .usage .section { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .usage { container-type: inline-size; }
-.closednote { margin: 0; padding: 10px 14px; border-radius: 10px; border: 1px dashed color-mix(in srgb, var(--vscode-foreground) 16%, transparent); }
 
 /* ===== Keyboard shortcut sheet ===== */
 .keysheetwrap { position: absolute; inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(0,0,0,.35); animation: rise .12s ease-out; }
@@ -1615,8 +1401,6 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
    details panel the two text buttons keep only their icons */
 .details .detailactions { flex-wrap: nowrap; gap: 4px; }
 .details .detailactions .grow { flex: 1 1 0; width: 0; min-width: 0; }
-/* the row needs 242 px with its words; a chat inside a folder's group has ~75 px less than the
-   sidebar's content width, one outside it ~45 px less */
 
 /* ===== Fuel page at every size ===== */
 .usage { width: 100%; max-width: 1240px; margin-inline: auto; box-sizing: border-box; }
@@ -1679,8 +1463,6 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 /* auto-fit (not auto-fill) collapses unused columns, so two plan cards or three tiles share the
    whole width instead of leaving a blank track on the right */
 .plancards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); align-items: start; }
-.usage .tiles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
-.tiles { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); }
 /* each card is as tall as its own content */
 .plancard { align-self: start; }
 .planheroreset { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: 5px; row-gap: 1px; }
@@ -1694,29 +1476,12 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 .linkbtn { all: unset; cursor: pointer; color: var(--vscode-textLink-foreground); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .linkbtn:hover { text-decoration: underline; }
 .linkbtn:focus-visible { outline: 1px solid var(--focus); }
-.docbadge { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
-.docbadge.none { color: var(--muted); background: color-mix(in srgb, var(--vscode-foreground) 7%, transparent); }
-.docbadge.draft { color: var(--ct-waiting); background: color-mix(in srgb, var(--ct-waiting) 14%, transparent); }
-.docbadge.changed { color: var(--ct-waiting); background: color-mix(in srgb, var(--ct-waiting) 14%, transparent); }
-.docbadge.ok { color: var(--ct-done, #3fb950); background: color-mix(in srgb, var(--ct-done, #3fb950) 14%, transparent); }
 .spin { animation: airband-icon-turn 1s linear infinite; }
-.agentrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.agentchip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; border: 1px solid color-mix(in srgb, var(--vscode-foreground) 12%, transparent); }
-.agentchip.ok svg { color: var(--ct-done, #3fb950); }
-.agentchip.off { opacity: .55; }
-.cmdarg { font-size: 11px; padding: 1px 7px; border-radius: 6px; font-family: var(--vscode-editor-font-family, monospace); background: color-mix(in srgb, var(--vscode-foreground) 7%, transparent); }
-.cmdarg.req { background: color-mix(in srgb, var(--ct-working, #4f8cff) 16%, transparent); }
-.cmdactions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
 /* the tab row fits a narrow panel: words give way to icons */
 @media (max-width: 520px) { .boardtop .seg.big .tablabel { display: none; } }
 
 /* a page scrolls; its sections never squeeze into each other when it's taller than the window */
 .usage > * { flex-shrink: 0; }
-/* a long file name in a module cuts off with "…" rather than spill out of the card */
-
-
-
-
 
 /* ===== Fuel, simplified ===== */
 .fuelused { display: flex; flex-direction: column; gap: 10px; }
@@ -1735,13 +1500,10 @@ kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; 
 /* narrow widths: rules restored as they were */
 @container (max-width: 270px) { .sidebar .rowmeta > .linkedtag .ltext { display: none; } }
 @container (max-width: 640px) { .tsearch input { width: 70px; } .tsearch input:focus { width: 110px; } }
-@container (max-width: 360px) { .autonote { display: none; } }
 @container (max-width: 270px) { .sidebar .rowmeta > .foldertag { max-width: 34%; } }
-@container (max-width: 270px) { .fhere { display: none; } }
 @container (max-width: 640px) { .tsearch input { width: 84px; } .tsearch input:focus { width: 120px; } }
 @container (max-width: 270px) { .ftools { display: none; } }
 @container (max-width: 270px) { .fitemmeta, .fpoptitle { display: none; } }
-@container (max-width: 250px) { .planrow .planbar { width: 34px; } }
 @container (max-width: 420px) { .limitrow { grid-template-columns: 1fr 42px; } .limitrow .planbar { grid-column: 1 / -1; grid-row: 2; } .limitreset { grid-column: 1 / -1; text-align: left; } }
 @container (max-width: 316px) { .sidebar .rowwrap.nested .details .detailactions .blabel { display: none; } }
 @container (max-width: 287px) { .details .detailactions .blabel { display: none; } }

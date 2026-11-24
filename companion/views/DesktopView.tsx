@@ -294,7 +294,7 @@ export function DesktopView() {
                 </button>
               )}
               {finished.slice(0, pending.length ? 0 : 2).map((f) => (
-                <FinishedToast key={`${f.chatId}:${f.at}`} finished={f} onSay={c.say} onClose={() => setToastGone((g) => new Set(g).add(`${f.chatId}:${f.at}`))} />
+                <FinishedToast key={`${f.chatId}:${f.at}`} finished={f} onClose={() => setToastGone((g) => new Set(g).add(`${f.chatId}:${f.at}`))} />
               ))}
             </>
           )}

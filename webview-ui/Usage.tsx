@@ -192,15 +192,3 @@ export function UsageView({ state }: { state: ViewState }) {
     </div>
   );
 }
-
-/** In, out and cache write as one stacked bar. */
-function Bar({ u }: { u: Usage }) {
-  const t = fresh(u) || 1;
-  return (
-    <div className="bar" aria-hidden="true">
-      <span className="in" style={{ width: `${(u.input / t) * 100}%` }} />
-      <span className="out" style={{ width: `${(u.output / t) * 100}%` }} />
-      <span className="cw" style={{ width: `${(u.cacheWrite / t) * 100}%` }} />
-    </div>
-  );
-}

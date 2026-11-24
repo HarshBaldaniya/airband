@@ -9,8 +9,6 @@ import { listHeads, readAsks } from "../sessions/record/store";
 import { agentStates } from "../install/toolkit";
 import { allCommands, PACKS, userLibraryDir } from "../library/index";
 
-const rel = (root: string, f: string) => path.relative(root, f).split(path.sep).join("/");
-
 /** Projects that can be mapped: this window's folders first, then folders picked to map, then folders
  *  chats ran in that still exist. */
 export function knownProjects(here: string[], picked: string[] = []): CodeMapView["projects"] {

@@ -360,10 +360,6 @@ export function CodePage({ state }: { state: ViewState }) {
     const k = Math.min(4, Math.max(live.cam.k, Math.min(live.w, live.h) / (s.R * 2 + 180)));
     flyTo({ x: s.x ?? 0, y: s.y ?? 0, k });
   };
-  const pickPart = (id: string) => {
-    setSelected({ kind: "part", id });
-    flyToPart(id);
-  };
   const pickFile = (path: string) => {
     const d = live.model?.dotByPath.get(path);
     if (!d) return;

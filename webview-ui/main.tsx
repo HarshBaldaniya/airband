@@ -72,7 +72,7 @@ function App() {
 
   return (
     <>
-      {view === "board" ? <Board state={state} setModal={setModal} tab={tab} setTab={setTab} /> : <Sidebar state={state} setModal={setModal} />}
+      {view === "board" ? <Board state={state} tab={tab} setTab={setTab} /> : <Sidebar state={state} setModal={setModal} />}
       <Modals modal={modal} close={close} />
       <TooltipLayer />
       <div className="toasts" role="status" aria-live="polite">

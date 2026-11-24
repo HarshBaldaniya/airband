@@ -1334,7 +1334,6 @@ export class Controller implements vscode.Disposable {
   // ---- the Code and Library pages ----
 
   private codeMaps?: { mapFor(root: string): CodeMap | undefined };
-  private ownMap?: CodeMap;
 
   /** The code map service from the extension, shared so the folder is mapped once. */
   useCodeMaps(service: { mapFor(root: string): CodeMap | undefined }): void {

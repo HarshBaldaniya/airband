@@ -34,7 +34,7 @@ import type { BoardTab, ConnectionView, ViewState } from "../src/core/protocol";
 import { Orbit, PenLine, SquareSlash } from "lucide-react";
 import { PAGE_KEYS } from "./pagekeys";
 import type { BoardArrange, BoardPosition, ChatSession } from "../src/core/types";
-import { DRAG_TYPE, agoText, charsToTokens, contextPct, folderName, modelName, remember, remembered, send, tokens, whereItOpens } from "./api";
+import { DRAG_TYPE, agoText, charsToTokens, contextPct, folderName, remember, remembered, send, tokens, whereItOpens } from "./api";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -44,13 +44,11 @@ import {
   ExternalLink,
   GitBranch,
   I,
-  Inbox,
   LayoutGrid,
   Link2,
   Maximize2,
   RefreshCw,
   Eye,
-  Activity,
   CalendarDays,
   ChevronDown,
   LayoutDashboard,
@@ -73,13 +71,11 @@ import {
   Plus,
   Search,
   StatusChip,
-  StatusDot,
   ToolMark,
   Unlink,
   X,
   Zap,
 } from "./Icons";
-import type { Modal } from "./Modals";
 import { ModelPicker } from "./ChatControls";
 import { UsageView } from "./Usage";
 import { CodePage } from "./CodePage";
@@ -145,7 +141,7 @@ export function typing(e: KeyboardEvent): boolean {
   return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
 }
 
-export function Board(props: { state: ViewState; setModal: (m: Modal) => void; tab: BoardTab; setTab: (t: BoardTab) => void }) {
+export function Board(props: { state: ViewState; tab: BoardTab; setTab: (t: BoardTab) => void }) {
   // The shortcuts sheet belongs to the whole window: the page's own keys, then the ones that work
   // everywhere. ? opens it on any page; Esc closes it before anything else hears the Esc.
   const [keysOpen, setKeysOpen] = useState(false);
@@ -210,14 +206,14 @@ export function Board(props: { state: ViewState; setModal: (m: Modal) => void; t
         <WritingPage />
       ) : (
         <ReactFlowProvider>
-          <Canvas state={props.state} setModal={props.setModal} />
+          <Canvas state={props.state} />
         </ReactFlowProvider>
       )}
     </div>
   );
 }
 
-function Canvas({ state, setModal }: { state: ViewState; setModal: (m: Modal) => void }) {
+function Canvas({ state }: { state: ViewState }) {
   const flow = useReactFlow();
   const dragStart = useRef<BoardPosition | null>(null);
   const fitted = useRef(false);
@@ -1246,8 +1242,6 @@ function edgeEnds(a: InternalNode, b: InternalNode) {
     tp: down ? Position.Top : Position.Bottom,
   };
 }
-
-const LANE_GAP = 90;
 
 /** Cards in labelled columns: by time, by status or by agent; newest first in each. */
 function laneLayout(

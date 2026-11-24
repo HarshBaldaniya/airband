@@ -1,6 +1,5 @@
 import { ArrowUpRight, Eye, KeyRound, Lock, ServerOff } from "lucide-react";
 import { HeroRoger } from "@/components/HeroRoger";
-import { Copy } from "@/components/Copy";
 import { DownloadButton, InstallLine } from "@/components/DownloadButton";
 import { How } from "@/components/How";
 import { GitHub, Npm } from "@/components/Marks";
