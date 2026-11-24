@@ -24,6 +24,7 @@ export const stationFile = () => airbandFile("station.json");
 /** The longest a request waits. Claude Code's hook is set to 120 s, so this ends first. */
 export const DECISION_MS = 110_000;
 const CONNECT_MS = 400;
+const PING_MS = 800;
 
 /** The header a hook sends a fresh random value in, and the one the Station proves itself in. */
 export const NONCE_HEADER = "x-airband-nonce";
@@ -128,4 +129,19 @@ export async function askStation(ask: PermissionAsk, info = readStationInfo()): 
   const wait = Math.min(info.waitMs ?? DECISION_MS, DECISION_MS);
   const res = await stationPost<{ answer?: Answer }>(info, "/api/hook/permission", { ...ask, waitMs: wait }, wait + 2000);
   return res?.answer;
+}
+
+/** Whether a Station answers on the port station.json names (another one already running). */
+export function stationAnswers(info: Pick<StationInfo, "port" | "token">): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.get({ host: "127.0.0.1", port: info.port, path: "/api/ping", headers: { "x-airband-token": info.token }, timeout: PING_MS }, (res) => {
+      res.resume();
+      resolve(res.statusCode === 200);
+    });
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.on("error", () => resolve(false));
+  });
 }

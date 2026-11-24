@@ -8,7 +8,6 @@ import * as fs from "node:fs";
 import * as http from "node:http";
 import * as path from "node:path";
 import { airbandFile, safeId, statusDir, writeFileAtomic } from "../core/paths";
-import { readJson } from "../core/json";
 import { readHead } from "../core/record";
 import { appendInbox } from "../core/store";
 import type { Status } from "../core/types";
@@ -17,15 +16,17 @@ import { AGENTS } from "../core/agents";
 import { forgetReads, liveChats, titleOf, type LiveChat } from "./chats";
 import { CatchUp } from "./catchup";
 import { ChatWatch } from "./watch";
-import { DECISION_MS, NONCE_HEADER, PROOF_HEADER, readStationInfo, stationFile, stationProof, type StationInfo } from "./client";
+import { DECISION_MS, readStationInfo, stationAnswers, stationFile, type StationInfo } from "./client";
 import { PhoneLink, type PhoneLinkOptions } from "./link";
-import { cleanDesign, cleanName, DEFAULT_COMPANION } from "./companion";
 import { ask, headline, tellText } from "./manager";
 import { openChat } from "./open";
 import { chatApp } from "../core/apps";
 import { describeRequest, questionsOf, ruleKey, type Answer } from "./reply";
 import type { CompanionAnswer, FinishedView, PendingView, StationSettings, StationState } from "./types";
-import { HOUR_MS, MiB } from "../core/units";
+import { HOUR_MS } from "../core/units";
+import { Refusal, SAID, stationHandler } from "./http";
+import { readRules, rememberRule } from "./rules";
+import { readSettings, saveSettings, WAIT_MIN_MS } from "./settings";
 
 const DEFAULT_PORT = 47821;
 
@@ -53,30 +54,17 @@ interface Waiting extends PendingView {
   toolInput?: unknown;
 }
 
-const settingsFile = () => airbandFile("station-settings.json");
-const rulesFile = () => airbandFile("station-rules.json");
 const FINISHED_KEEP_MS = 2 * HOUR_MS;
 /** The most of a request's detail (a command, a plan) a screen is sent. Longer ones say they were cut. */
 export const DETAIL_MAX = 2000;
 /** A chat first seen already done counts as just finished if it stopped this recently. */
 const JUST_FINISHED_MS = 2 * 60_000;
+/** How long a pretend request (Test in the settings) waits for an answer. */
+const SAMPLE_MS = 90_000;
 /** How long a one-time link to the companion's screen works. */
 const ONE_TIME_MS = 2 * 60_000;
 /** A comment line on every open event stream this often, so nothing in between closes it as idle. */
 const SSE_PING_MS = 20_000;
-/** The largest request body the Station reads. */
-const BODY_MAX = MiB;
-const SOMETHING_WRONG = "Something went wrong in Airband's Station. Try again.";
-const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
-const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
-
-const defaultSettings = (): StationSettings => ({ approvals: true, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: true, phoneAlways: true });
-
-export function readSettings(): StationSettings {
-  // "phone" was the network phone link, gone since the relay: an old file's value is dropped.
-  const { phone: _phone, ...saved } = readJson<Partial<StationSettings> & { phone?: unknown }>(settingsFile(), {});
-  return { ...defaultSettings(), ...saved, companion: { name: cleanName(saved.companion?.name), design: cleanDesign(saved.companion?.design) } };
-}
 
 const key = () => crypto.randomBytes(18).toString("base64url");
 
@@ -89,7 +77,7 @@ export class Station extends EventEmitter {
   private finished = new Map<string, FinishedView>();
   private chats: LiveChat[] = [];
   private seen = new Map<string, Status>();
-  private sse = new Set<http.ServerResponse>();
+  private streams = new Set<http.ServerResponse>();
   private timers: NodeJS.Timeout[] = [];
   private watcher?: fs.FSWatcher;
   private watch?: ChatWatch;
@@ -119,7 +107,7 @@ export class Station extends EventEmitter {
   /** Starts listening, unless another Station already runs on this computer. */
   async start(): Promise<void> {
     const other = readStationInfo();
-    if (other && other.pid !== process.pid && (await ping(other))) throw new Error(`Airband's Station already runs (process ${other.pid}).`);
+    if (other && other.pid !== process.pid && (await stationAnswers(other))) throw new Error(`Airband's Station already runs (process ${other.pid}).`);
     fs.mkdirSync(airbandFile(), { recursive: true });
     await this.listen(this.o.port ?? DEFAULT_PORT);
     this.writeInfo();
@@ -149,7 +137,7 @@ export class Station extends EventEmitter {
       this.timers.push(setInterval(() => void this.watch?.tick(), watchEvery));
     }
     await this.link?.start();
-    this.timers.push(setInterval(() => this.sse.forEach((r) => r.write(": ping\n\n")), SSE_PING_MS));
+    this.timers.push(setInterval(() => this.streams.forEach((r) => r.write(": ping\n\n")), SSE_PING_MS));
     try {
       fs.mkdirSync(statusDir(), { recursive: true });
       this.watcher = fs.watch(statusDir(), () => {
@@ -166,7 +154,7 @@ export class Station extends EventEmitter {
     for (let i = 0; ; i++) {
       try {
         await new Promise<void>((resolve, reject) => {
-          const server = http.createServer((req, res) => void this.handle(req, res));
+          const server = http.createServer(stationHandler(this, this.uiDir));
           server.once("error", reject);
           server.listen(port, "127.0.0.1", () => {
             server.off("error", reject);
@@ -189,8 +177,8 @@ export class Station extends EventEmitter {
   private letGo(): void {
     const old = this.server;
     this.server = undefined;
-    for (const r of this.sse) r.end();
-    this.sse.clear();
+    for (const r of this.streams) r.end();
+    this.streams.clear();
     old?.close();
     old?.closeIdleConnections?.();
   }
@@ -252,6 +240,14 @@ export class Station extends EventEmitter {
     };
   }
 
+  /** A screen's event stream: it gets the state now and after every change, until it closes. */
+  addStream(res: http.ServerResponse, req: http.IncomingMessage): void {
+    res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
+    res.write(`data: ${JSON.stringify(this.snapshot())}\n\n`);
+    this.streams.add(res);
+    req.on("close", () => this.streams.delete(res));
+  }
+
   /** Tells every screen, once, after a burst of changes. */
   changed(): void {
     setImmediate(() => {
@@ -262,7 +258,7 @@ export class Station extends EventEmitter {
       this.lastSent = text;
       this.emit("change", s);
       const line = `data: ${JSON.stringify(s)}\n\n`;
-      for (const r of this.sse) r.write(line);
+      for (const r of this.streams) r.write(line);
     });
   }
 
@@ -273,14 +269,14 @@ export class Station extends EventEmitter {
     const agent = b.agent === "codex" ? "codex" : b.agent === "claude" ? "claude" : undefined;
     if (!this.settings.approvals || !agent) return Promise.resolve(undefined);
     const questions = agent === "claude" ? questionsOf(b.tool_name, b.tool_input) : undefined;
-    if (!questions && this.rules().includes(ruleKey(agent, b.cwd, b.tool_name, b.tool_input))) return Promise.resolve({ decision: "allow" });
+    if (!questions && readRules().includes(ruleKey(agent, b.cwd, b.tool_name, b.tool_input))) return Promise.resolve({ decision: "allow" });
     const sid = b.session_id && safeId(b.session_id) ? b.session_id : undefined;
     const chat = sid ? this.chats.find((c) => c.id === sid) : undefined;
     const head = sid && !chat ? readHead(sid) : undefined;
     const cwd = b.cwd ?? chat?.cwd ?? head?.cwd;
     const d = describeRequest(b.tool_name, b.tool_input);
     const now = this.now();
-    const wait = Math.max(5000, Math.min(b.waitMs ?? this.settings.waitMs, DECISION_MS));
+    const wait = Math.max(WAIT_MIN_MS, Math.min(b.waitMs ?? this.settings.waitMs, DECISION_MS));
     const id = crypto.randomUUID();
     return new Promise((resolve) => {
       const finish = (a: Answer | undefined) => {
@@ -317,13 +313,12 @@ export class Station extends EventEmitter {
     });
   }
 
-  /** The person's answer to a request. "always" also allows the same thing in that folder from now on. */
   /** A pretend request to try the phone link: it shows like a real one, and no chat waits on it. */
   sample(): PendingView {
     for (const w of this.pending.values()) if (w.sample) w.reply(undefined);
     const now = this.now();
     const id = crypto.randomUUID();
-    const wait = 90_000;
+    const wait = SAMPLE_MS;
     this.lastTest = undefined;
     const finish = (a: Answer | undefined) => {
       if (!this.pending.has(id)) return;
@@ -345,23 +340,9 @@ export class Station extends EventEmitter {
     const w = this.pending.get(id);
     if (!w) return false;
     if (w.sample) this.testFrom = from;
-    if (a.decision === "always" && !w.questions && !w.sample) this.remember(ruleKey(w.agent, w.cwd, w.toolName, w.toolInput));
+    if (a.decision === "always" && !w.questions && !w.sample) rememberRule(ruleKey(w.agent, w.cwd, w.toolName, w.toolInput));
     w.reply(a);
     return true;
-  }
-
-  private rules(): string[] {
-    return readJson<string[]>(rulesFile(), []);
-  }
-
-  /** Keeps "always allow" for this exact request: same agent, folder, tool and command or file. */
-  remember(rule: string): void {
-    const rules = this.rules();
-    if (!rules.includes(rule)) writeFileAtomic(rulesFile(), JSON.stringify([...rules, rule].slice(-500)));
-  }
-
-  forgetRules(): void {
-    writeFileAtomic(rulesFile(), "[]");
   }
 
   ask(text: string): Promise<CompanionAnswer> {
@@ -382,7 +363,7 @@ export class Station extends EventEmitter {
 
   /** Puts a message in a chat's inbox: Airband hands it over with the chat's next turn. */
   tell(chatId: string, text: string): string {
-    if (!safeId(chatId) || !text.trim()) throw new Refusal(400, "Nothing to send.");
+    if (!safeId(chatId) || !text.trim()) throw new Refusal(400, SAID.nothingToSend);
     const chat = this.chats.find((c) => c.id === chatId);
     const head = chat ? undefined : readHead(chatId);
     const title = chat?.title ?? (head ? titleOf(head) : chatId.slice(0, 8));
@@ -414,9 +395,13 @@ export class Station extends EventEmitter {
     if (this.finished.delete(chatId)) this.changed();
   }
 
+  get currentSettings(): StationSettings {
+    return this.settings;
+  }
+
   setSettings(patch: Partial<StationSettings>): StationSettings {
     this.settings = { ...this.settings, ...patch };
-    writeFileAtomic(settingsFile(), JSON.stringify(this.settings));
+    saveSettings(this.settings);
     if (patch.approvals === false) for (const w of [...this.pending.values()]) w.reply({ decision: "terminal" });
     this.writeInfo();
     this.changed();
@@ -435,224 +420,12 @@ export class Station extends EventEmitter {
     return code;
   }
 
-  private useCode(code: string): boolean {
+  /** True once for a code oneTimeCode made, while it still works. */
+  useOneTimeCode(code: string): boolean {
     const until = this.codes.get(code);
     this.codes.delete(code);
     return until !== undefined && until > this.now();
   }
 
-  // ---- HTTP ----
 
-  /** The request comes from this computer and carries the Station's key. */
-  private holdsKey(req: http.IncomingMessage, url: URL): boolean {
-    const cookie = /(?:^|;\s*)airband_t=([^;]+)/.exec(req.headers.cookie ?? "")?.[1];
-    const given = (req.headers["x-airband-token"] as string | undefined) ?? url.searchParams.get("t") ?? cookie;
-    return !!given && LOOPBACK.has(req.socket.remoteAddress ?? "") && safeEqual(given, this.token);
-  }
-
-  /**
-   * Only Roger's own pages and Airband's own programs reach the Station. A web page served from any
-   * other address on this computer could otherwise send requests with the key the browser keeps
-   * (approving a tool, telling a chat what to do): its Host, its Origin or its plain form gives it
-   * away. A JSON body can't come from another page without the browser asking first, and the
-   * Station never says yes.
-   */
-  private fromHere(req: http.IncomingMessage): boolean {
-    const own = new Set([`127.0.0.1:${this.port}`, `localhost:${this.port}`]);
-    const host = req.headers.host ?? "";
-    if (!own.has(host)) return false;
-    const origin = req.headers.origin;
-    if (origin && origin !== `http://${host}`) return false;
-    if (req.method === "POST" && !/^application\/json\b/i.test(req.headers["content-type"] ?? "")) return false;
-    return true;
-  }
-
-  private async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    const url = new URL(req.url ?? "/", "http://station");
-    const route = url.pathname;
-    try {
-      if (!this.fromHere(req)) return send(res, 403, { error: "Only Airband's own pages can reach the Station." });
-      if (req.method === "GET" && route.startsWith("/ui/")) return this.asset(route.slice(4), res);
-      const code = url.searchParams.get("c");
-      if (req.method === "GET" && route === "/app" && code) {
-        if (!this.useCode(code)) return send(res, 401, { error: "That link was used already or ran out. Make a new one with airband station." });
-        res.writeHead(302, { location: "/app", "set-cookie": keyCookie(this.token), "cache-control": "no-store" });
-        return void res.end();
-      }
-      if (!this.holdsKey(req, url)) return send(res, 401, { error: "This needs Airband's key." });
-      // A hook checks that this answer comes from the Station that holds the key (client.ts).
-      const nonce = req.headers[NONCE_HEADER];
-      const proof = typeof nonce === "string" ? stationProof(this.token, nonce) : undefined;
-      if (proof) res.setHeader(PROOF_HEADER, proof);
-      if (route === "/api/hook/permission") {
-        if (req.method !== "POST") return send(res, 404, { error: "Not here." });
-        const body = await readBody(req);
-        let cancel: (() => void) | undefined;
-        res.on("close", () => !res.writableEnded && cancel?.());
-        const answer = await this.permission(body as Parameters<Station["permission"]>[0], (c) => (cancel = c));
-        return send(res, 200, answer ? { answer } : {});
-      }
-      if (req.method === "GET" && route === "/app") {
-        // The Airband app asks for its corner; a browser (airband station) gets the full page.
-        const mode = url.searchParams.get("mode") === "desktop" ? "desktop" : "phone";
-        const t = url.searchParams.get("t");
-        const headers: Record<string, string> = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" };
-        if (t) headers["set-cookie"] = keyCookie(t);
-        res.writeHead(200, headers);
-        return void res.end(page(mode));
-      }
-      if (req.method === "GET" && route === "/api/ping") return send(res, 200, { ok: true, version: VERSION });
-      if (req.method === "GET" && route === "/api/state") return send(res, 200, this.snapshot());
-      if (req.method === "GET" && route === "/api/events") {
-        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
-        res.write(`data: ${JSON.stringify(this.snapshot())}\n\n`);
-        this.sse.add(res);
-        req.on("close", () => this.sse.delete(res));
-        return;
-      }
-      if (req.method !== "POST") return send(res, 404, { error: "Not here." });
-      const body = (await readBody(req)) as Record<string, unknown>;
-      switch (route) {
-        case "/api/decide": {
-          const decision = body.decision as Answer["decision"];
-          if (!["allow", "always", "deny", "terminal"].includes(decision)) return send(res, 400, { error: "Allow, always, deny or terminal." });
-          const id = String(body.id ?? "");
-          const ok = this.decide(id, { decision, ...(body.answers ? { answers: body.answers as Answer["answers"] } : {}), ...(typeof body.message === "string" ? { message: body.message } : {}) });
-          return send(res, ok ? 200 : 410, ok ? { ok } : { error: "That request has already ended." });
-        }
-        case "/api/ask":
-          return send(res, 200, await this.ask(String(body.text ?? "")));
-        case "/api/tell": {
-          const id = String(body.chatId ?? "");
-          return send(res, 200, { title: this.tell(id, String(body.text ?? "")), when: this.tellWhen(id) });
-        }
-        case "/api/open":
-          return send(res, 200, { text: this.open(String(body.chatId ?? "")) });
-        case "/api/dismiss":
-          this.dismiss(String(body.chatId ?? ""));
-          return send(res, 200, { ok: true });
-        case "/api/phone/link":
-        case "/api/phone/code":
-        case "/api/phone/test":
-        case "/api/phone/unlink": {
-          if (!this.link) return send(res, 404, { error: "The phone link is off here." });
-          if (route === "/api/phone/unlink") return await this.link.unlink(), send(res, 200, { ok: true });
-          if (route === "/api/phone/test") return send(res, 200, { results: await this.link.sample() });
-          const url = route === "/api/phone/link" ? await this.link.link() : this.link.pairingUrl();
-          return send(res, 200, { url });
-        }
-        case "/api/settings": {
-          const patch: Partial<StationSettings> = {};
-          if (typeof body.approvals === "boolean") patch.approvals = body.approvals;
-          if (typeof body.lookups === "boolean") patch.lookups = body.lookups;
-          if (typeof body.phoneAlways === "boolean") patch.phoneAlways = body.phoneAlways;
-          if (typeof body.waitMs === "number") patch.waitMs = Math.max(5000, Math.min(body.waitMs, DECISION_MS));
-          if (body.companionName !== undefined || body.companionDesign !== undefined)
-            patch.companion = { name: body.companionName !== undefined ? cleanName(body.companionName) : this.settings.companion.name, design: body.companionDesign !== undefined ? cleanDesign(body.companionDesign) : this.settings.companion.design };
-          return send(res, 200, this.setSettings(patch));
-        }
-        default:
-          return send(res, 404, { error: "Not here." });
-      }
-    } catch (e) {
-      if (e instanceof Refusal) return void (!res.headersSent && send(res, e.status, { error: e.message }));
-      // What went wrong stays in the Station's log: a page is told only that it did.
-      console.error("airband station:", e);
-      if (!res.headersSent) send(res, 500, { error: SOMETHING_WRONG });
-    }
-  }
-
-  private asset(name: string, res: http.ServerResponse): void {
-    const file = path.join(this.uiDir, path.basename(name));
-    const type = MIME[path.extname(file)];
-    if (!type || !fs.existsSync(file)) return send(res, 404, { error: "Not here." });
-    res.writeHead(200, { "content-type": type, "cache-control": "no-cache" });
-    fs.createReadStream(file).pipe(res);
-  }
-}
-
-/** The browser keeps the key in a cookie no page script can read. */
-const keyCookie = (t: string) => `airband_t=${t}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000`;
-
-/** A request the Station turns down on purpose: its sentence is the person's to read. */
-class Refusal extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-function safeEqual(a: string, b: string): boolean {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && crypto.timingSafeEqual(x, y);
-}
-
-function send(res: http.ServerResponse, code: number, body: unknown): void {
-  const text = JSON.stringify(body);
-  res.writeHead(code, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-  res.end(text);
-}
-
-function readBody(req: http.IncomingMessage, max = BODY_MAX): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let size = 0;
-    const chunks: Buffer[] = [];
-    req.on("data", (c: Buffer) => {
-      size += c.length;
-      if (size > max) {
-        reject(new Refusal(413, "Too much."));
-        req.destroy();
-      } else chunks.push(c);
-    });
-    req.on("end", () => {
-      try {
-        const text = Buffer.concat(chunks).toString("utf8");
-        resolve(text ? JSON.parse(text) : {});
-      } catch {
-        reject(new Refusal(400, "Not JSON."));
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
-function ping(info: Pick<StationInfo, "port" | "token">): Promise<boolean> {
-  return new Promise((resolve) => {
-    const req = http.get({ host: "127.0.0.1", port: info.port, path: "/api/ping", headers: { "x-airband-token": info.token }, timeout: 800 }, (res) => {
-      res.resume();
-      resolve(res.statusCode === 200);
-    });
-    req.on("timeout", () => {
-      req.destroy();
-      resolve(false);
-    });
-    req.on("error", () => resolve(false));
-  });
-}
-
-/** The page the companion's screen and the phone load: the same app, told which one it is. */
-function page(mode: "desktop" | "phone"): string {
-  const phone = mode === "phone";
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Airband">
-<meta name="theme-color" content="#141416">
-<title>Airband</title>
-<link rel="stylesheet" href="/ui/ui.css">
-</head>
-<body class="${phone ? "phone" : "desktop"}">
-<div id="root"></div>
-<script>window.AIRBAND_MODE = ${JSON.stringify(mode)};</script>
-<script src="/ui/ui.js"></script>
-</body>
-</html>`;
 }
