@@ -4,14 +4,12 @@
 import * as vscode from "vscode";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as os from "node:os";
 import { randomBytes } from "node:crypto";
 import type { Adapter } from "../adapters/adapter";
 import { ClaudeAdapter } from "../adapters/claude";
-import { query } from "@anthropic-ai/claude-agent-sdk";
 import { CodexAdapter } from "../adapters/codex";
 import { GeminiAdapter } from "../adapters/gemini";
-import { claudeProjectFolder, claudeProjectsDir, codexSessionsDir, airbandFile, airbandHome, statusDir } from "../core/paths";
+import { claudeProjectFolder, claudeProjectsDir, airbandFile, airbandHome, statusDir } from "../core/paths";
 import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, ViewState } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
 import { codeHits, codeMapView, codeModuleView, knownProjects, libraryView } from "./pages";
@@ -27,13 +25,10 @@ import { appendInbox, readInbox, takeInbox } from "../sharing/inbox";
 import { getCursor, setCursor } from "../sharing/cursors";
 import { logDelivery, readDeliveries } from "../sharing/deliveries";
 import { addUsage } from "../core/types";
-import type { ChatDigest, ChatRef, ChatSession, Connection, PlanUsage, Status } from "../core/types";
+import type { ChatDigest, ChatRef, ChatSession, Connection, Status } from "../core/types";
 import type { Tool } from "../core/agents";
 import { NO_USAGE } from "../core/types";
 import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pickElsewhere, registerWindow, takeOpenRequests, unregisterWindow } from "../core/folders";
-import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../sessions/plans";
-import { recentRollouts } from "../adapters/codex";
-import { readTail } from "../core/file-lines";
 import { CONTEXT_BUDGET } from "../core/config";
 import { buildContext, buildUpdate, formatDelivery } from "../sharing/delivery";
 import { sameFolder } from "../core/paths";
@@ -42,10 +37,10 @@ import { catchUpRecord, recordBehind } from "../sessions/record/update";
 import { readAsksFrom } from "../sessions/record/extract";
 import { recordContext, recordPointer, renderAsks, type LinkLevel } from "../sessions/record/render";
 import { agentOf } from "../core/agents";
-import { findClaude } from "../core/process";
-import { hookTargets, setClaudeAiCredit } from "../install/agent-hooks";
+import { setClaudeAiCredit } from "../install/agent-hooks";
 import { claudeExtensionInstalled, openClaude, openInTerminal } from "./open";
 import { webviewHtml } from "./webview-html";
+import { PlansService } from "./plans-service";
 import { SetupService } from "./setup-service";
 import { contextSize, setWriting, syncConfig, writingView } from "./settings";
 
@@ -54,8 +49,6 @@ const PER_TOOL = 60;
 /** Chats from every folder: read again at most every 30 s (see pickElsewhere for which are shown). */
 const ELSEWHERE_PER_TOOL = 400;
 const ELSEWHERE_MS = 30_000;
-/** Plan limits are read again at most this often (a Refresh on the Fuel page reads them at once). */
-const PLANS_MS = 5 * 60_000;
 /**
  * A chat file with more than this not yet counted is counted in the background, a slice at a time,
  * so the list shows at once and the extension never stops answering (one chat file can be a gigabyte).
@@ -72,7 +65,7 @@ const OPEN_GIVE_UP_MS = 10_000;
 const QUIET_MS = 15_000;
 
 export class Controller implements vscode.Disposable {
-  private readonly adapters: Adapter[] = [new ClaudeAdapter(), new CodexAdapter(), new GeminiAdapter()];
+  readonly adapters: Adapter[] = [new ClaudeAdapter(), new CodexAdapter(), new GeminiAdapter()];
   private readonly views = new Set<vscode.Webview>();
   private board: vscode.WebviewPanel | undefined;
   state: ViewState = {
@@ -100,6 +93,7 @@ export class Controller implements vscode.Disposable {
   private firstLoad = true;
 
   readonly setup = new SetupService(this);
+  readonly plansService = new PlansService(this);
 
   constructor(readonly ctx: vscode.ExtensionContext) {
     this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => (this.rewatch(), this.noteWindow())));
@@ -346,8 +340,8 @@ export class Controller implements vscode.Disposable {
     }
 
     this.notifyWaiting(sessions);
-    this.followCodexPlan();
-    void this.refreshPlans();
+    this.plansService.follow();
+    void this.plansService.refresh();
     this.state = {
       root,
       tools: present.map((a) => a.tool),
@@ -360,8 +354,8 @@ export class Controller implements vscode.Disposable {
       hooks,
       claudeExtension,
       focus: this.focusOn,
-      plans: this.plans,
-      plansLoading: this.plansLoading,
+      plans: this.plansService.plans,
+      plansLoading: this.plansService.loading,
       loading: false,
       error: errors.length ? `Some chats couldn't be read (${errors.join("; ")})` : undefined,
     };
@@ -437,100 +431,6 @@ export class Controller implements vscode.Disposable {
       this.counting = false;
       for (const a of this.adapters) a.saveCache?.();
       this.refreshSoon(0);
-    }
-  }
-
-  // ---- plan limits ----
-
-  private plans: Partial<Record<Tool, PlanUsage>> = {};
-  private plansAt = 0;
-  private plansLoading = false;
-
-  /**
-   * Each agent's account and plan limits, as the agent reports them: Claude's from the person's own
-   * Claude Code (its /usage data; nothing is sent to a model and no login is touched), Codex's from
-   * its own chat records, Gemini CLI's sign-in. Read at most every five minutes unless asked.
-   */
-  private async refreshPlans(force = false): Promise<void> {
-    if (this.plansLoading || (!force && Date.now() - this.plansAt < PLANS_MS)) return;
-    this.plansLoading = true;
-    this.plansAt = Date.now();
-    if (force) this.post({ type: "state", state: { ...this.state, plansLoading: true } });
-    const next: Partial<Record<Tool, PlanUsage>> = {};
-    try {
-      // An agent counts once it is installed (its home folder exists), even before its first chat, so
-      // its card can say what to do next.
-      const present = new Set<Tool>([...this.adapters.filter((a) => a.tool === "Claude" || a.present()).map((a) => a.tool), ...hookTargets().filter((t) => t.present()).map((t) => t.tool)]);
-      const exe = findClaude();
-      if (exe) {
-        try {
-          next.Claude = await this.claudePlan(exe);
-        } catch (err) {
-          next.Claude = { tool: "Claude", windows: [], at: Date.now(), source: "Claude Code", note: `Claude Code didn't answer: ${err instanceof Error ? err.message : String(err)}` };
-        }
-      }
-      if (present.has("Codex")) next.Codex = this.codexPlan();
-      if (present.has("Gemini")) next.Gemini = geminiPlan();
-      this.plans = next;
-    } finally {
-      this.plansLoading = false;
-      this.refreshSoon(0);
-    }
-  }
-
-  private codexPlanMtime = 0;
-
-  /** Codex's limits, from the newest of its chat files that records them (a tail read each). */
-  private codexPlan(): PlanUsage {
-    let found: PlanUsage | undefined;
-    const rollouts = recentRollouts(codexSessionsDir(), 25);
-    this.codexPlanMtime = rollouts[0]?.mtime ?? 0;
-    for (const { file } of rollouts) if ((found = codexPlanFrom(readTail(file, 256 * 1024)))) break;
-    // Whether Codex is signed in is told by its auth file being there; Airband never opens it.
-    const signedIn = fs.existsSync(path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "auth.json"));
-    return (
-      found ?? {
-        tool: "Codex",
-        windows: [],
-        at: Date.now(),
-        source: "Codex",
-        note: signedIn ? "Codex shows its limits after its first reply. Use Codex once, and they appear here." : "Sign in to Codex (run codex login in a terminal), use it once, and its limits appear here.",
-      }
-    );
-  }
-
-  /**
-   * Codex writes its limits into each chat file as it answers, so they're read again the moment its
-   * newest chat file changes, not on the five-minute cycle Claude's need. One folder listing, no more.
-   */
-  private followCodexPlan(): void {
-    if (this.plansLoading || !this.adapters.some((a) => a.tool === "Codex" && a.present())) return;
-    const newest = recentRollouts(codexSessionsDir(), 1)[0]?.mtime ?? 0;
-    if (!newest || newest <= this.codexPlanMtime) return;
-    this.plans = { ...this.plans, Codex: this.codexPlan() };
-  }
-
-  private async claudePlan(exe: string): Promise<PlanUsage> {
-    const abort = new AbortController();
-    const never = (async function* () {
-      await new Promise(() => undefined);
-    })();
-    const q = query({ prompt: never as AsyncIterable<never>, options: { pathToClaudeCodeExecutable: exe, cwd: this.root, persistSession: false, abortController: abort, settingSources: [] } });
-    try {
-      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("no answer in time")), 20_000));
-      const account = await Promise.race([q.accountInfo(), timeout]);
-      // The /usage data is marked experimental in the SDK: if it changes or goes, the account still shows.
-      let usage: ClaudeUsageAnswer | undefined;
-      try {
-        const ask = (q as unknown as { usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET?: (o: { skipBehaviors: boolean }) => Promise<ClaudeUsageAnswer> })
-          .usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET;
-        if (ask) usage = await Promise.race([ask.call(q, { skipBehaviors: true }), timeout]);
-      } catch {
-        usage = undefined;
-      }
-      return claudePlanFrom(account, usage);
-    } finally {
-      abort.abort();
     }
   }
 
@@ -693,7 +593,7 @@ export class Controller implements vscode.Disposable {
         case "syncNow":
           return this.syncNow(m.id);
         case "plans":
-          return void this.refreshPlans(true);
+          return void this.plansService.refresh(true);
         case "codeMap":
           return void this.sendCodeMap(from, m.rebuild, m.root);
         case "codeMapFolder":
