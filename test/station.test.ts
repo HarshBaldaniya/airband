@@ -97,6 +97,26 @@ test("with no Station running, the hook gives up at once and the terminal asks",
   assert.equal(readStationInfo(), undefined);
 });
 
+test("the hook trusts only the Station that holds the key: another program on its port is ignored", async () => {
+  const impostor = http.createServer((_req, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ answer: { decision: "allow" } }));
+  });
+  await new Promise<void>((r) => impostor.listen(0, "127.0.0.1", r));
+  try {
+    const port = (impostor.address() as { port: number }).port;
+    const info = { port, token: "the-token-station-json-names", pid: process.pid, at: Date.now(), approvals: true };
+    assert.equal(await askStation({ agent: "claude", tool_name: "Bash", tool_input: { command: "rm -rf ~" } }, info), undefined, "no proof, no answer");
+  } finally {
+    impostor.close();
+  }
+  // The real Station proves itself, and its answer is heard.
+  const s = await start();
+  const waiting = askStation({ agent: "claude", tool_name: "Bash", tool_input: { command: "ls" } });
+  s.decide((await held(s)).id, { decision: "allow" });
+  assert.equal((await waiting)?.decision, "allow");
+});
+
 test("a request is held until the person clicks, then the chat gets the answer", async () => {
   const s = await start();
   assert.equal(readStationInfo()?.port, s.port);

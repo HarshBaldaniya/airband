@@ -2,6 +2,7 @@
 // person's click. It never blocks a chat for long. With no app running it gives up in well under a
 // second, and after DECISION_MS with no click it gives up too. The agent then asks in its own
 // terminal, as it always did.
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import * as fs from "node:fs";
 import * as http from "node:http";
 import { airbandFile } from "../core/paths";
@@ -24,6 +25,29 @@ export const stationFile = () => airbandFile("station.json");
 export const DECISION_MS = 110_000;
 const CONNECT_MS = 400;
 
+/** The header a hook sends a fresh random value in, and the one the Station proves itself in. */
+export const NONCE_HEADER = "x-airband-nonce";
+export const PROOF_HEADER = "x-airband-proof";
+const NONCE_RE = /^[A-Za-z0-9_-]{16,64}$/;
+
+/**
+ * What only the real Station can answer to a nonce: an HMAC of it under the Station's key. Any other
+ * program could listen on the port station.json names (after the Station stopped, say) and answer
+ * 200 to a permission request. Without this proof the hook ignores it, and the terminal asks.
+ */
+export function stationProof(token: string, nonce: string): string | undefined {
+  if (!NONCE_RE.test(nonce)) return undefined;
+  return createHmac("sha256", token).update(nonce).digest("base64url");
+}
+
+function proves(token: string, nonce: string, given: unknown): boolean {
+  const want = stationProof(token, nonce);
+  if (!want || typeof given !== "string") return false;
+  const a = Buffer.from(want);
+  const b = Buffer.from(given);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export function readStationInfo(): StationInfo | undefined {
   try {
     const info = JSON.parse(fs.readFileSync(stationFile(), "utf8")) as StationInfo;
@@ -44,6 +68,7 @@ export function readStationInfo(): StationInfo | undefined {
 export function stationPost<T>(info: Pick<StationInfo, "port" | "token">, route: string, body: unknown, budgetMs: number): Promise<T | undefined> {
   return new Promise((resolve) => {
     const data = Buffer.from(JSON.stringify(body));
+    const nonce = randomBytes(18).toString("base64url");
     let done = false;
     const finish = (v: T | undefined) => {
       if (done) return;
@@ -52,8 +77,12 @@ export function stationPost<T>(info: Pick<StationInfo, "port" | "token">, route:
       resolve(v);
     };
     const req = http.request(
-      { host: "127.0.0.1", port: info.port, path: route, method: "POST", headers: { "content-type": "application/json", "content-length": data.length, "x-airband-token": info.token } },
+      { host: "127.0.0.1", port: info.port, path: route, method: "POST", headers: { "content-type": "application/json", "content-length": data.length, "x-airband-token": info.token, [NONCE_HEADER]: nonce } },
       (res) => {
+        if (!proves(info.token, nonce, res.headers[PROOF_HEADER])) {
+          res.resume();
+          return finish(undefined);
+        }
         let text = "";
         res.setEncoding("utf8");
         res.on("data", (c) => (text += c));

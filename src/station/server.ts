@@ -17,7 +17,7 @@ import { VERSION } from "../core/setup";
 import { AGENT_NAME, forgetReads, liveChats, titleOf, type Agent, type LiveChat } from "./chats";
 import { CatchUp } from "./catchup";
 import { ChatWatch } from "./watch";
-import { DECISION_MS, readStationInfo, stationFile, type StationInfo } from "./client";
+import { DECISION_MS, NONCE_HEADER, PROOF_HEADER, readStationInfo, stationFile, stationProof, type StationInfo } from "./client";
 import { PHONE_LINK } from "./phone";
 import { PhoneLink, type LinkStatus, type PhoneLinkOptions } from "./link";
 import { cleanDesign, cleanName, DEFAULT_COMPANION, type CompanionSettings } from "./companion";
@@ -569,6 +569,10 @@ export class Station extends EventEmitter {
       if (req.method === "GET" && route.startsWith("/ui/")) return this.asset(route.slice(4), res);
       const who = this.who(req, url);
       if (!who) return send(res, 401, { error: "This needs Airband's key." });
+      // A hook checks that this answer comes from the Station that holds the key (client.ts).
+      const nonce = req.headers[NONCE_HEADER];
+      const proof = who === "local" && typeof nonce === "string" ? stationProof(this.token, nonce) : undefined;
+      if (proof) res.setHeader(PROOF_HEADER, proof);
       if (route === "/api/hook/permission") {
         if (who !== "local" || req.method !== "POST") return send(res, 403, { error: "Only a chat on this computer can ask." });
         const body = await readBody(req);
