@@ -10,7 +10,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { airbandFile, writeFileAtomic } from "./paths";
 import { readJson } from "./json";
-import { readConfig } from "./updates";
+import { readConfig } from "./config";
 
 export type WritingKind = "docs" | "messages" | "replies";
 export const WRITING_KINDS: WritingKind[] = ["docs", "messages", "replies"];

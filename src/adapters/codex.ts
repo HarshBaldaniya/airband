@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ChatDigest, ChatMessage, ChatSession, ChatStats, Usage } from "../core/types";
 import { NO_USAGE, contextWindow } from "../core/types";
-import { codexSessionsDir, safeId } from "../core/paths";
+import { codexSessionsDir, safeId, sameFolder } from "../core/paths";
 import { cleanText, fileSize, readLinesFrom, readTail } from "../core/transcript";
 import type { Adapter } from "./adapter";
 import { today } from "./adapter";
@@ -257,9 +257,5 @@ export function codexUsage(lines: string[], day: string): ChatStats {
     model,
     context: used ? { used, window: window ?? contextWindow(model) } : undefined,
   };
-}
-
-function sameFolder(a: string, b: string): boolean {
-  return path.resolve(a) === path.resolve(b);
 }
 

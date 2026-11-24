@@ -49,7 +49,9 @@ import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pick
 import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../core/plans";
 import { recentRollouts } from "../adapters/codex";
 import { readTail } from "../core/transcript";
-import { CONTEXT_BUDGET, buildContext, buildUpdate, formatDelivery, sameFolder, type ContextSize } from "../core/updates";
+import { CONTEXT_BUDGET, type ContextSize } from "../core/config";
+import { buildContext, buildUpdate, formatDelivery } from "../core/delivery";
+import { sameFolder } from "../core/paths";
 import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, pruneRecords, readHead, recordBehind, readAsks, readAsksFrom, recordContext, recordPointer, renderAsks, setRecordTitle, type LinkLevel } from "../core/record";
 import { agentOf } from "../core/agents";
 import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";

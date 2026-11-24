@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { handle } from "../src/hook/airband-hook";
-import { setConfig } from "../src/core/updates";
+import { setConfig } from "../src/core/config";
 import {
   briefFor,
   checkOutgoing,

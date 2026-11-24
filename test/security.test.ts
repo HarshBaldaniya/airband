@@ -8,7 +8,7 @@ import * as path from "node:path";
 import { redact, REDACTED } from "../src/core/redact";
 import { listNotes, readNote, saveNote } from "../src/core/notes";
 import { airbandHome, safeId, writeFileAtomic } from "../src/core/paths";
-import { formatDelivery } from "../src/core/updates";
+import { formatDelivery } from "../src/core/delivery";
 import { VERSION_RE } from "../src/core/version";
 import { CodeMap } from "../src/codemap/index";
 import type { InboxItem } from "../src/core/types";

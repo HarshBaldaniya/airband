@@ -19,7 +19,7 @@ import { openUrl } from "../core/process";
 import { closest, commandInfo, completion, renderCommandHelp, renderHelp, SHELLS, type Shell } from "./help";
 import { globalInstall, globalUninstall, oldCommand, oneOff, ourCommand, pmCommand, startedBy, type OurCommand, type PackageManager } from "./package-managers";
 import { columns, out, paint, plain } from "./ui";
-import { readConfig, setConfig } from "../core/updates";
+import { readConfig, setConfig } from "../core/config";
 import { changesSince, releases } from "./changes";
 import { claudeAiCreditShown, setClaudeAiCredit } from "../core/hooks";
 import { checkWriting, renderFindings, setProjectWriting, summarise, WRITING_KINDS, writingSettings, type WritingKind } from "../core/writing";

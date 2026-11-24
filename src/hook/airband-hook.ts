@@ -40,7 +40,9 @@ import {
 import { claudeMessages, cleanText, fileSize, readLinesFrom } from "../core/transcript";
 import { codexMessages } from "../adapters/codex";
 import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../adapters/gemini";
-import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
+import { readConfig } from "../core/config";
+import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery } from "../core/delivery";
+import { sameFolder } from "../core/paths";
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
 import { askStation, DECISION_MS } from "../station/client";

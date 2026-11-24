@@ -10,7 +10,7 @@ import { deliveryNotice, startNotice, toolNotice } from "../src/core/notices";
 import { addConnection, appendInbox } from "../src/core/store";
 import { airbandFile } from "../src/core/paths";
 import { storeDir } from "../src/codemap/where";
-import { setConfig } from "../src/core/updates";
+import { setConfig } from "../src/core/config";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 let project = "";

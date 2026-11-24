@@ -2,16 +2,11 @@
 //   • A link's level decides how much: a line per ask (the default) or a summary, from the
 //     chat's session record (record.ts); or, at "full", the words themselves (here).
 //   • What a chat gets is put together here: grouped per chat, newest kept within a cap.
+import { CONTEXT_BUDGET, readConfig, type ContextSize } from "./config";
 import { fenced, headingSafe, newFenceTag } from "./fence";
+import { fullPath, relativeTo, sameFolder } from "./paths";
 import { redact } from "./redact";
-import * as path from "node:path";
 import type { ChatDigest, ChatMessage, ChatRef, InboxItem } from "./types";
-import { airbandFile, writeFileAtomic } from "./paths";
-import { readJson } from "./json";
-
-export type ContextSize = "compact" | "standard" | "full";
-/** Characters of conversation sent on connecting (tokens ≈ chars / 4). */
-export const CONTEXT_BUDGET: Record<ContextSize, number> = { compact: 8_000, standard: 24_000, full: 60_000 };
 
 const ASK_MAX = 2_000;
 const REPLY_MAX = 4_000;
@@ -19,40 +14,6 @@ const UPDATE_ASK_MAX = 1_500;
 const UPDATE_REPLY_MAX = 3_500;
 /** The most updates from one chat delivered at once: the latest are kept. */
 const GROUP_MAX = 8;
-
-/** Airband's settings the hook needs too (it can't read VS Code's). */
-export interface AirbandConfig {
-  contextSize: ContextSize;
-  /** Deliver waiting updates as soon as a chat finishes a reply (not only with its next message). */
-  autoDeliver: boolean;
-  /** Show the person a short line when a chat starts and when other chats' work rides along. */
-  notices: boolean;
-  /** Writing rules a chat gets when it needs them: docs, messages, and short replies. */
-  writing: { docs: boolean; messages: boolean; replies: boolean; beforeSend: boolean };
-}
-
-export function readConfig(): AirbandConfig {
-  const c = readJson<Partial<AirbandConfig>>(airbandFile("config.json"), {});
-  // Delivering at once costs the chat an extra turn, so it is off unless chosen.
-  return {
-    contextSize: c.contextSize && c.contextSize in CONTEXT_BUDGET ? c.contextSize : "standard",
-    autoDeliver: c.autoDeliver === true,
-    // On unless turned off: they tell the person Airband is working, at no token cost.
-    notices: c.notices !== false,
-    // Docs and message rules come only with an ask for one, a few lines once per chat: on.
-    // Short replies change how every reply reads: off unless chosen.
-    writing: { docs: c.writing?.docs !== false, messages: c.writing?.messages !== false, replies: c.writing?.replies === true, beforeSend: c.writing?.beforeSend !== false },
-  };
-}
-
-/** Changes some of Airband's settings in config.json, keeping the rest. (VS Code's own settings,
- *  when the extension runs, are mirrored here too and win on its next start.) */
-export function setConfig(patch: Partial<AirbandConfig>): AirbandConfig {
-  const file = airbandFile("config.json");
-  const next = { ...readJson<Partial<AirbandConfig>>(file, {}), ...patch };
-  writeFileAtomic(file, JSON.stringify(next));
-  return readConfig();
-}
 
 /** What Claude is asked to do with updates delivered when it finishes a reply. */
 export const AUTO_DELIVERY_ASK =
@@ -186,20 +147,4 @@ export function formatDelivery(items: InboxItem[], max = deliveryMax(), here?: s
 /** Cut to `max`, with a note that the whole text is in the flightlog. */
 function clipToFlightlog(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}… _(the rest: airband_flightlog with its n)_` : text;
-}
-
-export function sameFolder(a: string, b: string): boolean {
-  return path.resolve(a) === path.resolve(b);
-}
-
-export function fullPath(file: string, root?: string): string {
-  return path.isAbsolute(file) || !root ? file : path.resolve(root, file);
-}
-
-/** A file inside the folder as the folder sees it, always with "/" (on Windows too), so notes read
- *  the same on every computer and agents can open the path as written. */
-export function relativeTo(file: string, root?: string): string {
-  if (!root) return file;
-  const rel = path.relative(root, file);
-  return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? rel.split(path.sep).join("/") : file;
 }
