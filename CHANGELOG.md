@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+- **Roger's sounds play every time they are on.** They failed after the Mac slept or the
+  headphones changed, because the audio was left stopped. It now starts again before each sound.
+  Turning Sounds on in settings plays its chime, and turning them off is silent, not the other
+  way round. A sound never plays late or before your setting is known.
+- **Roger's panel has a soft shadow.** It ended in a hard straight edge a little way out.
 - **A chat with agents running in the background is working.** A Claude Code chat can end its turn
   while agents it started keep working ("1 agent" under the chat). Roger showed it as done. It now
   shows as working until the last of them ends, in Roger, on the phone and in VS Code, and its row

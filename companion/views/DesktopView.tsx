@@ -11,7 +11,7 @@ import { FinishedToast } from "../components/cards/FinishedCard";
 import { RequestCard } from "../components/cards/RequestCard";
 import { Panel } from "../components/panel/Panel";
 import { Companion } from "../figure/Companion";
-import { sounds } from "../sound";
+import { setSoundsOn, sounds } from "../sound";
 import { pokedLine } from "../state/lines";
 import { useCompanionState } from "../state/useCompanionState";
 import { useStation } from "../state/useStation";
@@ -138,6 +138,8 @@ export function DesktopView() {
     if (on) closePanel();
   };
   const setPref = (k: keyof DesktopPrefs, on: boolean) => {
+    // At once, not when the app echoes it: the switch's own sound says the new setting.
+    if (k === "sound") setSoundsOn(on);
     bridge.setPref(k, on);
     setPrefs((p) => (p ? { ...p, [k]: on } : p));
   };

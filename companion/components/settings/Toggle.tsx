@@ -21,10 +21,17 @@ export function Toggle({ on, label, onChange }: { on: boolean; label: string; on
   const flip = async () => {
     const next = !shown;
     setShown(next);
-    (next ? sounds.on : sounds.off)();
     setSaving("busy");
+    // The change first, then its sound: turning Sounds on is heard, turning them off is not.
+    let saved: Promise<unknown> | void;
     try {
-      await onChange(next);
+      saved = onChange(next);
+    } catch (e) {
+      saved = Promise.reject(e);
+    }
+    (next ? sounds.on : sounds.off)();
+    try {
+      await saved;
       setSaving("done");
     } catch {
       setShown(!next);

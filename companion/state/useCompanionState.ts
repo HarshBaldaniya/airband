@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktop, onPrefs } from "../api/desktop-bridge";
 import { api, type CompanionAnswer, type StationState } from "../api/station";
-import { setSoundsOn, sounds } from "../sound";
+import { setSoundsOn, sounds, soundsHaveNoSwitch } from "../sound";
 import { moodOf, SLEEP_AFTER_MS } from "./mood";
 
 /** The shortest the thinking card shows before an answer. */
@@ -27,7 +27,8 @@ export function useCompanionState(state: StationState | undefined, keepAwake = f
 
   useEffect(() => {
     const t = setTimeout(() => setHello(false), 3000);
-    void desktop?.prefs().then((p) => setSoundsOn(p.sound));
+    if (desktop) void desktop.prefs().then((p) => setSoundsOn(p.sound), () => setSoundsOn(true));
+    else soundsHaveNoSwitch();
     const off = onPrefs((p) => setSoundsOn(p.sound));
     return () => (clearTimeout(t), off());
   }, []);

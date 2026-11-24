@@ -1,12 +1,12 @@
 // The companion's sounds, made on the spot with the browser's own synthesiser: no sound files.
 // Soft and short, so they say what happened without being noticed as noise. One switch (Sounds)
 // turns them all off.
-let ctx: AudioContext | undefined;
-let enabled = true;
-
-export function setSoundsOn(on: boolean): void {
-  enabled = on;
-}
+/** Whether sounds are on: unknown until the desktop app says (a browser has no switch: on). */
+let enabled: boolean | undefined;
+/** A sound asked for before the switch was known, played once it is if still fresh. */
+let held: { notes: Note[]; at: number } | undefined;
+/** A sound that would start later than this after it was asked for is dropped: late is wrong. */
+const STALE_MS = 1500;
 
 interface Note {
   /** Hz; `to` glides the pitch there over the note. */
@@ -18,19 +18,71 @@ interface Note {
   wave?: OscillatorType;
 }
 
-function play(notes: Note[]): void {
-  if (!enabled) return;
+/** On or off, from the app's setting. Turned on, a sound held while it was unknown plays now. */
+export function setSoundsOn(on: boolean): void {
+  enabled = on;
+  const h = held;
+  held = undefined;
+  if (on && h && Date.now() - h.at < STALE_MS) play(h.notes, h.at);
+}
+
+/** Pages with no desktop app (the phone page) have no switch: sounds are on there. */
+export function soundsHaveNoSwitch(): void {
+  if (enabled === undefined) setSoundsOn(true);
+}
+
+// One audio context for the page. The system can stop it at any time: it starts "suspended" until
+// the person clicks or types in the page, and becomes "interrupted" or "suspended" when the Mac
+// sleeps or the output changes (headphones). So it is started again before each sound, and the
+// sound is scheduled only once its clock runs: notes scheduled on a stopped clock were lost.
+let ctx: AudioContext | undefined;
+
+function context(): AudioContext | undefined {
   try {
-    ctx ??= new AudioContext();
-    if (ctx.state === "suspended") void ctx.resume();
-    const out = ctx.createGain();
+    if (!ctx || ctx.state === "closed") ctx = new AudioContext();
+    return ctx;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Start the audio from a click or key press, when the system lets a page start it. */
+function unlock(): void {
+  const c = context();
+  if (c && c.state !== "running") void c.resume().catch(() => undefined);
+}
+if (typeof window !== "undefined") {
+  for (const e of ["pointerdown", "keydown"]) window.addEventListener(e, unlock, { capture: true, passive: true });
+}
+
+function play(notes: Note[], asked = Date.now()): void {
+  if (enabled === false) return;
+  if (enabled === undefined) {
+    held = { notes, at: asked };
+    return;
+  }
+  const c = context();
+  if (!c) return;
+  if (c.state === "running") return schedule(c, notes);
+  c.resume()
+    .then(() => {
+      if (c.state === "running" && Date.now() - asked < STALE_MS) schedule(c, notes);
+    })
+    .catch(() => undefined);
+}
+
+function schedule(c: AudioContext, notes: Note[]): void {
+  try {
+    const out = c.createGain();
     out.gain.value = 0.9;
-    out.connect(ctx.destination);
+    out.connect(c.destination);
+    // A moment ahead, so the first note's start is never in the past.
+    const now = c.currentTime + 0.01;
     for (const n of notes) {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
+      const o = c.createOscillator();
+      const g = c.createGain();
       o.type = n.wave ?? "sine";
-      const t = ctx.currentTime + (n.at ?? 0);
+      const t = now + (n.at ?? 0);
       o.frequency.setValueAtTime(n.f, t);
       if (n.to) o.frequency.exponentialRampToValueAtTime(n.to, t + n.len);
       const peak = n.gain ?? 0.045;
@@ -44,6 +96,13 @@ function play(notes: Note[]): void {
   } catch {
     // No sound on this device: nothing else changes.
   }
+}
+
+/** Forget the setting and the audio (tests). */
+export function forgetSounds(): void {
+  enabled = undefined;
+  held = undefined;
+  ctx = undefined;
 }
 
 export const sounds = {
