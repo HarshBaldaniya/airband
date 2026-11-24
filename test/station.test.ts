@@ -476,7 +476,7 @@ test("a brand-new chat's first answer counts as finished, so the companion comes
 });
 
 test("the companion sleeps only when every chat is done, and wakes for what needs you", async () => {
-  const { moodOf } = await import("../companion/figure/mood");
+  const { moodOf } = await import("../companion/state/mood");
   const base = { dizzy: false, asking: false, talking: false, hello: false, cheering: false };
   const state = (chats: Partial<LiveChat>[], pending = 0) => ({ chats: chats.map(chat), pending: Array.from({ length: pending }, (_, i) => ({ id: `p${i}` })), finished: [] }) as unknown as Parameters<typeof moodOf>[0];
   assert.equal(moodOf(state([{ status: "working" }]), { ...base, asleep: false }), "working");

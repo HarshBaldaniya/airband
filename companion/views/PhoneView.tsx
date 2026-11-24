@@ -3,9 +3,9 @@
 // asking and telling a chat stay on the computer.
 import { useState } from "react";
 import { Companion } from "../figure/Companion";
-import { useCompanionState } from "../figure/useCompanionState";
-import { Panel } from "../components/Panel";
-import { useStation } from "./useStation";
+import { Panel } from "../components/panel/Panel";
+import { useCompanionState } from "../state/useCompanionState";
+import { useStation } from "../state/useStation";
 
 export function PhoneView() {
   const { state, link } = useStation();

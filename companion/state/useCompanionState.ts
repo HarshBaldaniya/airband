@@ -1,7 +1,8 @@
 // What the companion shows and says, from the Station's state: the most urgent mood first, a sound
 // (and a buzz on a phone) for each new request or finished chat, and its answers to the person.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, desktop, type CompanionAnswer, type StationState } from "../api";
+import { desktop, onPrefs } from "../api/desktop-bridge";
+import { api, type CompanionAnswer, type StationState } from "../api/station";
 import { setSoundsOn, sounds } from "../sound";
 import { moodOf, SLEEP_AFTER_MS } from "./mood";
 
@@ -27,8 +28,8 @@ export function useCompanionState(state: StationState | undefined, keepAwake = f
   useEffect(() => {
     const t = setTimeout(() => setHello(false), 3000);
     void desktop?.prefs().then((p) => setSoundsOn(p.sound));
-    desktop?.onPrefs((p) => setSoundsOn(p.sound));
-    return () => clearTimeout(t);
+    const off = onPrefs((p) => setSoundsOn(p.sound));
+    return () => (clearTimeout(t), off());
   }, []);
 
   // A new request or a finished chat: one sound each, once.

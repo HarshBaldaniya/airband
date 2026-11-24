@@ -2,17 +2,19 @@
 // window keeps one size and lets clicks through everywhere except on what it draws, so opening the
 // panel never moves or redraws the companion. Drag it anywhere; tuck it away small; right-click it
 // for the app's menu.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Minus } from "lucide-react";
-import { desktop, type DesktopPrefs } from "../api";
+import { desktop, onCommand, onCursor, onPlace, onPointer, onPrefs, type DesktopPrefs, type Place } from "../api/desktop-bridge";
+import type { FinishedView } from "../api/station";
+import { Conversation } from "../components/cards/Conversation";
+import { FinishedToast } from "../components/cards/FinishedCard";
+import { RequestCard } from "../components/cards/RequestCard";
+import { Panel } from "../components/panel/Panel";
 import { Companion } from "../figure/Companion";
-import { pokedLine } from "../figure/lines";
-import { useCompanionState } from "../figure/useCompanionState";
-import { FinishedToast, RequestCard } from "../components/Cards";
-import { Conversation } from "../components/Conversation";
-import { Panel } from "../components/Panel";
 import { sounds } from "../sound";
-import { useStation } from "./useStation";
+import { pokedLine } from "../state/lines";
+import { useCompanionState } from "../state/useCompanionState";
+import { useStation } from "../state/useStation";
 
 type PanelState = "closed" | "open" | "closing";
 const CLOSE_MS = 160;
@@ -20,6 +22,31 @@ const CLOSE_MS = 160;
 const HOVERABLE = ".chat, .btn, .choice, .iconbtn, .chip";
 /** How long a finished chat's toast stays by the companion (the panel keeps the chat). */
 const TOAST_MS = 12_000;
+/** How long a reaction to a poke is said. */
+const POKED_MS = 2200;
+/** How long "I'm on Airband x now" shows after an update. */
+const UPDATED_MS = 7000;
+
+const toastKey = (f: FinishedView) => `${f.chatId}:${f.at}`;
+const NONE: FinishedView[] = [];
+
+/** The finished chats still shown as toasts: each goes TOAST_MS after it first came, or when closed. */
+function useToasts(finished: FinishedView[]) {
+  const [gone, setGone] = useState<Set<string>>(new Set());
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const dismiss = useCallback((key: string) => setGone((g) => new Set(g).add(key)), []);
+  useEffect(() => {
+    for (const f of finished) {
+      const key = toastKey(f);
+      if (!timers.current.has(key)) timers.current.set(key, setTimeout(() => dismiss(key), TOAST_MS));
+    }
+  }, [finished, dismiss]);
+  useEffect(() => {
+    const all = timers.current;
+    return () => all.forEach((t) => clearTimeout(t));
+  }, []);
+  return { shown: finished.filter((f) => !gone.has(toastKey(f))), dismiss };
+}
 
 export function DesktopView() {
   const bridge = desktop!;
@@ -32,7 +59,7 @@ export function DesktopView() {
   // Awake while its panel is open; asleep after a quiet spell (see useCompanionState).
   const c = useCompanionState(state, panel !== "closed");
   const [settings, setSettings] = useState(false);
-  const [place, setPlace] = useState<{ side: "left" | "right"; vertical: "top" | "bottom" }>({ side: "right", vertical: "bottom" });
+  const [place, setPlace] = useState<Place>({ side: "right", vertical: "bottom" });
   const [look, setLook] = useState({ dx: 0, dy: 0 });
   const [tucked, setTucked] = useState(false);
   const [prefs, setPrefs] = useState<DesktopPrefs>();
@@ -42,7 +69,14 @@ export function DesktopView() {
   const motionTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   /** A reaction to a poke, said for a moment. */
   const [line, setLine] = useState("");
-  const [poked, setPoked] = useState(false);
+  /** When it was last poked: the reaction shows for a moment after. */
+  const [pokedAt, setPokedAt] = useState(0);
+  useEffect(() => {
+    if (!pokedAt) return;
+    const t = setTimeout(() => setPokedAt(0), POKED_MS);
+    return () => clearTimeout(t);
+  }, [pokedAt]);
+  const poked = pokedAt > 0;
   /** The very first start: one hello, then never again. */
   const [hello, setHello] = useState(false);
   /** Just updated: the new version, said once after the restart. */
@@ -52,7 +86,7 @@ export function DesktopView() {
     void bridge.justUpdated?.().then((v) => {
       if (!v) return;
       setUpdated(v);
-      done = setTimeout(() => setUpdated(undefined), 7000);
+      done = setTimeout(() => setUpdated(undefined), UPDATED_MS);
     });
     return () => clearTimeout(done);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,8 +110,6 @@ export function DesktopView() {
   const figure = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; moving: boolean } | undefined>(undefined);
   const clicks = useRef<number[]>([]);
-  const toastSeen = useRef(new Map<string, number>());
-  const [toastGone, setToastGone] = useState<Set<string>>(new Set());
 
   const openPanel = (withSettings = false) => {
     setSettings(withSettings);
@@ -91,8 +123,13 @@ export function DesktopView() {
       if (p === "open") sounds.close();
       return p === "open" ? "closing" : p;
     });
-    setTimeout(() => setPanel((p) => (p === "closing" ? "closed" : p)), CLOSE_MS);
   };
+  // Closing plays its animation, then the panel goes.
+  useEffect(() => {
+    if (panel !== "closing") return;
+    const t = setTimeout(() => setPanel((p) => (p === "closing" ? "closed" : p)), CLOSE_MS);
+    return () => clearTimeout(t);
+  }, [panel]);
   const togglePanel = () => (panel === "open" ? closePanel() : openPanel());
   const tuck = (on: boolean) => {
     bridge.setPref("tucked", on);
@@ -107,10 +144,8 @@ export function DesktopView() {
 
   useEffect(() => {
     void bridge.prefs().then((p: DesktopPrefs) => (setPrefs(p), setTucked(p.tucked)));
-    bridge.onPrefs((p) => (setPrefs(p), setTucked(p.tucked)));
+    const offs = [onPrefs((p) => (setPrefs(p), setTucked(p.tucked))), onPlace(setPlace), onCursor(setLook)];
     const enter = setTimeout(() => setEntering(false), 1400);
-    bridge.onPlace(setPlace);
-    bridge.onCursor(setLook);
     // Hover from the app's pointer, not the page's: a window that is not in front gets no mouse
     // moves, so after a click opened another app the row clicked stayed lit and no other lit up.
     let hoverTimer: ReturnType<typeof setInterval> | undefined;
@@ -125,11 +160,11 @@ export function DesktopView() {
         for (const el of now) el.classList.add("vh");
         lit = now;
       };
-      bridge.onPointer((p) => ((at = p), light()));
+      offs.push(onPointer((p) => ((at = p), light())));
       // A row drawn again (the list refreshes) loses the class; the pointer may not have moved.
       hoverTimer = setInterval(light, 250);
     }
-    bridge.onCommand((cmd) => {
+    offs.push(onCommand((cmd) => {
       if (cmd === "open") openPanel();
       if (cmd === "toggle") togglePanelRef.current();
       if (cmd === "today") void c.ask("today");
@@ -143,19 +178,23 @@ export function DesktopView() {
         if (cmd === "leave") sounds.close();
         else motionTimer.current = setTimeout(() => setMotion(undefined), 560);
       }
-    });
+    }));
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && closePanel();
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       clearTimeout(enter);
+      clearTimeout(motionTimer.current);
       clearInterval(hoverTimer);
+      offs.forEach((off) => off());
     };
     // Set up once; the toggle reads the latest panel state through a ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const togglePanelRef = useRef(togglePanel);
-  togglePanelRef.current = togglePanel;
+  useEffect(() => {
+    togglePanelRef.current = togglePanel;
+  });
 
   // What an answer asks the screen to do.
   useEffect(() => {
@@ -201,8 +240,7 @@ export function DesktopView() {
       clicks.current = [];
       closePanel();
       setLine(pokedLine());
-      setPoked(true);
-      setTimeout(() => setPoked(false), 2200);
+      setPokedAt(now);
       return c.poke();
     }
     togglePanel();
@@ -211,8 +249,7 @@ export function DesktopView() {
   // Clicks reach the window only over what it draws; elsewhere they go to the windows behind. The
   // app is told where the clickable parts are whenever they change.
   const areas = useRef("");
-  const sendAreas = useRef(() => {});
-  sendAreas.current = () => {
+  const sendAreas = useCallback(() => {
     const rects = [...document.querySelectorAll("[data-hit]")].map((el) => {
       const r = el.getBoundingClientRect();
       return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
@@ -222,21 +259,21 @@ export function DesktopView() {
       areas.current = key;
       bridge.setHitAreas(rects);
     }
-  };
+  }, [bridge]);
   useEffect(() => {
-    const t = requestAnimationFrame(() => sendAreas.current());
+    const t = requestAnimationFrame(sendAreas);
     return () => cancelAnimationFrame(t);
   });
   // The panel changes size by itself too (a tab, a row's message box, its opening animation, a list
   // that grows): the parts are measured again as soon as one resizes, and a few times a second
   // anyway, so a click on the panel never falls through to the window behind.
   useEffect(() => {
-    const ro = new ResizeObserver(() => sendAreas.current());
+    const ro = new ResizeObserver(sendAreas);
     const watch = () => document.querySelectorAll("[data-hit]").forEach((el) => ro.observe(el));
     watch();
-    const mo = new MutationObserver(() => (watch(), sendAreas.current()));
+    const mo = new MutationObserver(() => (watch(), sendAreas()));
     mo.observe(document.body, { childList: true, subtree: true });
-    const end = () => sendAreas.current();
+    const end = sendAreas;
     document.addEventListener("animationend", end, true);
     document.addEventListener("transitionend", end, true);
     const iv = setInterval(end, 250);
@@ -247,7 +284,7 @@ export function DesktopView() {
       document.removeEventListener("transitionend", end, true);
       clearInterval(iv);
     };
-  }, []);
+  }, [sendAreas]);
 
   // A new request or a finished chat while hidden or tucked away: the app brings it back.
   const seenKey = useRef<string | undefined>(undefined);
@@ -263,15 +300,7 @@ export function DesktopView() {
 
   const s = state;
   const pending = s?.pending ?? [];
-  const now = Date.now();
-  const finished = (s?.finished ?? []).filter((f) => {
-    const key = `${f.chatId}:${f.at}`;
-    if (!toastSeen.current.has(key)) {
-      toastSeen.current.set(key, now);
-      setTimeout(() => setToastGone((g) => new Set(g).add(key)), TOAST_MS);
-    }
-    return !toastGone.has(key);
-  });
+  const toasts = useToasts(s?.finished ?? NONE);
   const showPanel = panel !== "closed" && s;
   const talk = <Conversation name={c.name} asking={c.asking} question={c.question} answer={c.answer} error={error} onClose={c.clearAnswer} onCloseError={() => setError(undefined)} onAsk={(q) => void c.ask(q)} />;
   return (
@@ -293,8 +322,8 @@ export function DesktopView() {
                   {pending.length - 3} more need you
                 </button>
               )}
-              {finished.slice(0, pending.length ? 0 : 2).map((f) => (
-                <FinishedToast key={`${f.chatId}:${f.at}`} finished={f} onClose={() => setToastGone((g) => new Set(g).add(`${f.chatId}:${f.at}`))} />
+              {toasts.shown.slice(0, pending.length ? 0 : 2).map((f) => (
+                <FinishedToast key={toastKey(f)} finished={f} onClose={() => toasts.dismiss(toastKey(f))} />
               ))}
             </>
           )}

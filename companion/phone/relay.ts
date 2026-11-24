@@ -3,7 +3,7 @@
 // itself, and at once when the app comes back to the screen (a phone pauses connections in the
 // background).
 import { newClaimKey, openBox, openClaim, seal, unseal, type Box, type ClaimedRoom, type ClaimKey, type ComputerMessage, type Pairing, type PhoneMessage, type RelayFrame } from "../../src/remote/box";
-import type { StationState, Transport } from "../api";
+import type { StationState, Transport } from "../api/station";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> };
 

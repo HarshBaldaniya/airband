@@ -2,10 +2,12 @@
 // finished today with a short summary of what it did. Nothing here opens or reviews a chat: that is
 // done on the computer.
 import { useState } from "react";
-import type { FinishedView, LiveChat, PendingView, StationState } from "../api";
-import { Companion } from "../figure/Companion";
-import type { Mood } from "../figure/types";
-import { AgentMark, ago, RequestCard } from "../components/Cards";
+import type { FinishedView, LiveChat, PendingView, StationState } from "../../api/station";
+import { AgentMark } from "../../components/AgentMark";
+import { RequestCard } from "../../components/cards/RequestCard";
+import { Companion } from "../../figure/Companion";
+import type { Mood } from "../../figure/types";
+import { ago } from "../../format";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 

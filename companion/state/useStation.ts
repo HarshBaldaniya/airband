@@ -1,6 +1,6 @@
 // The Station's live state, and whether the screen can reach it.
 import { useEffect, useRef, useState } from "react";
-import { watchState, type StationState } from "../api";
+import { watchState, type StationState } from "../api/station";
 
 /** What can change an asleep companion: a request, a finished chat, a chat that starts working or
  *  waiting, its own look. */

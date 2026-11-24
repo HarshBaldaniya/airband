@@ -1,6 +1,6 @@
 // What the companion shows, from what is going on. Pure, so it can be tested on its own.
 import type { StationState } from "../../src/station/types";
-import type { Mood } from "./types";
+import type { Mood } from "../figure/types";
 
 /** Every chat done (none working, none waiting) for this long, and no touch: the companion falls
  *  asleep. Never while a chat still works: asleep on the way would look like nothing is running. */

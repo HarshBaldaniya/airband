@@ -1,7 +1,8 @@
 // The little conversation with the companion: what was asked, a moving bar while it works, then
 // its answer. Only the latest exchange: this is a helper, not a chat window.
-import type { CompanionAnswer } from "../api";
-import { AnswerCard, ThinkingCard } from "./Cards";
+import type { CompanionAnswer } from "../../api/station";
+import { AnswerCard } from "./AnswerCard";
+import { ThinkingCard } from "./ThinkingCard";
 
 export interface ConversationProps {
   name: string;

@@ -45,3 +45,9 @@ export async function phoneId(): Promise<string> {
   await put("phone", id);
   return id;
 }
+
+/** Rooms this phone is done with (a used-up code, an ended link): an old address carrying one is ignored. */
+export const retired = async () => (await get<string[]>("retired")) ?? [];
+export async function retire(room: string): Promise<void> {
+  await put("retired", [...(await retired()), room].slice(-20));
+}
