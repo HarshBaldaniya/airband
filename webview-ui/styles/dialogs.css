@@ -1,0 +1,86 @@
+/* Dialogs, the shortcut sheet and the tooltip. */
+.overlay { position: fixed; inset: 0; z-index: 50; display: flex; justify-content: center; align-items: flex-start; padding: 40px 12px; overflow-y: auto; }
+.dialog {
+  width: 100%; max-width: 420px;
+  color: var(--vscode-editorWidget-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-editorWidget-border, var(--line)); border-radius: 14px; padding: 18px;
+  display: flex; flex-direction: column; gap: 10px; box-shadow: 0 16px 40px rgba(0,0,0,.35);
+}
+.dialog.wide { max-width: 600px; }
+.dialog h2 { margin: 0; font-size: 15px; line-height: 1.35; }
+.dialog p { margin: 0; }
+.actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.peek { margin: 0; max-height: 50vh; overflow: auto; white-space: pre-wrap; font-family: var(--vscode-editor-font-family); font-size: 12px; line-height: 1.5; background: var(--vscode-textCodeBlock-background, rgba(127,127,127,.1)); border-radius: 8px; padding: 10px; }
+.tooltip {
+  position: fixed; z-index: 100; padding: 5px 9px; border-radius: 7px; pointer-events: none;
+  font-size: 11.5px; line-height: 1.4;
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+  background: var(--vscode-editorHoverWidget-background, var(--surface));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--line));
+  box-shadow: 0 6px 18px rgba(0,0,0,.3);
+}
+.tooltip { transform: none; visibility: hidden; animation: none; text-align: left; white-space: normal; max-width: 260px; width: max-content; }
+.tooltip.below { transform: none; }
+.tooltip.shown { visibility: visible; animation: tipin-above .14s ease-out; }
+.tooltip.shown.below { animation-name: tipin-below; }
+@keyframes tipin-above { from { opacity: 0; transform: translateY(3px); } }
+@keyframes tipin-below { from { opacity: 0; transform: translateY(-3px); } }
+.tiparrow {
+  position: absolute; width: 8px; height: 8px; margin-left: -4px; transform: rotate(45deg);
+  background: var(--vscode-editorHoverWidget-background, var(--surface));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--line));
+}
+.tooltip.above .tiparrow { bottom: -5px; border-top: 0; border-left: 0; }
+.tooltip.below .tiparrow { top: -5px; border-bottom: 0; border-right: 0; }
+.dialog.newtask { max-width: 520px; gap: 12px; padding: 16px 16px 14px; }
+.ntmeta { font-size: 11px; opacity: .75; font-variant-numeric: tabular-nums; }
+.ntoptions { display: flex; flex-wrap: wrap; gap: 6px; }
+.nthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.nthead h2 { margin: 0 0 3px; font-size: 15px; }
+.ntfrom { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); min-width: 0; }
+.ntinput {
+  width: 100%; min-height: 92px; resize: vertical; padding: 10px 12px; border-radius: 10px; font: inherit; font-size: 13px; line-height: 1.5;
+  background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, var(--line));
+}
+.ntinput:focus { outline: none; border-color: var(--focus); }
+.ntpill {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px 0 9px; border-radius: 999px; cursor: pointer; font-size: 12px;
+  border: 1px solid var(--line); background: transparent; color: var(--muted); transition: background .15s, color .15s, border-color .15s;
+}
+.ntpill:hover { color: var(--vscode-foreground); border-color: var(--muted); }
+.ntpill.on { color: var(--vscode-foreground); border-color: color-mix(in srgb, var(--ct-done) 55%, transparent); background: color-mix(in srgb, var(--ct-done) 12%, transparent); }
+.ntpill.on > svg:first-child { color: var(--ct-done); }
+.ntasks { display: flex; flex-direction: column; gap: 1px; max-height: 210px; overflow-y: auto; padding: 4px; border-radius: 10px; border: 1px solid var(--line-soft); }
+.ntaskhead { padding: 4px 8px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.ntask { display: flex; align-items: center; gap: 9px; padding: 5px 8px; border-radius: 7px; cursor: pointer; font-size: 12.5px; min-width: 0; }
+.ntask:hover { background: var(--hover); }
+.ntask.on { background: color-mix(in srgb, var(--ct-done) 10%, transparent); }
+.ntask input { accent-color: var(--ct-done); margin: 0; flex: none; }
+.ntnum { flex: none; width: 16px; text-align: right; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ntfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+.ntgo { gap: 8px; }
+.ntgo kbd { font: inherit; font-size: 11px; padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--vscode-button-foreground) 18%, transparent); }
+@media (max-width: 360px) {
+  .ntgo kbd { display: none; }
+}
+/* dialogs are always solid, whatever the theme provides */
+.dialog { background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, var(--vscode-editor-background, #252526))); }
+.overlay { background: rgba(0, 0, 0, .55); backdrop-filter: blur(1.5px); }
+.keysheetwrap { inset: 0; z-index: 80; display: grid; place-items: center; background: rgba(0,0,0,.35); animation: rise .12s ease-out; }
+.keysheet { width: min(460px, calc(100% - 32px)); max-height: calc(100% - 48px); overflow-y: auto; padding: 14px 16px 16px; border-radius: 14px; background: var(--vscode-editorWidget-background, #252526); border: 1px solid color-mix(in srgb, var(--vscode-foreground) 16%, transparent); box-shadow: 0 20px 50px rgba(0,0,0,.45); }
+.keysheethead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+.keylist { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.keyrow { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 12px; padding: 5px 4px; border-radius: 6px; font-size: 12.5px; }
+.keyrow:hover { background: var(--hover); }
+.keyrow dt { display: flex; gap: 4px; }
+.keyrow dd { margin: 0; color: var(--muted); }
+.keysheetwrap { position: fixed; }
+/* New task's heading: the chat's name shortens with "…" inside the box at any width; the close
+   button keeps its place. */
+.nthead > div { flex: 1 1 auto; min-width: 0; }
+.nthead > .icon { flex: none; }
+.ntfrom .toolmark { flex: none; }
+.ntfrom .ellipsis { flex: 1 1 auto; }
+.keysection + .keysection { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.keysectiontitle { padding: 0 4px 6px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.keyrow kbd { min-width: 22px; text-align: center; }

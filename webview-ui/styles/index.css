@@ -1,0 +1,12 @@
+/* The pages' styles, one file per area. Later files win over earlier ones where a rule ties, so the
+   order below is part of the design: shared pieces first, then each page, then what floats on top. */
+@import "./base.css";
+@import "./controls.css";
+@import "./sidebar.css";
+@import "./tower.css";
+@import "./fuel.css";
+@import "./map.css";
+@import "./commands.css";
+@import "./writing.css";
+@import "./dialogs.css";
+@import "./toasts.css";

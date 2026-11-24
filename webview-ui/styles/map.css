@@ -1,0 +1,74 @@
+/* The Map: the canvas and what floats over it. */
+.codesearch { display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 38px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--vscode-foreground) 16%, transparent); background: var(--vscode-input-background, transparent); min-width: 0; }
+.codesearch:focus-within { border-color: var(--focus, var(--vscode-focusBorder)); }
+.codesearch input { flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: none; color: var(--vscode-input-foreground, var(--vscode-foreground)); font: inherit; font-size: 13px; }
+.codesearch input::placeholder { color: var(--muted); }
+.tmkey { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 2px; }
+.tmkey.tmuses { background: var(--tm-uses, #3987e5); }
+.tmkey.tmusedby { background: var(--tm-usedby, #d95926); }
+.cbpage { flex: 1 1 auto; min-height: 0; position: relative; display: flex; flex-direction: column; container-type: inline-size; --tm-uses: #3987e5; --tm-usedby: #d95926; --cb-glass: color-mix(in srgb, var(--vscode-editorWidget-background, var(--vscode-editor-background, #1e1e1e)) 90%, transparent); --cb-edge: color-mix(in srgb, var(--vscode-foreground, #ccc) 13%, transparent); }
+body.vscode-light .cbpage, body.vscode-high-contrast-light .cbpage { --tm-uses: #2a78d6; --tm-usedby: #eb6834; }
+.cbboard { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: var(--vscode-editor-background, #1e1e1e); }
+.cbboard canvas { display: block; touch-action: none; cursor: grab; outline: none; }
+.cbempty { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.cbtop { position: absolute; z-index: 10; top: 12px; left: 12px; right: 12px; display: flex; align-items: flex-start; gap: 8px; pointer-events: none; }
+.cbtop > * { pointer-events: auto; }
+.projbtn, .cbsearch .codesearch, .cblegend, .cbzoom { background: var(--cb-glass); border: 1px solid var(--cb-edge); box-shadow: 0 6px 20px rgba(0, 0, 0, .18); backdrop-filter: blur(10px); }
+.projmenu, .cbcard { background: var(--vscode-editorWidget-background, var(--vscode-editor-background, #1e1e1e)); border: 1px solid var(--cb-edge); box-shadow: 0 12px 34px rgba(0, 0, 0, .3); }
+/* the project: a button and a short list */
+.projpick { position: relative; flex: 0 1 auto; min-width: 0; max-width: 260px; }
+.projbtn { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 9px; max-width: 100%; height: 40px; padding: 0 12px; border-radius: 12px; cursor: pointer; background: var(--cb-glass); border: 1px solid var(--cb-edge); }
+.projbtn:hover { border-color: color-mix(in srgb, var(--vscode-foreground, #ccc) 26%, transparent); }
+.projbtn:focus-visible { outline: 1px solid var(--focus); }
+.projicon { flex: none; color: var(--muted); }
+.projname { flex: 1 1 auto; min-width: 0; font-size: 13px; font-weight: 600; }
+.projchev { flex: none; color: var(--muted); }
+.projmenu { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; min-width: max(100%, 200px); width: max-content; max-width: min(320px, calc(100vw - 24px)); max-height: min(420px, 70vh); overflow-y: auto; padding: 6px; border-radius: 12px; }
+.projrow { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%; padding: 7px 9px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+.projrow:hover, .projrow:focus-visible { background: var(--hover); }
+.projrow.on { background: color-mix(in srgb, var(--focus, #4f8cff) 13%, transparent); }
+.projrow.on svg { color: var(--focus, #4f8cff); }
+.projrow:disabled { opacity: .5; cursor: default; }
+/* search */
+.cbsearch { position: relative; flex: 0 1 380px; min-width: 0; }
+.cbsearch .codesearch { height: 40px; border-radius: 12px; }
+.cbsearch .codesearch:focus-within { border-color: var(--focus, #4f8cff); }
+.cbkey { flex: none; min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 4px; border-radius: 5px; font-size: 11px; color: var(--muted); border: 1px solid var(--cb-edge, var(--line)); }
+.cbfound { position: absolute; z-index: 30; top: 46px; left: 0; right: 0; padding: 5px; border-radius: 12px; background: var(--vscode-editorWidget-background, var(--vscode-editor-background, #1e1e1e)); border: 1px solid var(--cb-edge); box-shadow: 0 12px 34px rgba(0, 0, 0, .3); }
+.cbhit { all: unset; box-sizing: border-box; display: flex; align-items: baseline; gap: 10px; width: 100%; padding: 7px 9px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.cbhit.on { background: var(--hover); }
+.cbhitname { flex: 0 1 auto; min-width: 0; color: color-mix(in srgb, var(--vscode-foreground, #ccc) 80%, transparent); }
+.cbhitname b { font-weight: 650; color: var(--vscode-foreground, #eee); }
+.cbhitfile { flex: 1 1 auto; min-width: 40px; text-align: right; font-size: 11.5px; color: var(--muted); }
+.cbnone { padding: 8px 9px; }
+/* the hover card follows the pointer */
+.cbcard { position: absolute; z-index: 15; top: 0; left: 0; max-width: 300px; padding: 8px 11px; border-radius: 10px; pointer-events: none; opacity: 0; transition: opacity .12s ease; }
+.cbcard.on { opacity: 1; }
+.cbcardtitle { font-size: 13px; font-weight: 650; }
+.cbcardsub { font-size: 11.5px; color: var(--muted); font-family: var(--vscode-editor-font-family, monospace); }
+/* corners: what the colours mean, and zoom */
+.cblegend { position: absolute; z-index: 5; left: 12px; bottom: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; max-width: calc(100% - 90px); padding: 6px 11px; border-radius: 9px; pointer-events: none; }
+.cbzoom { position: absolute; z-index: 5; right: 12px; bottom: 12px; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; transition: right .18s ease; }
+.cbzoom button { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 34px; height: 34px; cursor: pointer; }
+.cbzoom button + button { border-top: 1px solid var(--line-soft); }
+.cbzoom button:hover { background: var(--hover); }
+.cbzoom button:focus-visible { outline: 1px solid var(--focus); outline-offset: -2px; }
+/* what is in focus: its name, and Open for a file */
+.cbfocus { position: absolute; z-index: 12; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; max-width: min(460px, calc(100% - 24px)); height: 40px; padding: 0 6px 0 12px; border-radius: 12px; background: var(--vscode-editorWidget-background, var(--vscode-editor-background, #1e1e1e)); border: 1px solid var(--cb-edge); box-shadow: 0 10px 28px rgba(0, 0, 0, .3); animation: cbrise .16s ease-out; }
+.cbfocusdot { flex: none; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--focus, #4f8cff); }
+.cbfocusdot.file { background: var(--focus, #4f8cff); }
+.cbfocusname { min-width: 0; font-size: 13px; font-weight: 600; }
+@keyframes cbrise { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .cbfocus { animation: none; }
+}
+/* narrow: the controls sit above the board, and the details slide up from the bottom */
+@container (max-width: 640px) {
+  .cbtop { position: relative; top: 0; left: 0; right: 0; flex-wrap: wrap; padding: 10px 12px; pointer-events: auto; }
+  .cbsearch { flex: 1 1 100%; }
+  .cbsearch .codesearch, .projbtn { box-shadow: none; }
+  .projpick { max-width: none; }
+  .cbboard { min-height: 380px; }
+  .cbfocus { bottom: 60px; }
+  .cblegend { max-width: calc(100% - 70px); }
+}

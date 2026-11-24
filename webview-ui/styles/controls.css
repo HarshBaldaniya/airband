@@ -1,0 +1,121 @@
+/* Buttons, chips, fields, status marks and the small pieces every page shares. */
+.pulse { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-radius: 6px; padding: 0 12px; min-height: 28px;
+  cursor: pointer; font-weight: 500; white-space: nowrap;
+}
+.btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.btn.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+.btn.primary:hover { background: var(--vscode-button-hoverBackground); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--vscode-foreground); }
+.btn.ghost:hover { background: var(--vscode-toolbar-hoverBackground); }
+.btn.small { min-height: 26px; padding: 0 9px; font-size: 12px; gap: 5px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 26px; height: 26px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.icon.sm { width: 22px; height: 22px; }
+.icon:hover, .icon.on { background: var(--vscode-toolbar-hoverBackground); color: var(--vscode-foreground); }
+.icon.on { color: var(--ct-live); }
+.linkish { all: unset; cursor: pointer; color: var(--vscode-textLink-foreground); font-size: 12px; }
+.linkish:hover { text-decoration: underline; }
+.linkish:focus-visible { outline: 1px solid var(--focus); outline-offset: 1px; }
+.chev { transition: transform .15s; }
+.chev.open { transform: rotate(90deg); }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex: none; display: inline-block; }
+.dot.working { background: var(--ct-working); animation: glow-blue 1.6s ease-in-out infinite; }
+.dot.waiting { background: var(--ct-waiting); animation: glow-amber 1.2s ease-in-out infinite; }
+.dot.done { background: var(--ct-done); }
+.dot.idle { background: var(--ct-idle); opacity: .55; }
+@keyframes glow-blue { 0%, 100% { box-shadow: 0 0 0 0 rgba(79,148,240,.55); } 50% { box-shadow: 0 0 0 4px rgba(79,148,240,0); } }
+@keyframes glow-amber { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,162,44,.6); } 50% { box-shadow: 0 0 0 4px rgba(224,162,44,0); } }
+.toolmark { display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.statuschip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 1px 8px 1px 7px; border-radius: 999px; background: var(--hover); color: var(--muted); }
+.statuschip.working { color: var(--ct-working); background: color-mix(in srgb, var(--ct-working) 12%, transparent); }
+.statuschip.waiting { color: var(--ct-waiting); background: color-mix(in srgb, var(--ct-waiting) 14%, transparent); font-weight: 600; }
+.statuschip.done { color: var(--ct-done); background: color-mix(in srgb, var(--ct-done) 12%, transparent); }
+.searchrow {
+  display: flex; align-items: center; gap: 6px; padding: 0 4px 0 9px; height: 30px;
+  background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--line)); border-radius: 7px;
+}
+.searchrow:focus-within { border-color: var(--focus); }
+.search { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; }
+.search:focus-visible { outline: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 2px 10px; font-size: 11.5px; cursor: pointer; color: var(--muted); }
+.chip:hover { color: var(--vscode-foreground); }
+.chip.on { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border-color: transparent; }
+.hint { margin: 2px; font-size: 12px; color: var(--muted); }
+.count { font-weight: 500; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 8px; background: var(--hover); }
+.seg button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 3px 11px; border-radius: 6px; font-size: 12px; cursor: pointer; color: var(--muted); }
+.seg button.on { background: var(--surface); color: var(--vscode-foreground); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.seg.big button { padding: 5px 14px; font-size: 13px; font-weight: 500; }
+.live { color: var(--ct-live); }
+.toolmark { line-height: 0; }
+.toolmark svg { width: 1em; height: 1em; display: block; }
+.ctx { display: inline-flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.ctxbar { position: relative; display: inline-block; width: 70px; height: 5px; border-radius: 999px; background: color-mix(in srgb, var(--vscode-foreground) 14%, transparent); overflow: hidden; flex: none; }
+.ctxbar > span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--ct-done); }
+.ctxbar.high > span { background: var(--ct-waiting); }
+.ctxbar.full > span { background: var(--vscode-errorForeground, #e5534b); }
+.ctx { white-space: nowrap; }
+.tool-claude { --tool: var(--ct-claude); }
+.tool-codex { --tool: var(--ct-codex); }
+.tool-gemini { --tool: var(--ct-gemini); }
+.statuschip { animation: chipin .3s cubic-bezier(.2, .8, .2, 1); }
+@keyframes chipin { from { opacity: 0; transform: translateY(2px) scale(.94); } }
+@media (prefers-reduced-motion: reduce) {
+  .toolmark { animation: none !important; }
+}
+.incoming { margin: 0 12px 10px; font-size: 12px;
+}
+.intext { flex: 1; line-height: 1.35; -webkit-box-orient: vertical; }
+.btn.tiny { min-height: 24px; padding: 0 8px; font-size: 11.5px; gap: 4px; border-radius: 6px; }
+.incoming { display: flex; }
+.inhead { display: flex; }
+.inicon { padding: 6px; border-radius: 8px; flex: none; color: var(--ct-working); background: color-mix(in srgb, var(--ct-working) 16%, transparent); }
+.intext { display: flex; gap: 1px; -webkit-line-clamp: unset; overflow: visible; }
+.intext b { color: var(--vscode-foreground); }
+.insub { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inactions { grid-template-columns: 1fr 1fr; }
+.inactions .btn { justify-content: center; min-height: 26px; }
+.btn.tiny.primary { border-color: transparent; }
+.btn.tiny.ghost { border: 1px solid var(--line); }
+.incoming {
+  flex-direction: row; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; border-radius: 8px;
+  background: color-mix(in srgb, var(--ct-working) 7%, transparent); border: 0; animation: fadein .3s ease-out;
+}
+.inhead { flex: 1; min-width: 0; align-items: center; gap: 8px; }
+.inicon { display: none; }
+.inhead::before { content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--ct-working); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ct-working) 20%, transparent); }
+.intext { flex-direction: row; min-width: 0; }
+.intext b { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.insub { display: none; }
+.inactions { display: flex; gap: 2px; flex: none; }
+.inactions .btn.tiny { min-height: 22px; padding: 0 7px; font-size: 11.5px; font-weight: 500; border: 0; border-radius: 6px; background: transparent; }
+.inactions .btn.tiny.ghost { color: var(--muted); }
+.inactions .btn.tiny.ghost svg { display: none; }
+.inactions .btn.tiny.ghost:hover { color: var(--vscode-foreground); background: var(--vscode-toolbar-hoverBackground); }
+.inactions .btn.tiny.primary { color: var(--ct-working); }
+.inactions .btn.tiny.primary:hover { background: color-mix(in srgb, var(--ct-working) 14%, transparent); }
+/* other narrow-width pieces */
+.incoming .inhead { min-width: 0; }
+.incoming .intext b { min-width: 0; }
+@container (max-width: 280px) {
+  .incoming .inactions .btn.tiny { padding: 0 5px; }
+}
+/* The Refresh icon turning while plans are read. Its own name: "spin" already turns the colour
+   around a working card's edge, and a second "spin" replaced it, swinging the card's glow outside it. */
+@keyframes airband-icon-turn { to { transform: rotate(360deg); } }
+/* The model, read only (switching it from Airband is off for now): plain text, the row's own colour. */
+.modelname { min-width: 0; color: var(--vscode-foreground); }
+.spin { animation: airband-icon-turn 1s linear infinite; }

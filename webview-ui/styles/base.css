@@ -1,0 +1,53 @@
+/* Airband's webviews follow the editor's theme through VS Code's CSS variables.
+   Status, link and tool colours are Airband's own, chosen to read on light and dark. */
+:root {
+  --ct-live: #e0a22c;
+  --ct-working: #4f94f0;
+  --ct-waiting: #e0a22c;
+  --ct-done: #3fb57d;
+  --ct-idle: #8b939e;
+  --ct-in: #4f94f0;
+  --ct-out: #3fb57d;
+  --ct-cw: #b28cf5;
+  --ct-brand: #e07a4f;
+  --ct-claude: #d97757;
+  --ct-codex: #8b97ff;
+  --ct-gemini: #4fa3e0;
+  --line: var(--vscode-panel-border, rgba(127, 127, 127, 0.22));
+  --line-soft: color-mix(in srgb, var(--line) 55%, transparent);
+  --surface: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  --raised: color-mix(in srgb, var(--vscode-foreground) 4%, var(--surface));
+  --hover: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.1));
+  --muted: var(--vscode-descriptionForeground);
+  --focus: var(--vscode-focusBorder);
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size, 13px);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+body[data-view="board"] { background: var(--vscode-editor-background); overflow: hidden; }
+button { font: inherit; color: inherit; }
+svg { flex: none; }
+.muted { color: var(--muted); }
+.small { font-size: 11.5px; }
+.strong, b { font-weight: 600; }
+.grow { flex: 1; min-width: 0; }
+.block { display: block; }
+.pad { padding: 8px; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 1px solid var(--focus); outline-offset: 1px; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes glowpulse { 0%, 100% { stroke-opacity: .12; stroke-width: 9; } 50% { stroke-opacity: .32; stroke-width: 16; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@keyframes tipin { from { opacity: 0; } }
+/* An angle that can be animated: a plain custom property can't be. */
+@property --spin { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 5px; font: 600 11px/1 var(--vscode-editor-font-family, ui-monospace, monospace); color: var(--vscode-foreground); background: color-mix(in srgb, var(--vscode-foreground) 9%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground) 18%, transparent); border-bottom-width: 2px; }

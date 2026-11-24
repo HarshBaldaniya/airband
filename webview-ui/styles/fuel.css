@@ -1,0 +1,184 @@
+/* Fuel: plan cards, limits and tokens. */
+.usage { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+.usagehead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.usagehead h2 { margin: 0 0 2px; font-size: 18px; }
+.usagehead p { margin: 0; }
+.tile { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 7px; background: var(--surface); }
+.tilelabel { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+.tilefig { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tilefig.small { font-size: 22px; }
+.breakdown { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.breakdown span { display: inline-flex; align-items: center; gap: 5px; }
+.section { margin: 0 0 10px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.listrow { display: grid; gap: 12px; align-items: center; padding: 9px 14px; font-size: 12.5px; border-top: 1px solid var(--line-soft); }
+.listrow:first-child { border-top: 0; }
+.listrow .live { color: var(--ct-live); font-weight: 600; }
+.table { width: 100%; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+.table th { text-align: left; font-weight: 600; font-size: 11px; color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.table td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); }
+.table th:first-child, .table td:first-child { width: 42%; }
+.table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.table tr.clickable { cursor: pointer; }
+.table tr.clickable:hover td { background: var(--hover); }
+.cellchat { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.tablewrap { overflow-x: auto; border-radius: 10px; }
+.tablewrap .table { min-width: 560px; }
+.usage { padding: 18px clamp(12px, 3vw, 24px) 40px; }
+.listrow { grid-template-columns: minmax(0, 1fr) auto auto; }
+.listrow .num:nth-last-child(-n + 2) { display: none; }
+@media (min-width: 720px) {
+  .listrow { grid-template-columns: minmax(0, 1fr) 70px 90px 70px 80px; }
+  .listrow .num:nth-last-child(-n + 2) { display: block; }
+}
+.planbar { position: relative; display: inline-block; flex: none; width: 54px; height: 5px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 13%, transparent); }
+.planbar > span { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--ct-done, #3fb950); }
+.planbar.high > span { background: var(--ct-waiting); }
+.planbar.full > span { background: var(--vscode-errorForeground, #f14c4c); }
+.planbar.wide { width: 100%; height: 7px; }
+.planpct { flex: none; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.planpct.high { color: var(--ct-waiting); }
+.planpct.full { color: var(--vscode-errorForeground, #f14c4c); }
+/* the sidebar's foot: one line per agent */
+.planstrip {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; flex-direction: column;
+  background: var(--vscode-sideBar-background, #181818); border-top: 1px solid var(--soft-line, var(--line));
+}
+/* the Fuel page's plan cards */
+.plans { display: flex; flex-direction: column; gap: 14px; }
+.plancards { display: grid; }
+.plancard { display: flex; flex-direction: column; }
+.plancardhead { display: flex; }
+.plantile { flex: none; display: grid; place-items: center; background: color-mix(in srgb, var(--vscode-foreground) 7%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground) 12%, transparent); }
+.plantitle { flex-wrap: wrap; font-size: 14px; }
+.planbadge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; color: var(--vscode-foreground); background: color-mix(in srgb, var(--focus) 18%, transparent); border: 1px solid color-mix(in srgb, var(--focus) 40%, transparent); }
+.plangroup { display: flex; flex-direction: column; gap: 8px; }
+.plangrouphead { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.plannote { margin: 0; }
+.planfoot a { color: var(--vscode-textLink-foreground); text-decoration: none; }
+.planfoot a:hover { text-decoration: underline; }
+.planstrip { margin: auto -8px -24px; }
+.planstrip { gap: 6px; padding: 10px 8px 12px; }
+.plancardmini {
+  all: unset; box-sizing: border-box; display: flex; flex-direction: column;
+  border-radius: 10px; cursor: pointer; min-width: 0;
+  background: color-mix(in srgb, var(--vscode-foreground, #ccc) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--vscode-foreground, #ccc) 12%, transparent);
+  transition: border-color .15s, background .15s;
+}
+.plancardmini:hover { border-color: color-mix(in srgb, var(--vscode-foreground, #ccc) 24%, transparent); background: color-mix(in srgb, var(--vscode-foreground, #ccc) 6%, transparent); }
+.plancardmini:focus-visible { outline: 1px solid var(--focus); }
+.plancardmini.high { border-color: color-mix(in srgb, var(--ct-waiting) 40%, transparent); }
+.plancardmini.full { border-color: color-mix(in srgb, var(--vscode-errorForeground, #f14c4c) 45%, transparent); }
+.plancardmini .planbar.wide { height: 6px; }
+.usage { gap: 30px; }
+.pagehead, .usagehead { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pagehead h2, .usagehead h2 { margin: 0 0 3px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.pagehead p, .usagehead p { margin: 0; }
+.ghostbtn { background: transparent; border: 1px solid color-mix(in srgb, var(--vscode-foreground) 18%, transparent); color: var(--vscode-foreground); }
+.ghostbtn:hover:not(:disabled) { background: var(--hover); }
+.plancards { gap: 16px; }
+.plancard { gap: 18px; padding: 18px; border-radius: 16px; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 3.5%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground, #ccc) 12%, transparent); }
+.plancardhead { align-items: center; gap: 12px; }
+.plantile { width: 38px; height: 38px; border-radius: 11px; }
+.plantitle { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.plantitle strong { font-size: 14.5px; }
+.planwho { max-width: 100%; font-size: 12px; color: var(--muted); }
+.planbadge { flex: none; align-self: flex-start; margin-top: 2px; }
+/* the headline: a ring for the limit nearest to running out */
+.planhero { display: flex; align-items: center; gap: 18px; padding: 14px 16px; border-radius: 12px; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 3%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground, #ccc) 9%, transparent); }
+.gauge { position: relative; flex: none; display: grid; place-items: center; }
+.gauge svg { position: absolute; inset: 0; }
+.gaugebg { fill: none; stroke: color-mix(in srgb, var(--vscode-foreground, #ccc) 12%, transparent); stroke-width: 8; }
+.gaugefg { fill: none; stroke: var(--ct-done, #3fb950); stroke-width: 8; stroke-linecap: round; transition: stroke-dasharray .4s ease; }
+.gauge.high .gaugefg { stroke: var(--ct-waiting); }
+.gauge.full .gaugefg { stroke: var(--vscode-errorForeground, #f14c4c); }
+.gaugetext { position: relative; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.gaugetext small { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: 1px; }
+.planherotext { display: flex; flex-direction: column; }
+.planherolabel { font-size: 14px; font-weight: 600; }
+.planherohint { font-size: 12px; color: var(--muted); }
+.gauge.high + .planherotext .planherohint { color: var(--ct-waiting); }
+.gauge.full + .planherotext .planherohint { color: var(--vscode-errorForeground, #f14c4c); }
+/* every limit, one row each */
+.limitrows { display: flex; flex-direction: column; gap: 10px; }
+.limitrow { display: grid; align-items: center; gap: 12px; font-size: 12.5px; }
+.limitrow .planpct { text-align: right; }
+.limitreset { font-size: 11.5px; color: var(--muted); text-align: right; white-space: nowrap; }
+/* where the use went: one bar in parts */
+.segbar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 10%, transparent); }
+.segbar > span { height: 100%; }
+.seglegend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); }
+.seglegend span { display: inline-flex; align-items: center; gap: 6px; }
+.seglegend b { color: var(--vscode-foreground); font-weight: 600; }
+.seglegend i { width: 8px; height: 8px; border-radius: 3px; display: inline-block; }
+.seg-a { background: #d97757; }
+.seg-b { background: #6b8afd; }
+.seg-c { background: #3fb950; }
+.seg-d { background: #c084fc; }
+.planfoot { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 0; padding-top: 0; border-top: 0; }
+.planfoot a { font-size: 12px; }
+.planchip { font-size: 11.5px; font-weight: 500; padding: 3px 9px; border-radius: 99px; color: var(--muted); background: color-mix(in srgb, var(--vscode-foreground) 7%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground) 12%, transparent); }
+.planchip.on { color: var(--vscode-foreground); background: color-mix(in srgb, var(--ct-done) 16%, transparent); border-color: color-mix(in srgb, var(--ct-done) 40%, transparent); }
+/* token figures in the same style as the plan cards */
+.usage .tile { padding: 16px 18px; border-radius: 14px; background: color-mix(in srgb, var(--vscode-foreground, #ccc) 3.5%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground, #ccc) 12%, transparent); box-shadow: none; }
+.usage .tilelabel { font-size: 12px; color: var(--muted); }
+.usage .tilefig { font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+.usage .section { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.usage { container-type: inline-size; }
+.planherotext { gap: 2px; }
+.planherolabel { line-height: 1.3; }
+.planherohint { line-height: 1.3; }
+.planheroreset { gap: 6px; align-self: flex-start; margin-top: 8px; padding: 3px 9px; border-radius: 99px; font-size: 11.5px; opacity: 1; color: var(--vscode-foreground); background: color-mix(in srgb, var(--vscode-foreground) 7%, transparent); border: 1px solid color-mix(in srgb, var(--vscode-foreground) 11%, transparent); }
+.planheroreset svg { color: var(--muted); flex: none; }
+.plancardmini { gap: 8px; padding: 11px 12px 11px; }
+.usage { width: 100%; max-width: 1240px; margin-inline: auto; box-sizing: border-box; }
+.plancards.single { grid-template-columns: 1fr; }
+.plancard { container-type: inline-size; min-width: 0; }
+.plancardbody { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.pcleft, .pcright { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.pcright { container-type: inline-size; }
+/* a wide card: the gauge on the left, every limit and where the use went on the right */
+@container (min-width: 660px) {
+  .plancardbody:has(.pcright) { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .pcright { padding-left: 32px; border-left: 1px solid color-mix(in srgb, var(--vscode-foreground) 9%, transparent); }
+}
+/* the gauge's text never spills out of its box */
+.planhero { flex-wrap: wrap; min-width: 0; }
+.planherotext { flex: 1 1 160px; min-width: 0; }
+.planheroreset { white-space: normal; max-width: 100%; line-height: 1.35; }
+/* limit rows: one line when there is room, else the bar and reset go below the name */
+.limitrow { grid-template-columns: minmax(0, 1fr) 44px; row-gap: 6px; }
+.limitrow .planbar { grid-column: 1 / -1; grid-row: 2; }
+.limitrow .limitreset { grid-column: 1 / -1; grid-row: 3; text-align: left; }
+@container (min-width: 440px) {
+  .limitrow { grid-template-columns: minmax(90px, 170px) minmax(60px, 1fr) 44px max-content; row-gap: 0; }
+  .limitrow .planbar, .limitrow .limitreset { grid-column: auto; grid-row: auto; }
+  .limitrow .limitreset { text-align: right; }
+}
+.limitname { min-width: 0; }
+.seglegend { min-width: 0; }
+/* auto-fit (not auto-fill) collapses unused columns, so two plan cards or three tiles share the
+   whole width instead of leaving a blank track on the right */
+.plancards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); align-items: start; }
+/* each card is as tall as its own content */
+.plancard { align-self: start; }
+.planheroreset { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: 5px; row-gap: 1px; }
+.planheroreset .rpart { white-space: nowrap; }
+/* a page scrolls; its sections never squeeze into each other when it's taller than the window */
+.usage > * { flex-shrink: 0; }
+.fuelused { display: flex; flex-direction: column; gap: 10px; }
+.fuelsplit { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; }
+.fueltool { display: block; height: 100%; min-width: 4px; flex-basis: 0; }
+.fueltool.claude { background: #d97757; }
+.fueltool.codex { background: #3987e5; }
+.fueltool.gemini { background: #1baf7a; }
+.heavy { display: inline-flex; align-items: center; gap: 8px; color: var(--ct-waiting); white-space: nowrap; }
+.heavy .btn { color: var(--vscode-foreground); }
+@container (max-width: 420px) {
+  .limitrow { grid-template-columns: 1fr 42px; }
+  .limitrow .planbar { grid-column: 1 / -1; grid-row: 2; }
+  .limitreset { grid-column: 1 / -1; text-align: left; }
+}
+.usage .tile.writingrules { padding: 0; gap: 0; overflow: hidden; }
