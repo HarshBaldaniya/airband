@@ -5,9 +5,11 @@ import { HowItWorks } from "@/components/home/HowItWorks";
 import { GitHub, Npm } from "@/components/ui/BrandMarks";
 import { Reveal } from "@/components/layout/Reveal";
 import { WaysIn } from "@/components/home/WaysIn";
+import { Stats } from "@/components/home/Stats";
 import { NEW_TAB } from "@/lib/links";
 import { downloads, VERSION } from "@/lib/release";
 import { SITE } from "@/lib/site";
+import { stats } from "@/lib/stats";
 import { JsonLd, faqGraph } from "@/lib/schema";
 
 const AGENTS = [
@@ -24,7 +26,7 @@ const FOUR = [
 ];
 
 export default async function Home() {
-  const files = await downloads();
+  const [files, numbers] = await Promise.all([downloads(), stats()]);
   return (
     <>
       <JsonLd data={faqGraph()} />
@@ -62,6 +64,8 @@ export default async function Home() {
           </Reveal>
         </div>
       </section>
+
+      <Stats numbers={numbers} />
 
       <section className="section" id="demo">
         <div className="wrap">

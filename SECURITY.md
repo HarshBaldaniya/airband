@@ -13,11 +13,30 @@ What it does to stay safe:
 - What one chat sends another is fenced with a random tag and marked as information, not
   instructions.
 - Notes, the Map and backups never follow a symlink out of the project or the backup folder.
-- No command line is ever built from chat text: run tasks go to the agent on stdin.
+- No command line is ever built from chat text.
+- The desktop app installs an engine only when it carries Airband's own signature from the GitHub
+  release, as well as npm's fingerprint.
+- Only Airband's own pages reach the Station, the local server Roger talks to: other pages, other
+  host names and plain forms are refused.
 - The MCP server speaks only over stdin and stdout; nothing listens on the network.
 - It goes online only for a daily npm version check (hard time limit, size cap, plain version
   numbers only) and, once per language, a parser file that isn't built in: https only, from the
   npm package the build used, and kept only if its SHA-256 matches the one built into Airband.
+
+## How the repository is protected
+
+- Every change from a contributor reaches `main` through a pull request that the owner approves. A
+  commit pushed after an approval needs a new one. Only the owner can push to `main` directly.
+- The tests on Ubuntu, macOS and Windows must pass, and CodeQL must find no high or critical
+  security problem.
+- Nobody can force-push to `main` or delete it. Only the owner can create, move or delete a release
+  tag.
+- A pull request from a fork runs its checks only after the owner approves the run, and never gets
+  the repository's secrets.
+- Workflows may use only GitHub's own actions and two named Rust actions, each pinned to an exact
+  commit.
+- Secret scanning blocks a push that contains a key. Dependabot reports vulnerable dependencies
+  and opens a pull request to fix each one.
 
 ## Reporting a problem
 

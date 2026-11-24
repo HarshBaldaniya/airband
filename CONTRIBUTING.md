@@ -26,6 +26,27 @@ Tests never touch your real `~/.airband`, `~/.claude`, `~/.codex` or `~/.gemini`
 path at a temporary folder. Keep it that way in new tests. A few tests read real Claude Code chats
 when `AIRBAND_TEST_DIR` names a folder that has some; otherwise they are skipped.
 
+## How a change reaches main
+
+Every change from a contributor reaches `main` through a pull request. Only the owner can push to
+`main` directly.
+
+1. Fork the repository, or make a branch if you can push to it.
+2. Open a pull request against `main`. The template lists what to check first.
+3. The tests run on Ubuntu, macOS and Windows, and CodeQL scans the code. All must pass.
+4. The owner reviews it (`.github/CODEOWNERS`). A commit pushed after the approval needs a new one.
+5. Every comment is resolved, and the branch is up to date with `main`.
+6. It is merged as one commit (squash) or rebased, so `main` stays one straight line. The branch is
+   deleted after the merge.
+
+A pull request from a fork runs its checks only after the owner approves the run. It never gets
+the repository's secrets. Only the owner can create, move or delete a release tag (`v*`). Workflows
+may use only GitHub's own actions and the two Rust actions already in them, pinned to a commit.
+Dependabot opens a pull request each month for dependency updates, and at once for a security fix.
+
+Report a bug or an idea with the issue forms. Report a security problem privately: see
+[SECURITY.md](SECURITY.md).
+
 ## How the repository is laid out
 
 | Folder | What lives there |

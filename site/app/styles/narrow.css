@@ -17,6 +17,9 @@
   .hero .actions > .cmd { justify-content: space-between; }
   .agents { gap: 10px 20px; margin-top: 32px; }
   .agents .with { flex-basis: 100%; text-align: center; justify-content: center; }
+  .signal { aspect-ratio: 1.6 / 1; }
+  .signal-count { bottom: 6%; gap: 6px; }
+  .onair-week { margin-top: 28px; }
   .hr-talk { max-width: 340px; }
   .hr-bubble { font-size: 14.5px; }
   .alt { flex-direction: column; align-items: stretch; }
