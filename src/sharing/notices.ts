@@ -7,13 +7,13 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { storeDir } from "../codemap/where";
 import { listHeads, type RecordHead } from "../sessions/record/store";
-import { readConnections } from "./store";
-import type { InboxItem } from "./types";
-import { readConfig } from "./config";
-import { sameFolder } from "./paths";
-import { agentName } from "./agents";
-import { tokensFor } from "./text";
-import { HOUR_MS } from "./units";
+import { readConnections } from "./connections";
+import type { InboxItem } from "../core/types";
+import { readConfig } from "../core/config";
+import { sameFolder } from "../core/paths";
+import { agentName } from "../core/agents";
+import { tokensFor } from "../core/text";
+import { HOUR_MS } from "../core/units";
 
 /** How far back "other chats worked here" looks. */
 const RECENT_MS = 12 * HOUR_MS;

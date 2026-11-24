@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildContext, buildUpdate, formatDelivery } from "../src/core/delivery";
+import { buildContext, buildUpdate, formatDelivery } from "../src/sharing/delivery";
 import type { ChatMessage, InboxItem } from "../src/core/types";
 
 const from = { id: "a", tool: "Claude" as const, title: "Billing fix" };

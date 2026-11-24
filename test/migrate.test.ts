@@ -6,7 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { moveOldHome, moveOldWorkspace } from "../src/install/migrate";
 import { connect, disconnect, isConnected, staleHookTargets } from "../src/install/agent-hooks";
-import { readConnections } from "../src/core/store";
+import { readConnections } from "../src/sharing/connections";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 

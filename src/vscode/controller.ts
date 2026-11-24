@@ -26,21 +26,11 @@ import { allCommands, STARTER_DESCRIPTION, userLibraryDir } from "../library/ind
 const MAPPED_FOLDERS = "airband.mappedFolders";
 import { BoardStore } from "../core/state";
 import { readHookStatus, resolveStatus } from "../sessions/status";
-import {
-  addConnection,
-  addPending,
-  appendInbox,
-  getCursor,
-  logDelivery,
-  readConnections,
-  readDeliveries,
-  readInbox,
-  removeConnection,
-  setCursor,
-  setPaused,
-  takeInbox,
-  setLevel,
-} from "../core/store";
+import { addConnection, readConnections, removeConnection, setPaused, setLevel } from "../sharing/connections";
+import { addPending } from "../sharing/pending";
+import { appendInbox, readInbox, takeInbox } from "../sharing/inbox";
+import { getCursor, setCursor } from "../sharing/cursors";
+import { logDelivery, readDeliveries } from "../sharing/deliveries";
 import { addUsage } from "../core/types";
 import type { ChatDigest, ChatRef, ChatSession, Connection, PlanUsage, Status } from "../core/types";
 import type { Tool } from "../core/agents";
@@ -50,7 +40,7 @@ import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } fro
 import { recentRollouts } from "../adapters/codex";
 import { readTail } from "../core/file-lines";
 import { CONTEXT_BUDGET, type ContextSize } from "../core/config";
-import { buildContext, buildUpdate, formatDelivery } from "../core/delivery";
+import { buildContext, buildUpdate, formatDelivery } from "../sharing/delivery";
 import { sameFolder } from "../core/paths";
 import { HOOK_START_MAX, HOOK_STEP_MAX, pruneRecords, readHead, readAsks, setRecordTitle } from "../sessions/record/store";
 import { catchUpRecord, recordBehind } from "../sessions/record/update";

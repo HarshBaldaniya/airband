@@ -9,7 +9,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { handle } from "../src/hook/handle";
 import { AGENT_IDS, type AgentId } from "../src/core/agents";
-import { addConnection, readConnections, readInbox, setCursor, setLevel } from "../src/core/store";
+import { addConnection, readConnections, setLevel } from "../src/sharing/connections";
+import { readInbox } from "../src/sharing/inbox";
+import { setCursor } from "../src/sharing/cursors";
 import { endOf } from "../src/hook/sharing";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

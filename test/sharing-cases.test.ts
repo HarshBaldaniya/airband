@@ -8,7 +8,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { handle } from "../src/hook/handle";
 import { FROM_PERSON } from "../src/hook/sharing";
-import { addConnection, appendInbox, readConnections, readInbox, setCursor, setLevel, takeInbox } from "../src/core/store";
+import { addConnection, readConnections, setLevel } from "../src/sharing/connections";
+import { appendInbox, readInbox, takeInbox } from "../src/sharing/inbox";
+import { setCursor } from "../src/sharing/cursors";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 const j = (o: unknown) => JSON.stringify(o) + "\n";
@@ -155,7 +157,7 @@ test("a turn over 16 MB is still shared, from its end", () => {
 
 test("hooks of different chats writing at once never lose a bookmark", async () => {
   const { spawn } = await import("node:child_process");
-  const { getCursor } = await import("../src/core/store");
+  const { getCursor } = await import("../src/sharing/cursors");
   process.env.AIRBAND_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "airband-race-"));
   const writer = (id: string) => new Promise<void>((done) => spawn(process.execPath, [__filename], { env: { ...process.env, AIRBAND_RACE_WRITER: id }, stdio: "ignore" }).on("exit", () => done()));
   const runs = [writer("race-a"), writer("race-b")];

@@ -2,11 +2,11 @@
 //   • A link's level decides how much: a line per ask (the default) or a summary, from the
 //     chat's session record (record.ts); or, at "full", the words themselves (here).
 //   • What a chat gets is put together here: grouped per chat, newest kept within a cap.
-import { CONTEXT_BUDGET, readConfig, type ContextSize } from "./config";
-import { fenced, headingSafe, newFenceTag } from "./fence";
-import { fullPath, relativeTo, sameFolder } from "./paths";
-import { redact } from "./redact";
-import type { ChatDigest, ChatMessage, ChatRef, InboxItem } from "./types";
+import { CONTEXT_BUDGET, readConfig, type ContextSize } from "../core/config";
+import { fenced, headingSafe, newFenceTag } from "../core/fence";
+import { fullPath, relativeTo, sameFolder } from "../core/paths";
+import { redact } from "../core/redact";
+import type { ChatDigest, ChatMessage, ChatRef, InboxItem } from "../core/types";
 
 const ASK_MAX = 2_000;
 const REPLY_MAX = 4_000;

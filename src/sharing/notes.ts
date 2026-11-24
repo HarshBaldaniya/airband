@@ -2,7 +2,7 @@
 // server. Kept in the workspace's `.airband/notes/` (git-ignored by default).
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { workspaceAirbandDir, workspaceAirbandPath, writeFileAtomic } from "./paths";
+import { workspaceAirbandDir, workspaceAirbandPath, writeFileAtomic } from "../core/paths";
 
 /** Largest note read back (a note is a hand-over, not a dump). */
 const NOTE_MAX = 256 * 1024;

@@ -1,13 +1,17 @@
 // The hook's part in sharing: what a chat did goes to the chats it is linked to as it finishes a
 // reply, and what waits in a chat's inbox goes into it with its next message.
 import { toolOf, type AgentId } from "../core/agents";
-import { buildUpdate, formatDelivery } from "../core/delivery";
+import { buildUpdate, formatDelivery } from "../sharing/delivery";
 import { sameFolder } from "../core/paths";
 import { HOOK_STEP_MAX, readHead } from "../sessions/record/store";
 import { readAsksFrom } from "../sessions/record/extract";
 import { recordBehind, updateRecord } from "../sessions/record/update";
 import { renderAsks } from "../sessions/record/render";
-import { addConnection, appendInbox, getSentReply, logDelivery, matchPending, readConnections, readCursor, readInbox, removePending, setCursor, setSentReply, takeInbox } from "../core/store";
+import { addConnection, readConnections } from "../sharing/connections";
+import { appendInbox, readInbox, takeInbox } from "../sharing/inbox";
+import { getSentReply, readCursor, setCursor, setSentReply } from "../sharing/cursors";
+import { logDelivery } from "../sharing/deliveries";
+import { matchPending, removePending } from "../sharing/pending";
 import { cleanText } from "../adapters/chat-text";
 import { fileSize, readLinesFrom } from "../core/file-lines";
 import type { ChatMessage, InboxItem } from "../core/types";

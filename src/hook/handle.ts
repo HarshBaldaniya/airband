@@ -19,10 +19,10 @@
 // asks in its own terminal.
 import type { AgentId } from "../core/agents";
 import { readConfig } from "../core/config";
-import { AUTO_DELIVERY_ASK } from "../core/delivery";
-import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
+import { AUTO_DELIVERY_ASK } from "../sharing/delivery";
+import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../sharing/notices";
 import { safeId } from "../core/paths";
-import { setSentReply, setStopBlock, takeStopBlock, type StopBlock } from "../core/store";
+import { setSentReply, setStopBlock, takeStopBlock, type StopBlock } from "../sharing/cursors";
 import { cleanText } from "../adapters/chat-text";
 import { briefFor } from "../writing/rules";
 import { forgetGiven } from "../writing/given";

@@ -2,7 +2,7 @@
 // a doc file it writes is checked, and a message, PR or commit it sends is held once if it breaks them.
 import * as path from "node:path";
 import type { AgentId } from "../core/agents";
-import { noticesOn } from "../core/notices";
+import { noticesOn } from "../sharing/notices";
 import { briefFor, writingFor } from "../writing/rules";
 import { checkOutgoing, holdOnce, outgoingText } from "../writing/outgoing";
 import { checkWrittenDoc, writtenDoc } from "../writing/docs";

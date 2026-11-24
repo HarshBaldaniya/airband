@@ -8,7 +8,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { handle } from "../src/hook/handle";
 import { FROM_PERSON, PERSON_ASK } from "../src/hook/sharing";
-import { appendInbox, readInbox } from "../src/core/store";
+import { appendInbox, readInbox } from "../src/sharing/inbox";
 import { tellText } from "../src/station/manager";
 import { claudeChatLink, editorFolder, folderNames, isVSCode, tabScript, vscodeFolderFor } from "../src/station/open";
 

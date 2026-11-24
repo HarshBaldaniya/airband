@@ -2,7 +2,7 @@
 // carry, so what it says comes back fenced as data.
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { listNotes, readNote, saveNote } from "../core/notes";
+import { listNotes, readNote, saveNote } from "../sharing/notes";
 import { data, text } from "./answer";
 
 export function registerNotesTool(server: McpServer, root: string): void {

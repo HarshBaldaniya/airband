@@ -7,7 +7,11 @@ import { execFileSync } from "node:child_process";
 import { CLAUDE_TIMEOUTS, HOOK_EVENTS, appNode, claudeAiCreditShown, connect, disconnect, isConnected, setClaudeAiCredit } from "../src/install/agent-hooks";
 import { handle } from "../src/hook/handle";
 import { record, statusFor } from "../src/hook/status";
-import { addConnection, addPending, appendInbox, getCursor, readConnections, readDeliveries, readInbox, setCursor } from "../src/core/store";
+import { addConnection, readConnections } from "../src/sharing/connections";
+import { addPending } from "../src/sharing/pending";
+import { appendInbox, readInbox } from "../src/sharing/inbox";
+import { getCursor, setCursor } from "../src/sharing/cursors";
+import { readDeliveries } from "../src/sharing/deliveries";
 
 function tmp(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

@@ -9,7 +9,7 @@ import * as http from "node:http";
 import * as path from "node:path";
 import { airbandFile, safeId, statusDir, writeFileAtomic } from "../core/paths";
 import { readHead } from "../sessions/record/store";
-import { appendInbox } from "../core/store";
+import { appendInbox } from "../sharing/inbox";
 import type { Status } from "../core/types";
 import { VERSION } from "../core/version";
 import { AGENTS } from "../core/agents";

@@ -9,7 +9,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { handle } from "../src/hook/handle";
 import { permission } from "../src/hook/permission";
-import { readInbox } from "../src/core/store";
+import { readInbox } from "../src/sharing/inbox";
 import { readHookStatus } from "../src/sessions/status";
 import { DETAIL_MAX, Station } from "../src/station/server";
 import { askStation, readStationInfo } from "../src/station/client";

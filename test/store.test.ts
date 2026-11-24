@@ -3,21 +3,11 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import {
-  addConnection,
-  addPending,
-  appendInbox,
-  getCursor,
-  logDelivery,
-  matchPending,
-  readConnections,
-  readDeliveries,
-  readInbox,
-  removeConnection,
-  setCursor,
-  setPaused,
-  takeInbox,
-} from "../src/core/store";
+import { addConnection, readConnections, removeConnection, setPaused } from "../src/sharing/connections";
+import { addPending, matchPending } from "../src/sharing/pending";
+import { appendInbox, readInbox, takeInbox } from "../src/sharing/inbox";
+import { getCursor, setCursor } from "../src/sharing/cursors";
+import { logDelivery, readDeliveries } from "../src/sharing/deliveries";
 
 const A = { id: "aaa", tool: "Claude" as const, title: "A" };
 const B = { id: "bbb", tool: "Claude" as const, title: "B" };
