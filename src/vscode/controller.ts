@@ -17,7 +17,7 @@ import { readJson } from "../core/json";
 import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, ViewState, WritingView } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
 import { codeHits, codeMapView, codeModuleView, knownProjects, libraryView } from "./pages";
-import { projectFile } from "../core/writing";
+import { projectFile } from "../core/writing/settings";
 import { claudePluginInstalled, installFiles } from "../core/setup";
 import { installSkills, removeSkills, skillsState } from "../core/skills";
 import { allCommands, STARTER_DESCRIPTION, userLibraryDir } from "../library/index";
