@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { ClaudeAdapter } from "../src/adapters/claude";
-import { readLinesFrom } from "../src/core/transcript";
+import { readLinesFrom } from "../src/core/file-lines";
 import type { ChatSession } from "../src/core/types";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

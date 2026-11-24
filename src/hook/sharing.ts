@@ -8,10 +8,11 @@ import { readAsksFrom } from "../core/record/extract";
 import { recordBehind, updateRecord } from "../core/record/update";
 import { renderAsks } from "../core/record/render";
 import { addConnection, appendInbox, getSentReply, logDelivery, matchPending, readConnections, readCursor, readInbox, removePending, setCursor, setSentReply, takeInbox } from "../core/store";
-import { claudeMessages, cleanText, fileSize, readLinesFrom } from "../core/transcript";
+import { cleanText } from "../adapters/chat-text";
+import { fileSize, readLinesFrom } from "../core/file-lines";
 import type { ChatMessage, InboxItem } from "../core/types";
 import { MiB } from "../core/units";
-import { codexMessages } from "../adapters/codex";
+import { lineMessages } from "../adapters/transcripts";
 import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../adapters/gemini";
 import type { HookInput } from "./input";
 
@@ -31,7 +32,7 @@ export function readSince(tool: AgentId, file: string, cursor: number, seen?: st
     return { ...geminiMessages(all.slice(geminiStart(all, cursor, seen))), next: all.length, seen: geminiSeen(all, all.length) };
   }
   const { lines, next } = readLinesFrom(file, cursor);
-  return { ...(tool === "codex" ? codexMessages(lines) : claudeMessages(lines)), next };
+  return { ...lineMessages(tool, lines), next };
 }
 
 /** Where a chat's file ends now, in its tool's cursor units. */

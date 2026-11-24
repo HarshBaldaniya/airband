@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { addOpenRequest, dropOpenRequest, isTempFolder, pickElsewhere, takeOpenRequests } from "../src/core/folders";
-import { readTail } from "../src/core/transcript";
+import { readTail } from "../src/core/file-lines";
 import { formatDelivery, buildContext } from "../src/core/delivery";
 import { handle } from "../src/hook/handle";
 import { addConnection, appendInbox, readInbox, setCursor } from "../src/core/store";

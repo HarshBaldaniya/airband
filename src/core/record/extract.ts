@@ -2,7 +2,6 @@
 // changed and the commits, PRs, tickets and links it named. By code alone, from the agent's file.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { codexMessages } from "../../adapters/codex";
 import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../../adapters/gemini";
 import { toolOf, type AgentId } from "../agents";
 import { parseJsonLine } from "../json";
@@ -10,7 +9,8 @@ import { OLD_NAMES } from "../legacy";
 import { claudeProjectsDir, codexSessionsDir, geminiTmpDir } from "../paths";
 import { redact } from "../redact";
 import { shorten } from "../text";
-import { claudeMessages, fileSize, readLinesFrom } from "../transcript";
+import { lineMessages } from "../../adapters/transcripts";
+import { fileSize, readLinesFrom } from "../file-lines";
 import type { ChatMessage } from "../types";
 import { MiB } from "../units";
 import { readAsks, readHead, type RecordAsk } from "./store";
@@ -144,7 +144,7 @@ function exchangesInLines(tool: AgentId, lines: string[], offset: number, now: n
     const start = pos;
     pos += Buffer.byteLength(line, "utf8") + 1;
     if (!line) continue;
-    const { messages, files } = tool === "codex" ? codexMessages([line]) : claudeMessages([line]);
+    const { messages, files } = lineMessages(tool === "codex" ? "codex" : "claude", [line]);
     // A slash command's tags are cleaned out of the message: it is read from the line itself.
     const command = line.includes("<command-name>") ? commandIn(line) : undefined;
     const youText = command ?? messages.find((m) => m.who === "you")?.text;
@@ -341,7 +341,7 @@ export function exchangeText(id: string, n: number, max = 20_000): string | unde
     messages = geminiMessages((loadGeminiChat(head.file)?.messages ?? []).slice(start, end)).messages;
   } else {
     const lines = readRange(head.file, start, end).split("\n");
-    messages = (head.tool === "codex" ? codexMessages(lines) : claudeMessages(lines)).messages;
+    messages = lineMessages(head.tool, lines).messages;
   }
   const text = redact(messages.map((m) => `**${m.who === "you" ? "You" : toolOf(head.tool)}:** ${m.text.trim()}`).join("\n\n"));
   return text.length > max ? `${text.slice(0, max)}\n\n… (${(text.length - max).toLocaleString("en-US")} more characters)` : text;

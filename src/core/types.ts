@@ -181,3 +181,8 @@ export interface PlanUsage {
   /** Why there are no limits to show, said plainly. */
   note?: string;
 }
+
+/** Two token counts added together. */
+export function addUsage(a: Usage, b: Usage): Usage {
+  return { input: a.input + b.input, output: a.output + b.output, cacheRead: a.cacheRead + b.cacheRead, cacheWrite: a.cacheWrite + b.cacheWrite };
+}

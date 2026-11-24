@@ -7,7 +7,10 @@ import type { ChatDigest, ChatSession, ChatStats, Usage } from "../core/types";
 import { NO_USAGE, contextWindow } from "../core/types";
 import { claudeProjectsDir, findClaudeTranscript, airbandFile, safeId, writeFileAtomic } from "../core/paths";
 import { readJson } from "../core/json";
-import { addUsage, claudeLatest, claudeMessages, claudeUsage, cleanText, fileSize, readLinesFrom, readTail } from "../core/transcript";
+import { addUsage } from "../core/types";
+import { claudeLatest, claudeMessages, claudeUsage } from "./claude-transcript";
+import { cleanText } from "./chat-text";
+import { fileSize, readLinesFrom, readTail } from "../core/file-lines";
 import type { Adapter } from "./adapter";
 import { today } from "./adapter";
 

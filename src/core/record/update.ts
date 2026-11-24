@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import type { AgentId } from "../agents";
 import { safeId } from "../paths";
 import { shorten } from "../text";
-import { fileSize } from "../transcript";
+import { fileSize } from "../file-lines";
 import { MINUTE_MS, MiB } from "../units";
 import { readAsksFrom } from "./extract";
 import { appendAsks, clearAsks, HOOK_START_MAX, readHead, writeHead, type RecordAsk } from "./store";

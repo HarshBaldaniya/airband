@@ -41,14 +41,14 @@ import {
   takeInbox,
   setLevel,
 } from "../core/store";
-import { addUsage } from "../core/transcript";
+import { addUsage } from "../core/types";
 import type { ChatDigest, ChatRef, ChatSession, Connection, PlanUsage, Status } from "../core/types";
 import type { Tool } from "../core/agents";
 import { NO_USAGE } from "../core/types";
 import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pickElsewhere, registerWindow, takeOpenRequests, unregisterWindow } from "../core/folders";
 import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../core/plans";
 import { recentRollouts } from "../adapters/codex";
-import { readTail } from "../core/transcript";
+import { readTail } from "../core/file-lines";
 import { CONTEXT_BUDGET, type ContextSize } from "../core/config";
 import { buildContext, buildUpdate, formatDelivery } from "../core/delivery";
 import { sameFolder } from "../core/paths";

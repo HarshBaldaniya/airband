@@ -4,7 +4,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
-import { claudeMessages, claudeUsage, readLinesFrom } from "../src/core/transcript";
+import { claudeMessages, claudeUsage } from "../src/adapters/claude-transcript";
+import { readLinesFrom } from "../src/core/file-lines";
 import { CodexAdapter, codexMessages, codexUsage } from "../src/adapters/codex";
 import { GeminiAdapter } from "../src/adapters/gemini";
 import { ClaudeAdapter } from "../src/adapters/claude";
@@ -123,7 +124,7 @@ test("claude: real chats list, read and count tokens", { skip: !fs.existsSync(cl
   assert.equal(c.end(list[0]), fs.statSync(list[0].file!).size);
 });
 
-import { claudeLatest } from "../src/core/transcript";
+import { claudeLatest } from "../src/adapters/claude-transcript";
 import { contextWindow } from "../src/core/types";
 import { resolveStatus } from "../src/core/status";
 

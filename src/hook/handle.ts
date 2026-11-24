@@ -23,7 +23,7 @@ import { AUTO_DELIVERY_ASK } from "../core/delivery";
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { safeId } from "../core/paths";
 import { setSentReply, setStopBlock, takeStopBlock, type StopBlock } from "../core/store";
-import { cleanText } from "../core/transcript";
+import { cleanText } from "../adapters/chat-text";
 import { briefFor } from "../core/writing/rules";
 import { forgetGiven } from "../core/writing/given";
 import { writingSettings } from "../core/writing/settings";
