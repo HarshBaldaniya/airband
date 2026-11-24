@@ -12,11 +12,9 @@ import { GeminiAdapter } from "../adapters/gemini";
 import { claudeProjectFolder, claudeProjectsDir, airbandFile, airbandHome, statusDir } from "../core/paths";
 import type { BoardTab, ConnectionView, FromWebview, ToWebview, ToolTotals, ViewState } from "../core/protocol";
 import { CodeMap } from "../codemap/index";
-import { codeHits, codeMapView, codeModuleView, knownProjects, libraryView } from "./pages";
-import { allCommands, STARTER_DESCRIPTION, userLibraryDir } from "../library/index";
+import { libraryView } from "./pages";
 
 /** Folders picked with "Map another folder", newest first. */
-const MAPPED_FOLDERS = "airband.mappedFolders";
 import { BoardStore } from "../core/state";
 import { readHookStatus, resolveStatus } from "../sessions/status";
 import { addConnection, readConnections, removeConnection, setPaused, setLevel } from "../sharing/connections";
@@ -42,6 +40,8 @@ import { claudeExtensionInstalled, openClaude, openInTerminal } from "./open";
 import { webviewHtml } from "./webview-html";
 import { PlansService } from "./plans-service";
 import { SetupService } from "./setup-service";
+import { libraryMessage } from "./library-page";
+import { MapPageService } from "./map-page";
 import { contextSize, setWriting, syncConfig, writingView } from "./settings";
 
 const POLL_MS = 10_000;
@@ -94,6 +94,7 @@ export class Controller implements vscode.Disposable {
 
   readonly setup = new SetupService(this);
   readonly plansService = new PlansService(this);
+  readonly mapPage = new MapPageService(this);
 
   constructor(readonly ctx: vscode.ExtensionContext) {
     this.disposables.push(vscode.workspace.onDidChangeWorkspaceFolders(() => (this.rewatch(), this.noteWindow())));
@@ -595,52 +596,24 @@ export class Controller implements vscode.Disposable {
         case "plans":
           return void this.plansService.refresh(true);
         case "codeMap":
-          return void this.sendCodeMap(from, m.rebuild, m.root);
+          return void this.mapPage.send(from, m.rebuild, m.root);
         case "codeMapFolder":
-          return void this.mapAnotherFolder(from);
-        case "codeFind": {
-          const map = this.codeMapFor(m.root);
-          if (!map) return;
-          await map.refresh();
-          return this.post({ type: "codeFind", q: m.q, hits: codeHits(map, m.q) }, from);
-        }
-        case "codeModule": {
-          const map = this.codeMapFor(m.root);
-          if (!map) return;
-          await map.refresh();
-          const data = codeModuleView(map, m.id);
-          if (data) this.post({ type: "codeModule", data }, from);
-          return;
-        }
-        case "openFile": {
-          const base = m.root ?? this.root;
-          if (!base) return;
-          const uri = vscode.Uri.file(path.join(base, m.path));
-          const line = Math.max(0, (m.line ?? 1) - 1);
-          return void vscode.window.showTextDocument(uri, { selection: new vscode.Range(line, 0, line, 0), preview: true });
-        }
+          return void this.mapPage.mapAnotherFolder(from);
+        case "codeFind":
+          return this.mapPage.find(m.q, m.root, from);
+        case "codeModule":
+          return this.mapPage.module(m.id, m.root, from);
+        case "openFile":
+          return this.mapPage.openFile(m.path, m.line, m.root);
         case "moduleDoc":
-          return void this.moduleDocAction(m.id, m.action, from, m.root);
+          return void this.mapPage.moduleDoc(m.id, m.action, from, m.root);
         case "library":
-          return this.post({ type: "library", data: libraryView() }, from);
-        case "librarySuggest": {
-          const { suggest } = await import("../library/index");
-          return this.post({ type: "librarySuggest", q: m.q, names: suggest(m.q, allCommands(), 6).map((x) => x.command.name) }, from);
-        }
+        case "librarySuggest":
         case "libraryRun":
-          return void openClaude(undefined, `/airband:${m.name} `);
-        case "libraryCopy": {
-          // The page shows that it copied; no toast on top of it.
-          await vscode.env.clipboard.writeText(m.text ?? `/airband:${m.name}`);
-          return;
-        }
-        case "libraryOpen": {
-          const c = allCommands().find((x) => x.name === m.name);
-          if (c && c.source !== "builtin") return void vscode.window.showTextDocument(vscode.Uri.file(c.source));
-          return;
-        }
+        case "libraryCopy":
+        case "libraryOpen":
         case "libraryNew":
-          return void this.newLibraryCommand();
+          return libraryMessage(m, (msg) => this.post(msg, from));
         case "setUpToolkit":
           await this.setup.setUpToolkit();
           return this.post({ type: "library", data: libraryView() }, from);
@@ -1085,76 +1058,9 @@ export class Controller implements vscode.Disposable {
     this.setup.turnOff();
   }
 
-  // ---- the Code and Library pages ----
-
-  private codeMaps?: { mapFor(root: string): CodeMap | undefined };
-
   /** The code map service from the extension, shared so the folder is mapped once. */
   useCodeMaps(service: { mapFor(root: string): CodeMap | undefined }): void {
-    this.codeMaps = service;
-  }
-
-  private projectMaps = new Map<string, CodeMap>();
-
-  /** The map of this window's folder, or of another project picked on the Code page. */
-  private codeMapFor(root = this.root): CodeMap | undefined {
-    if (!root) return undefined;
-    const shared = this.codeMaps?.mapFor(root);
-    if (shared) return shared;
-    let map = this.projectMaps.get(root);
-    if (!map) this.projectMaps.set(root, (map = new CodeMap(root)));
-    return map;
-  }
-
-  private async sendCodeMap(to: vscode.Webview, rebuild = false, root = this.root): Promise<void> {
-    const map = this.codeMapFor(root);
-    if (!map || !root) return;
-    const projects = knownProjects(
-      (vscode.workspace.workspaceFolders ?? []).map((f) => f.uri.fsPath),
-      this.ctx.globalState.get<string[]>(MAPPED_FOLDERS, []),
-    );
-    if (!map.exists()) this.post({ type: "codeMap", data: { root, files: 0, decls: 0, languages: {}, modules: [], edges: [], unused: { files: 0, exports: 0, localOnly: 0, sample: [] }, staleDocs: [], conventions: [], allFiles: [], links: [], projects, building: true } }, to);
-    await map.refresh({ full: rebuild });
-    this.post({ type: "codeMap", data: { ...codeMapView(map, root), projects } }, to);
-  }
-
-  /** Any folder on this computer, picked in the system's folder dialog; it stays in the project list. */
-  private async mapAnotherFolder(to: vscode.Webview): Promise<void> {
-    const picked = await vscode.window.showOpenDialog({ canSelectFolders: true, canSelectFiles: false, canSelectMany: false, openLabel: "Map this folder", title: "Map a project" });
-    const root = picked?.[0]?.fsPath;
-    if (!root) return;
-    const list = [root, ...this.ctx.globalState.get<string[]>(MAPPED_FOLDERS, []).filter((r) => r !== root)].slice(0, 20);
-    await this.ctx.globalState.update(MAPPED_FOLDERS, list);
-    this.post({ type: "codeRoot", root }, to);
-  }
-
-  private async moduleDocAction(id: string, action: "draft" | "open" | "approve", to: vscode.Webview, root?: string): Promise<void> {
-    const map = this.codeMapFor(root);
-    if (!map) return;
-    const doc = map.moduleDoc(id);
-    if (action === "draft") return void openClaude(undefined, `/airband:module-docs ${id}`);
-    if (action === "open" && doc && doc.status !== "missing") return void vscode.window.showTextDocument(vscode.Uri.file(doc.file));
-    if (action === "approve" && doc && doc.status !== "missing") {
-      map.approveModuleDoc(id);
-      this.post({ type: "toast", title: "Approved", text: `Agents now get the ${id} doc when they outline it. Commit docs/modules/ to share it.`, icon: "info" }, to);
-      return this.sendCodeMap(to, false, root);
-    }
-  }
-
-  /** Starts a command of the person's own, in ~/.airband/library, from a short template. */
-  private async newLibraryCommand(): Promise<void> {
-    const dir = userLibraryDir();
-    fs.mkdirSync(dir, { recursive: true });
-    let n = 1;
-    while (fs.existsSync(path.join(dir, `my-command${n > 1 ? `-${n}` : ""}.md`))) n++;
-    const name = `my-command${n > 1 ? `-${n}` : ""}`;
-    const file = path.join(dir, `${name}.md`);
-    fs.writeFileSync(
-      file,
-      `---\nname: ${name}\ntitle: My command\ndescription: ${STARTER_DESCRIPTION}\nargs: topic* = What to work on; style = How to write it (default: short and plain)\ntriggers: words, someone, might, type\n---\nWork on {{topic}}, written {{style}}.\n\n1. First step.\n2. Second step.\n`,
-    );
-    await vscode.window.showTextDocument(vscode.Uri.file(file));
-    void vscode.window.showInformationMessage("Your own command: private to this computer, and live in every agent as soon as you save it. Rename it with the name: line.");
+    this.mapPage.useCodeMaps(service);
   }
 
   setUpToolkit(): Promise<void> {
