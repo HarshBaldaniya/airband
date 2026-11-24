@@ -6,7 +6,7 @@ import codexLogo from "@lobehub/icons-static-svg/icons/codex-color.svg";
 import geminiLogo from "@lobehub/icons-static-svg/icons/gemini-color.svg";
 import type { Status } from "../src/core/types";
 import type { Tool } from "../src/core/agents";
-import { STATUS_LABEL } from "./api";
+import { STATUS_LABEL } from "./lib/format";
 
 export {
   Activity,

@@ -1,28 +1,5 @@
-import type { FromWebview, ToWebview } from "../src/core/protocol";
-import type { Status, Usage } from "../src/core/types";
-
-declare function acquireVsCodeApi(): { postMessage(msg: unknown): void; getState(): any; setState(s: any): void };
-
-const vscode = acquireVsCodeApi();
-
-export function send(msg: FromWebview): void {
-  vscode.postMessage(msg);
-}
-
-export function onMessage(fn: (msg: ToWebview) => void): () => void {
-  const handler = (e: MessageEvent<ToWebview>) => fn(e.data);
-  window.addEventListener("message", handler);
-  return () => window.removeEventListener("message", handler);
-}
-
-/** Small UI memory (filters, collapsed groups) that survives the view being hidden. */
-export function remembered<T>(key: string, fallback: T): T {
-  return (vscode.getState()?.[key] as T) ?? fallback;
-}
-
-export function remember(key: string, value: unknown): void {
-  vscode.setState({ ...(vscode.getState() ?? {}), [key]: value });
-}
+// How numbers, times and names read on every page.
+import type { Status, Usage } from "../../src/core/types";
 
 export const STATUS_LABEL: Record<Status, string> = {
   working: "Working",
@@ -31,7 +8,8 @@ export const STATUS_LABEL: Record<Status, string> = {
   idle: "Idle",
 };
 
-export function ago(ms: number, now = Date.now()): string {
+/** "now", "12m", "3h", "4d", "2mo". */
+function ago(ms: number, now = Date.now()): string {
   const s = Math.max(0, Math.round((now - ms) / 1000));
   if (s < 45) return "now";
   const m = Math.round(s / 60);
@@ -48,17 +26,13 @@ export function agoText(ms: number, now = Date.now()): string {
   return a === "now" ? "just now" : `${a} ago`;
 }
 
+/** A token count in a few characters: "950", "4.2K", "18K", "1.0M". */
 export function tokens(n: number): string {
   const short = (v: number, unit: string) => `${v < 10 ? v.toFixed(1) : Math.round(v)}${unit}`;
   if (n < 1000) return String(Math.round(n));
   if (n < 1_000_000) return short(n / 1000, "K");
   if (n < 1_000_000_000) return short(n / 1_000_000, "M");
   return short(n / 1_000_000_000, "B");
-}
-
-/** Every token, cache reads included. */
-export function total(u?: Usage): number {
-  return u ? u.input + u.output + u.cacheRead + u.cacheWrite : 0;
 }
 
 /**
@@ -88,21 +62,15 @@ export function modelName(model?: string): string | undefined {
   return model;
 }
 
-/** A folder's own name ("/Users/me/work/api" → "api"). */
-export function folderName(p?: string): string {
-  if (!p) return "";
-  const parts = p.replace(/[\\/]+$/, "").split(/[\\/]/);
-  return parts[parts.length - 1] || p;
-}
-
 /** How full a context window is, as a whole percentage. */
 export function contextPct(c?: { used: number; window: number }): number | undefined {
   return c && c.window ? Math.min(100, Math.round((c.used / c.window) * 100)) : undefined;
 }
 
-/** The drag payload type for a chat, so drops from elsewhere are ignored. */
-export const DRAG_TYPE = "application/x-airband-chat";
-
+/** How close something is to full, as the class its bar or ring is drawn with. */
+export function level(pct: number | null | undefined): "none" | "ok" | "high" | "full" {
+  return pct == null ? "none" : pct >= 90 ? "full" : pct >= 70 ? "high" : "ok";
+}
 
 /** Where "open in its folder" puts a chat: Claude's panel for Claude, a terminal for the others. */
 export function whereItOpens(tool: string): string {

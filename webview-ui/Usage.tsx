@@ -6,10 +6,11 @@ import type { ViewState } from "../src/core/protocol";
 import type { Usage } from "../src/core/types";
 import type { Tool } from "../src/core/agents";
 import { NO_USAGE } from "../src/core/types";
-import { agoText, charsToTokens, contextPct, fresh, send, tokens } from "./api";
+import { agoText, charsToTokens, contextPct, fresh, tokens } from "./lib/format";
+import { send } from "./lib/vscode";
 import { ArrowLeftRight, ArrowRight, Coins, I, StatusDot, ToolMark } from "./Icons";
 import { PlanCards } from "./Plans";
-import { typing } from "./Keys";
+import { typing } from "./lib/keys";
 
 
 type Range = "today" | "total";

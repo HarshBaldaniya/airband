@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { BadgeCheck, FileText, MessageSquare, Reply, Send } from "lucide-react";
 import type { WritingView } from "../src/core/protocol";
-import { onMessage, send } from "./api";
+import { onMessage, send } from "./lib/vscode";
 import { I } from "./Icons";
 
 type Key = keyof WritingView["settings"];

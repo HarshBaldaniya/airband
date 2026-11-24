@@ -4,7 +4,8 @@
 import type { ViewState } from "../src/core/protocol";
 import type { PlanUsage, PlanWindow } from "../src/core/types";
 import type { Tool } from "../src/core/agents";
-import { agoText, send } from "./api";
+import { agoText, level } from "./lib/format";
+import { send } from "./lib/vscode";
 import { Clock, I, RefreshCw, ToolMark } from "./Icons";
 
 const ORDER: Tool[] = ["Claude", "Codex", "Gemini"];
@@ -21,10 +22,6 @@ export function shownPlans(state: ViewState): PlanUsage[] {
 /** The limit nearest to running out: the one a person needs to watch. */
 export function headline(p: PlanUsage): PlanWindow | undefined {
   return [...p.windows].filter((w) => w.pct != null).sort((a, b) => (b.pct ?? 0) - (a.pct ?? 0))[0];
-}
-
-export function level(pct: number | null | undefined): string {
-  return pct == null ? "none" : pct >= 90 ? "full" : pct >= 70 ? "high" : "ok";
 }
 
 /** To the nearest minute: a limit that resets at 02:59:59.98 resets at 3:00, as the agent's own panel says. */

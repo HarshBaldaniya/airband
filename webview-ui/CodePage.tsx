@@ -5,7 +5,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronsUpDown, FolderGit2, FolderPlus, LayoutGrid, Maximize2, Minus, Plus, Search, X } from "lucide-react";
 import type { CodeHitView, CodeMapView, ViewState } from "../src/core/protocol";
-import { onMessage, remember, remembered, send } from "./api";
+import { onMessage, remember, remembered, send } from "./lib/vscode";
+import { typing } from "./lib/keys";
+import { useDismiss } from "./lib/useDismiss";
 import { I } from "./Icons";
 import { buildModel, dotX, dotY, draw, fitCam, hitTest, litFor, sameTarget, type Cam, type Model, type Target, type Theme } from "./codeboard";
 
@@ -381,9 +383,7 @@ export function CodePage({ state }: { state: ViewState }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "/") {
         e.preventDefault();
         searchRef.current?.focus();
@@ -533,31 +533,11 @@ export function CodePage({ state }: { state: ViewState }) {
   );
 }
 
-/** Closes a popover on a click outside it or on Esc. */
-function usePopover(ref: React.RefObject<HTMLElement | null>, open: boolean, close: () => void) {
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && close();
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        close();
-      }
-    };
-    window.addEventListener("pointerdown", away);
-    window.addEventListener("keydown", esc, true);
-    return () => {
-      window.removeEventListener("pointerdown", away);
-      window.removeEventListener("keydown", esc, true);
-    };
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-}
-
 /** The project: its name; with more than one, a short list to switch. */
 function ProjectPicker({ data, name, pick }: { data: CodeMapView; name: string; pick: (root: string) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  usePopover(ref, open, () => setOpen(false));
+  useDismiss(open, ref, () => setOpen(false));
   // This window's projects first, then the others, with a line between; then any other folder.
   const here = data.projects.filter((p) => p.here);
   const others = data.projects.filter((p) => !p.here);

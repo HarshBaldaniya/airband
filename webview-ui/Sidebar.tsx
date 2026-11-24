@@ -10,7 +10,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent a
 import type { ConnectionView, ViewState } from "../src/core/protocol";
 import type { ChatSession } from "../src/core/types";
 import type { Tool } from "../src/core/agents";
-import { DRAG_TYPE, agoText, contextPct, folderName, modelName, remember, remembered, send, whereItOpens } from "./api";
+import { agoText, contextPct, level, modelName, tokens, whereItOpens } from "./lib/format";
+import { DRAG_TYPE, folderHints, folderName, folderOf } from "./lib/folders";
+import { useDismiss } from "./lib/useDismiss";
+import { remember, remembered, send } from "./lib/vscode";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -104,11 +107,10 @@ export function Sidebar({ state, setModal }: { state: ViewState; setModal: (m: M
   }, [linking]);
   const activeScope = linking ? linkScope : scope;
   const everyFolder = activeScope === "all" && hasElsewhere;
-  const folderOf = (s: ChatSession) => (s.away ? s.cwd : state.root) ?? state.root ?? "";
   const folders = useMemo(() => folderList(state.sessions, state.root), [state.sessions, state.root]);
   const nothingPicked = everyFolder && folders.length > 0 && folders.every((f) => hidden.includes(f.path));
   const pool = useMemo(() => {
-    if (everyFolder) return state.sessions.filter((s) => !hidden.includes(folderOf(s)) || s.id === linking);
+    if (everyFolder) return state.sessions.filter((s) => !hidden.includes(folderOf(s, state.root)) || s.id === linking);
     return state.sessions.filter((s) => !s.away || linkedIds.has(s.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [everyFolder, linking, state.sessions, linkedIds, hidden, state.root]);
@@ -482,7 +484,7 @@ function RowLine({ s, links, showFolder }: RowProps) {
         </span>
       )}
       {pct !== undefined && s.context && (
-        <span className={`ctxtag ${level(pct)}`} data-tip={`Context ${pct}% full: ${Math.round(s.context.used / 1000)}K of ${short(s.context.window)} tokens`}>
+        <span className={`ctxtag ${level(pct)}`} data-tip={`Context ${pct}% full: ${Math.round(s.context.used / 1000)}K of ${tokens(s.context.window)} tokens`}>
           <ContextRing pct={pct} />
           {pct}%<span className="ctxword"> context</span>
         </span>
@@ -530,10 +532,6 @@ function ContextRing({ pct }: { pct: number }) {
   );
 }
 
-function level(pct: number): string {
-  return pct >= 90 ? "full" : pct >= 70 ? "high" : "ok";
-}
-
 function Details({ s, links, waiting, waitingFrom, onPeek, onLink, onBranch }: RowProps) {
   const pct = contextPct(s.context);
   return (
@@ -561,7 +559,7 @@ function Details({ s, links, waiting, waitingFrom, onPeek, onLink, onBranch }: R
                 <span className={`ctxbar ${level(pct)}`}>
                   <span style={{ width: `${Math.max(2, pct)}%` }} />
                 </span>
-                {pct}%<span className="ofwin"> of {short(s.context.window)}</span>
+                {pct}%<span className="ofwin"> of {tokens(s.context.window)}</span>
               </span>
             </div>
           )}
@@ -666,10 +664,6 @@ function LinkRow({ l }: { l: MergedLink }) {
   );
 }
 
-function short(n: number): string {
-  return n >= 1_000_000 ? `${n / 1_000_000}M` : `${Math.round(n / 1000)}K`;
-}
-
 function groupChats(list: ChatSession[]): Group[] {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -694,14 +688,10 @@ const ORDER: Record<string, number> = { waiting: 0, working: 1 };
  */
 function groupByFolder(list: ChatSession[], root?: string): Group[] {
   const folders = new Map<string, ChatSession[]>();
-  for (const s of list) {
-    const f = (s.away ? s.cwd : root) ?? root ?? "";
-    folders.set(f, [...(folders.get(f) ?? []), s]);
-  }
+  for (const s of list) folders.set(folderOf(s, root), [...(folders.get(folderOf(s, root)) ?? []), s]);
   const newest = (f: string) => Math.max(...folders.get(f)!.map((s) => s.lastModified));
   const order = [...folders.keys()].sort((a, b) => (a === root ? -1 : b === root ? 1 : newest(b) - newest(a)));
-  const names = new Map<string, number>();
-  for (const f of order) names.set(folderName(f), (names.get(folderName(f)) ?? 0) + 1);
+  const hints = folderHints(order);
   return order.map((f) => {
     const items = [...folders.get(f)!].sort((a, b) => (ORDER[a.status] ?? 2) - (ORDER[b.status] ?? 2) || b.lastModified - a.lastModified);
     return {
@@ -709,7 +699,7 @@ function groupByFolder(list: ChatSession[], root?: string): Group[] {
       label: folderName(f) || "Other",
       items,
       folder: f,
-      hint: (names.get(folderName(f)) ?? 0) > 1 ? folderName(f.replace(/[\\/][^\\/]+[\\/]?$/, "")) : undefined,
+      hint: hints.get(f),
       waiting: items.filter((s) => s.status === "waiting").length,
       working: items.filter((s) => s.status === "working").length,
       latest: newest(f),
@@ -741,18 +731,7 @@ function FolderPicker({ folders, hidden, setHidden, root }: { folders: FolderInf
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
-    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", away, true);
-    document.addEventListener("keydown", key, true);
-    window.addEventListener("blur", () => setOpen(false), { once: true });
-    return () => {
-      document.removeEventListener("pointerdown", away, true);
-      document.removeEventListener("keydown", key, true);
-    };
-  }, [open]);
+  useDismiss(open, ref, () => setOpen(false), { onBlur: true });
   useEffect(() => {
     if (!open) setQ("");
   }, [open]);

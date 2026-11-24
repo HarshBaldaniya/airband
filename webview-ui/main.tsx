@@ -5,7 +5,7 @@ import "./styles.css";
 import type { BoardTab } from "../src/core/protocol";
 import type { ToWebview, ViewState } from "../src/core/protocol";
 import { AlertTriangle, Info, Link2, Pause, Play, RefreshCw, Unlink, X } from "lucide-react";
-import { onMessage, send } from "./api";
+import { onMessage, send } from "./lib/vscode";
 import { Board } from "./Board";
 import { Modals, type Modal } from "./Modals";
 import { Sidebar } from "./Sidebar";

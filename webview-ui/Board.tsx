@@ -34,7 +34,11 @@ import type { BoardTab, ConnectionView, ViewState } from "../src/core/protocol";
 import { Orbit, PenLine, SquareSlash } from "lucide-react";
 import { PAGE_KEYS } from "./pagekeys";
 import type { BoardArrange, BoardPosition, ChatSession } from "../src/core/types";
-import { DRAG_TYPE, agoText, charsToTokens, contextPct, folderName, remember, remembered, send, tokens, whereItOpens } from "./api";
+import { agoText, charsToTokens, contextPct, level, tokens, whereItOpens } from "./lib/format";
+import { DRAG_TYPE, folderHints, folderName, folderOf } from "./lib/folders";
+import { typing } from "./lib/keys";
+import { useDismiss } from "./lib/useDismiss";
+import { remember, remembered, send } from "./lib/vscode";
 import {
   ArrowLeft,
   ArrowLeftRight,
@@ -81,7 +85,7 @@ import { UsageView } from "./Usage";
 import { CodePage } from "./CodePage";
 import { LibraryPage } from "./LibraryPage";
 import { WritingPage } from "./WritingPage";
-import { KeySheet, useDismiss } from "./Keys";
+import { KeySheet } from "./components/KeySheet";
 
 type CardLink = { id: string; title: string; dir: "out" | "in" | "both" };
 /** `inPanel`: the card sits in its folder's panel ("By folder"), which already names the folder. */
@@ -134,12 +138,6 @@ const COL_GAP = 192;
 const ROW_GAP = 48;
 const LOOSE_GAP = 48;
 const FRESH_MS = 12_000;
-
-/** Typing in a field: single-key shortcuts stay out of the way. */
-export function typing(e: KeyboardEvent): boolean {
-  const t = e.target as HTMLElement | null;
-  return !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
-}
 
 export function Board(props: { state: ViewState; tab: BoardTab; setTab: (t: BoardTab) => void }) {
   // The shortcuts sheet belongs to the whole window: the page's own keys, then the ones that work
@@ -771,19 +769,16 @@ function Tray({ state, onBoard, close }: { state: ViewState; onBoard: Set<string
   const [q, setQ] = useState("");
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const needle = q.trim().toLowerCase();
-  const folderOf = (s: ChatSession) => (s.away ? s.cwd : state.root) ?? state.root ?? "";
   const list = state.sessions.filter(
-    (s) => !onBoard.has(s.id) && (!needle || s.title.toLowerCase().includes(needle) || folderName(folderOf(s)).toLowerCase().includes(needle)),
+    (s) => !onBoard.has(s.id) && (!needle || s.title.toLowerCase().includes(needle) || folderName(folderOf(s, state.root)).toLowerCase().includes(needle)),
   );
   const groups = new Map<string, ChatSession[]>();
-  for (const s of list) groups.set(folderOf(s), [...(groups.get(folderOf(s)) ?? []), s]);
+  for (const s of list) groups.set(folderOf(s, state.root), [...(groups.get(folderOf(s, state.root)) ?? []), s]);
   const order = [...groups.keys()].sort((a, b) =>
     a === state.root ? -1 : b === state.root ? 1 : Math.max(...groups.get(b)!.map((x) => x.lastModified)) - Math.max(...groups.get(a)!.map((x) => x.lastModified)),
   );
   // Two folders with the same name are told apart by their parent.
-  const nameCount = new Map<string, number>();
-  for (const f of order) nameCount.set(folderName(f), (nameCount.get(folderName(f)) ?? 0) + 1);
-  const hintOf = (f: string) => ((nameCount.get(folderName(f)) ?? 0) > 1 ? folderName(f.replace(/[\\/][^\\/]+[\\/]?$/, "")) : "");
+  const hints = folderHints(order);
   // This folder starts open, the rest closed; a search opens every folder it finds something in.
   const isOpen = (f: string) => !!needle || (openFolders[f] ?? f === state.root);
   return (
@@ -815,7 +810,7 @@ function Tray({ state, onBoard, close }: { state: ViewState; onBoard: Set<string
                   <ChevronRight {...I} size={13} className={`chev ${open ? "open" : ""}`} />
                   {here ? <FolderOpen {...I} size={13} className="tfolder here" /> : <Folder {...I} size={13} className="tfolder" />}
                   <span className="ellipsis">{folderName(f) || "This folder"}</span>
-                  {hintOf(f) && <span className="fhint ellipsis">{hintOf(f)}</span>}
+                  {hints.get(f) && <span className="fhint ellipsis">{hints.get(f)}</span>}
                   <span className="traycount">{items.length}</span>
                 </button>
                 <button className="trayaddall" onClick={() => items.forEach((s) => send({ type: "boardAdd", id: s.id }))} aria-label={`Add every chat of ${folderName(f)} to the board`}>
@@ -945,7 +940,7 @@ const ChatCard = memo(function ChatCard({ data, selected }: NodeProps<CardNode>)
             <>
               <dt>Context</dt>
               <dd className="ctx" data-tip={`${s.context.used.toLocaleString()} of ${s.context.window.toLocaleString()} tokens`}>
-                <span className={`ctxbar ${pct >= 90 ? "full" : pct >= 70 ? "high" : "ok"}`}>
+                <span className={`ctxbar ${level(pct)}`}>
                   <span style={{ width: `${Math.max(2, pct)}%` }} />
                 </span>
                 {pct}%
@@ -1253,9 +1248,8 @@ function laneLayout(
 ): { positions: Record<string, BoardPosition>; lanes: Lane[] } {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const folderOf = (c: ChatSession) => (c.away ? c.cwd : root) ?? root ?? "";
   const key = (c: ChatSession): string => {
-    if (mode === "folder") return folderOf(c);
+    if (mode === "folder") return folderOf(c, root);
     if (mode === "agent") return c.tool;
     if (mode === "status") return ({ waiting: "Needs you", working: "Working", done: "Done", idle: "Idle" } as const)[c.status];
     if (c.lastModified >= today) return "Today";
