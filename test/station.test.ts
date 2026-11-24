@@ -213,6 +213,22 @@ test("the Station's errors keep their details in its log; pages get a plain sent
   }
 });
 
+test("a one-time link opens the companion's screen once, and the key never shows in it", async () => {
+  const s = await start();
+  const code = s.oneTimeCode();
+  assert.ok(!code.includes(s.token));
+  const get = (p: string, cookie?: string) =>
+    new Promise<http.IncomingMessage>((resolve) => http.get({ host: "127.0.0.1", port: s.port, path: p, headers: cookie ? { cookie } : {} }, (res) => (res.resume(), resolve(res))));
+  const first = await get(`/app?c=${code}`);
+  assert.equal(first.statusCode, 302);
+  assert.equal(first.headers.location, "/app");
+  const cookie = String(first.headers["set-cookie"]).split(";")[0];
+  assert.equal(cookie, `airband_t=${s.token}`);
+  assert.equal((await get("/app", cookie)).statusCode, 200, "the browser keeps the key");
+  assert.equal((await get(`/app?c=${code}`)).statusCode, 401, "the link works once");
+  assert.equal((await get(`/app?c=made-up`)).statusCode, 401);
+});
+
 test("a message to a chat waits in its inbox for its next turn", async () => {
   const s = await start();
   assert.equal(s.tell("c9", "the API changed: use /v2/seats"), "c9");

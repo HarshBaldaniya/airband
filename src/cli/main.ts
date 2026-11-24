@@ -302,7 +302,8 @@ export async function main(argv: string[]): Promise<number> {
       }
       const s = station.snapshot();
       out(`\n  ${paint.ok("●")} Airband's Station is running.`);
-      out(`  The companion's screen: http://127.0.0.1:${station.port}/app?t=${station.token}`);
+      // A link that works once, for a moment: the Station's key itself never shows on screen.
+      out(`  The companion's screen: http://127.0.0.1:${station.port}/app?c=${station.oneTimeCode()} ${paint.dim("(opens once, within 2 minutes)")}`);
       if (s.settings.phone) out(`  On your phone (same Wi-Fi): ${station.phoneUrl() ?? "no network address found"}`);
       out(paint.dim(`  Permission requests from Claude Code and Codex come here while it runs. Ctrl+C stops it.\n`));
       const stop = () => void station.stop().then(() => process.exit(0));

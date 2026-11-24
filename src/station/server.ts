@@ -127,6 +127,8 @@ const FINISHED_KEEP_MS = 2 * 3600e3;
 export const DETAIL_MAX = 2000;
 /** A chat first seen already done counts as just finished if it stopped this recently. */
 const JUST_FINISHED_MS = 2 * 60_000;
+/** How long a one-time link to the companion's screen works. */
+const ONE_TIME_MS = 2 * 60_000;
 const SOMETHING_WRONG = "Something went wrong in Airband's Station. Try again.";
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
@@ -197,6 +199,8 @@ export class Station extends EventEmitter {
   /** The phone link through Airband's relay. */
   readonly link?: PhoneLink;
   private lastTest?: { answer: string; from?: "phone" | "computer"; at: number };
+  /** Links to the companion's screen that work once: a code and when it runs out. */
+  private codes = new Map<string, number>();
   private testFrom?: "phone" | "computer";
 
   private now(): number {
@@ -533,6 +537,24 @@ export class Station extends EventEmitter {
     this.changed();
   }
 
+  /**
+   * A code for a link to the companion's screen that works once, within ONE_TIME_MS. Opening it
+   * keeps the Station's key in the browser, so the key itself is never printed or shown in a URL.
+   */
+  oneTimeCode(): string {
+    const now = this.now();
+    for (const [c, until] of this.codes) if (until <= now) this.codes.delete(c);
+    const code = key();
+    this.codes.set(code, now + ONE_TIME_MS);
+    return code;
+  }
+
+  private useCode(code: string): boolean {
+    const until = this.codes.get(code);
+    this.codes.delete(code);
+    return until !== undefined && until > this.now();
+  }
+
   // ---- HTTP ----
 
   private who(req: http.IncomingMessage, url: URL): "local" | "phone" | undefined {
@@ -568,6 +590,12 @@ export class Station extends EventEmitter {
     try {
       if (!this.fromHere(req)) return send(res, 403, { error: "Only Airband's own pages can reach the Station." });
       if (req.method === "GET" && route.startsWith("/ui/")) return this.asset(route.slice(4), res);
+      const code = url.searchParams.get("c");
+      if (req.method === "GET" && route === "/app" && code) {
+        if (!this.useCode(code)) return send(res, 401, { error: "That link was used already or ran out. Make a new one with airband station." });
+        res.writeHead(302, { location: "/app", "set-cookie": keyCookie(this.token), "cache-control": "no-store" });
+        return void res.end();
+      }
       const who = this.who(req, url);
       if (!who) return send(res, 401, { error: "This needs Airband's key." });
       // A hook checks that this answer comes from the Station that holds the key (client.ts).
@@ -586,7 +614,7 @@ export class Station extends EventEmitter {
         const mode = route === "/phone" || who === "phone" ? "phone" : url.searchParams.get("mode") === "desktop" ? "desktop" : "phone";
         const t = url.searchParams.get("t");
         const headers: Record<string, string> = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" };
-        if (t) headers["set-cookie"] = `airband_t=${t}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000`;
+        if (t) headers["set-cookie"] = keyCookie(t);
         res.writeHead(200, headers);
         return void res.end(page(mode));
       }
@@ -668,6 +696,9 @@ export class Station extends EventEmitter {
     fs.createReadStream(file).pipe(res);
   }
 }
+
+/** The browser keeps the key in a cookie no page script can read. */
+const keyCookie = (t: string) => `airband_t=${t}; Path=/; HttpOnly; SameSite=Strict; Max-Age=31536000`;
 
 /** A request the Station turns down on purpose: its sentence is the person's to read. */
 class Refusal extends Error {
