@@ -2,7 +2,7 @@
 // chat's context) and Peek (what is waiting to reach a chat).
 import { useEffect, useRef, useState } from "react";
 import type { Ask } from "../src/core/protocol";
-import type { Tool } from "../src/core/types";
+import type { Tool } from "../src/core/agents";
 import { charsToTokens, send, tokens } from "./api";
 import { Check, ChevronRight, I, Plus, ToolMark, X } from "./Icons";
 

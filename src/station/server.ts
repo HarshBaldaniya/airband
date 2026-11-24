@@ -13,83 +13,20 @@ import { readHead } from "../core/record";
 import { appendInbox } from "../core/store";
 import type { Status } from "../core/types";
 import { VERSION } from "../core/version";
-import { AGENTS, type AgentId } from "../core/agents";
+import { AGENTS } from "../core/agents";
 import { forgetReads, liveChats, titleOf, type LiveChat } from "./chats";
 import { CatchUp } from "./catchup";
 import { ChatWatch } from "./watch";
 import { DECISION_MS, NONCE_HEADER, PROOF_HEADER, readStationInfo, stationFile, stationProof, type StationInfo } from "./client";
-import { PhoneLink, type LinkStatus, type PhoneLinkOptions } from "./link";
-import { cleanDesign, cleanName, DEFAULT_COMPANION, type CompanionSettings } from "./companion";
-import { ask, headline, tellText, type CompanionAnswer } from "./manager";
+import { PhoneLink, type PhoneLinkOptions } from "./link";
+import { cleanDesign, cleanName, DEFAULT_COMPANION } from "./companion";
+import { ask, headline, tellText } from "./manager";
 import { openChat } from "./open";
 import { chatApp } from "../core/apps";
-import { describeRequest, questionsOf, ruleKey, type Answer, type Question } from "./reply";
+import { describeRequest, questionsOf, ruleKey, type Answer } from "./reply";
+import type { CompanionAnswer, FinishedView, PendingView, StationSettings, StationState } from "./types";
 
 const DEFAULT_PORT = 47821;
-
-export interface PendingView {
-  id: string;
-  agent: AgentId;
-  agentName: string;
-  chatId?: string;
-  chatTitle: string;
-  project: string;
-  cwd?: string;
-  toolName?: string;
-  title: string;
-  detail?: string;
-  /** The detail was too long to show whole: only its first DETAIL_MAX characters are in `detail`. */
-  truncated?: true;
-  /** The whole detail's length, when it was cut. */
-  detailLength?: number;
-  questions?: Question[];
-  at: number;
-  expiresAt: number;
-  /** A pretend request to try the phone link (Test in the settings): no chat waits on it. */
-  sample?: true;
-}
-
-export interface FinishedView {
-  chatId: string;
-  title: string;
-  project: string;
-  agent: AgentId;
-  agentName: string;
-  did?: string;
-  open?: string;
-  /** A summary for a notification, and whether the chat left the next step to you. */
-  brief?: string;
-  yours?: boolean;
-  at: number;
-}
-
-export interface StationSettings {
-  /** Permission requests come to the app. Off: every chat asks in its own terminal. */
-  approvals: boolean;
-  /** How long a request waits for a click before the terminal asks, in ms. */
-  waitMs: number;
-  /** The companion's name and look. */
-  companion: CompanionSettings;
-  /** Open questions may go to Claude Code (with Airband's records only). On unless turned off. */
-  lookups: boolean;
-  /** A linked phone hears every request and finished chat at once, even while you're at the computer.
-   *  Off: only when you're away (the screen locked, or idle for a minute). */
-  phoneAlways: boolean;
-}
-
-export interface StationState {
-  version: string;
-  now: number;
-  headline: string;
-  chats: LiveChat[];
-  pending: PendingView[];
-  finished: FinishedView[];
-  settings: StationSettings;
-  /** The phone link through Airband's relay: whether a phone is linked, and which. */
-  link?: LinkStatus;
-  /** How the latest test request was answered, and where ("none": nobody answered in time). */
-  test?: { answer: string; from?: "phone" | "computer"; at: number };
-}
 
 export interface StationOptions {
   port?: number;

@@ -3,7 +3,8 @@
 // tests reach them. It reads git (never writes to the work tree), so it works on a PR branch that
 // is not checked out: `main..feature`, a branch name, or `#853` (fetched from the remote first).
 import { execFileSync } from "node:child_process";
-import { extract, type Decl } from "./extract";
+import { extract } from "./extract";
+import type { Decl } from "./types";
 import { memberName, type Edge } from "./graph";
 import type { CodeMap } from "./index";
 import { langOf } from "./parser";

@@ -2,7 +2,7 @@
 // which syntax nodes are declarations (and of what kind), which hold other declarations (a class
 // body, an impl block, a namespace), what counts as public, and how imports and calls are written.
 import type { SyntaxNode } from "./parser";
-import type { Decl, DeclKind, FileFacts, Import, IsLocal } from "./extract";
+import type { Decl, DeclKind, FileFacts, Import, IsLocal } from "./types";
 import { shorten } from "../core/text";
 
 export type TableLang = "go" | "rust" | "java" | "csharp" | "ruby" | "php";

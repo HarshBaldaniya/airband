@@ -5,7 +5,7 @@ import * as path from "node:path";
 import * as zlib from "node:zlib";
 import { execFile } from "node:child_process";
 import { writeFileAtomic } from "../core/paths";
-import type { Decl, Import } from "./extract";
+import type { Decl, Import } from "./types";
 import { langOf, type LangId } from "./parser";
 import { TABLE_SKIP_DIR } from "./langs";
 

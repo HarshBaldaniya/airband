@@ -10,7 +10,8 @@ import { fromB64u, newClaimKey, openBox, openClaim, pairingFragment, parsePairin
 import { isPushEndpoint, lockForPhone, newVapidKeys, sendPush, vapidAuthorization } from "../src/remote/webpush";
 import { LIMITS, RoomLogic, type Role, type RoomSocket } from "../relay/src/room";
 import { GATE_LIMITS, GateLogic, gateName } from "../relay/src/gate";
-import { Station, type PendingView } from "../src/station/server";
+import { Station } from "../src/station/server";
+import type { PendingView } from "../src/station/types";
 import { answeredOnAlert } from "../src/station/link";
 import { askStation } from "../src/station/client";
 

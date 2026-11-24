@@ -16,6 +16,7 @@ import { DEFAULT_COMPANION } from "./companion";
 import { knowledge } from "./knowledge";
 import type { Decision } from "./reply";
 import { plainText, plural } from "../core/text";
+import type { AnswerChoice, CompanionAnswer } from "./types";
 
 export interface PendingBrief {
   id?: string;
@@ -93,23 +94,6 @@ export interface AskContext {
   /** Airband's version, for "which version are you?". */
   version?: string;
   now?: number;
-}
-
-/** A button under an answer: pressing it asks this, so the person never has to type it. */
-export interface AnswerChoice {
-  label: string;
-  ask: string;
-}
-
-export interface CompanionAnswer {
-  text: string;
-  /** The chat it is about, so the panel can offer to open it. */
-  chatId?: string;
-  /** When the ask could mean more than one thing: pick one. */
-  choices?: AnswerChoice[];
-  /** Something for the screen to do: tuck the companion away, open the settings. */
-  action?: "tuck" | "settings";
-  via: "records" | "claude" | "web" | "action";
 }
 
 const TELL = /^(?:please\s+)?(?:tell|message|send|remind)\s+(?:the\s+)?(.+?)\s+(?:chat\s+|session\s+)?(?:that|to|:|-)\s+([\s\S]+)$/i;

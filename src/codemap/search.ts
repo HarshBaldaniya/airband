@@ -1,6 +1,6 @@
 // Finding code by words: BM25 over each declaration's name, the class it sits in, its doc line and
 // its file's path, with boosts for an exact name. No AI, no embeddings.
-import type { Decl } from "./extract";
+import type { Decl } from "./types";
 import type { FileEntry } from "./store";
 
 const STOP = new Set(

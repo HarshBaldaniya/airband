@@ -1,11 +1,9 @@
 // The companion's screen talks to the Station it was loaded from: the same address, its key in a cookie.
-import type { CompanionAnswer } from "../src/station/manager";
-import type { StationSettings, StationState } from "../src/station/server";
+import type { CompanionAnswer, StationSettings, StationState } from "../src/station/types";
 import type { Answer } from "../src/station/reply";
 
-export type { AnswerChoice, CompanionAnswer } from "../src/station/manager";
 export type { LiveChat } from "../src/station/chats";
-export type { FinishedView, PendingView, StationSettings, StationState } from "../src/station/server";
+export type { AnswerChoice, CompanionAnswer, FinishedView, PendingView, StationSettings, StationState } from "../src/station/types";
 
 /** How the screen reaches the Station: over HTTP from the page the Station served (the computer),
  *  or through Airband's relay, locked (the phone app). */

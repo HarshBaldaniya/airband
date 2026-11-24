@@ -1,10 +1,10 @@
 // The three agents Airband works with, in one table. Each has an id (what hooks, records and files
 // on disk use), a Tool label (what the extension shows and older records carry) and the name people
 // know it by. Plain data with no Node imports, so the browser pages can use it too.
-import type { Tool } from "./types";
-
 export const AGENT_IDS = ["claude", "codex", "gemini"] as const;
 export type AgentId = (typeof AGENT_IDS)[number];
+/** An agent's label in the extension and in older records. */
+export type Tool = "Claude" | "Codex" | "Gemini";
 
 export const AGENTS: Record<AgentId, { tool: Tool; name: string }> = {
   claude: { tool: "Claude", name: "Claude Code" },

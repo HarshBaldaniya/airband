@@ -21,7 +21,7 @@ import { openBox, pairingFragment, randomB64u, seal, sealForClaim, unseal, type 
 import { isPushEndpoint, newVapidKeys, sendPush, type PushTarget, type VapidKeys } from "../remote/webpush";
 import type { Answer } from "./reply";
 import type { LiveChat } from "./chats";
-import type { FinishedView, PendingView, Station, StationState } from "./server";
+import type { FinishedView, LinkedStation, LinkStatus, PendingView, StationState } from "./types";
 
 if (!globalThis.crypto) (globalThis as { crypto?: unknown }).crypto = webcrypto;
 
@@ -59,18 +59,6 @@ interface LinkFile {
   phone?: LinkedPhone;
   /** While set, room and secret are a code waiting to be scanned, until this time. */
   codeUntil?: number;
-}
-
-export interface LinkStatus {
-  /** An iPhone holds the link. */
-  linked: boolean;
-  /** A code is showing, waiting for an iPhone to scan it, until this time. */
-  codeUntil?: number;
-  /** The last code ran out before anyone scanned it. */
-  expired?: boolean;
-  /** The relay is reachable now. */
-  online: boolean;
-  phones: { name: string; at: number; alerts: boolean }[];
 }
 
 /** What Apple's push service said to an alert, in words for the person. */
@@ -133,7 +121,7 @@ export class PhoneLink {
   private readonly relay: string;
 
   constructor(
-    private readonly station: Station,
+    private readonly station: LinkedStation,
     private readonly o: PhoneLinkOptions = {},
   ) {
     this.relay = (o.relay ?? RELAY_URL).replace(/\/+$/, "");

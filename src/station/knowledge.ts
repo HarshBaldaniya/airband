@@ -1,7 +1,7 @@
 // What the companion knows about itself and Airband, answered at once with no AI call: greetings,
 // who it is, what it can do, who made Airband, what it can see, how to move it or link a phone,
 // and a little small talk. Every answer is written for the name the person sees, never a fixed one.
-import type { AnswerChoice, CompanionAnswer } from "./manager";
+import type { AnswerChoice, CompanionAnswer } from "./types";
 
 export interface KnowledgeContext {
   name: string;

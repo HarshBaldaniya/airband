@@ -1,7 +1,5 @@
 // Shapes shared by the extension, the webviews, the hook and the MCP server.
-import type { AgentId } from "./agents";
-
-export type Tool = "Claude" | "Codex" | "Gemini";
+import type { AgentId, Tool } from "./agents";
 
 /** working: replying · waiting: needs you · done: replied, your turn · idle: quiet for a while */
 export type Status = "working" | "waiting" | "done" | "idle";

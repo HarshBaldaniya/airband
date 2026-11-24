@@ -8,7 +8,8 @@
 // (or drag one row onto another). No dialogs: the link works at once.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type HTMLAttributes } from "react";
 import type { ConnectionView, ViewState } from "../src/core/protocol";
-import type { ChatSession, Tool } from "../src/core/types";
+import type { ChatSession } from "../src/core/types";
+import type { Tool } from "../src/core/agents";
 import { DRAG_TYPE, agoText, contextPct, folderName, modelName, remember, remembered, send, whereItOpens } from "./api";
 import {
   ArrowLeft,

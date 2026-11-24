@@ -1,4 +1,5 @@
-import type { ChatDigest, ChatMessage, ChatSession, ChatStats, Tool } from "../core/types";
+import type { ChatDigest, ChatMessage, ChatSession, ChatStats } from "../core/types";
+import type { Tool } from "../core/agents";
 
 /** What Airband needs from each AI tool. One file per tool implements it. */
 export interface Adapter {

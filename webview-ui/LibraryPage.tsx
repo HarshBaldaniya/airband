@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, Copy, Search, X } from "lucide-react";
 import type { LibraryView } from "../src/core/protocol";
-import type { Tool } from "../src/core/types";
+import type { Tool } from "../src/core/agents";
 import { onMessage, remember, remembered, send } from "./api";
 import { I, ToolMark } from "./Icons";
 

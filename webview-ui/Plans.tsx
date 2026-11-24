@@ -2,7 +2,8 @@
 // and full cards (account, every limit with its reset, extra usage, where the use went) on the
 // Fuel page. Nothing here is worked out by Airband: every number is the agent's own.
 import type { ViewState } from "../src/core/protocol";
-import type { PlanUsage, PlanWindow, Tool } from "../src/core/types";
+import type { PlanUsage, PlanWindow } from "../src/core/types";
+import type { Tool } from "../src/core/agents";
 import { agoText, send } from "./api";
 import { Clock, I, RefreshCw, ToolMark } from "./Icons";
 

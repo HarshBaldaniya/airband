@@ -2,7 +2,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ChatSession, Tool } from "./types";
+import type { ChatSession } from "./types";
+import type { Tool } from "./agents";
 import { airbandFile, writeFileAtomic } from "./paths";
 import { readJson } from "./json";
 

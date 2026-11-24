@@ -2,7 +2,8 @@
 // kept fresh by content hash, and answered in a few hundred tokens with exact `path:start-end`.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { extract, type Decl } from "./extract";
+import { extract } from "./extract";
+import type { Decl } from "./types";
 import { CodeGraph, memberName, type Confidence, type Edge } from "./graph";
 import { checkDocs, computeConventions, computeModules, conventionLines, type Convention, type Module, type StaleDocLine } from "./modules";
 import { approveModuleDoc, docPath, readModuleDoc, serveModuleDoc, type ModuleDoc } from "./moduledocs";

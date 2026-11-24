@@ -1,7 +1,7 @@
 // Who imports and calls what, resolved through imports and re-exports, each link marked by how sure
 // it is: found (traced through an import to a declaration), likely (through a re-export or a
 // Python package), guessed (a name with one declaration, its import unresolved).
-import type { Decl } from "./extract";
+import type { Decl } from "./types";
 import type { Resolver } from "./resolve";
 import type { FileEntry } from "./store";
 

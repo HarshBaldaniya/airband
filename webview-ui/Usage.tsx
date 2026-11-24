@@ -3,7 +3,8 @@
 // context re-read every turn at a tenth of the price, are shown on their own.
 import { useEffect, useMemo, useState } from "react";
 import type { ViewState } from "../src/core/protocol";
-import type { Tool, Usage } from "../src/core/types";
+import type { Usage } from "../src/core/types";
+import type { Tool } from "../src/core/agents";
 import { NO_USAGE } from "../src/core/types";
 import { agoText, charsToTokens, contextPct, fresh, send, tokens } from "./api";
 import { ArrowLeftRight, ArrowRight, Coins, I, StatusDot, ToolMark } from "./Icons";

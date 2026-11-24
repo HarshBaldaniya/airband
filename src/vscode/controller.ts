@@ -42,7 +42,8 @@ import {
   setLevel,
 } from "../core/store";
 import { addUsage } from "../core/transcript";
-import type { ChatDigest, ChatRef, ChatSession, Connection, PlanUsage, Status, Tool } from "../core/types";
+import type { ChatDigest, ChatRef, ChatSession, Connection, PlanUsage, Status } from "../core/types";
+import type { Tool } from "../core/agents";
 import { NO_USAGE } from "../core/types";
 import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pickElsewhere, registerWindow, takeOpenRequests, unregisterWindow } from "../core/folders";
 import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../core/plans";
