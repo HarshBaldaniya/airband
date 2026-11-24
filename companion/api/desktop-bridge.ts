@@ -57,6 +57,8 @@ export interface AppUpdate {
   /** How much of the download is in, 0 to 100. */
   progress?: number | null;
   error?: string | null;
+  /** A small update: it installs by itself once Roger is asleep (apps before 0.2.1 never say so). */
+  automatic?: boolean;
 }
 
 /** Which way the cards open: towards the middle of the screen. */

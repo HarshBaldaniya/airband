@@ -4,10 +4,12 @@
 //!   When npm has a newer one, the app fetches it, checks npm's fingerprint, sets the agents up with
 //!   it as the setup tour does (the `airband` command too) and starts the Station again on it.
 //!   Nothing to click.
-//! - The app itself: when its latest GitHub release is newer, the menu offers "Update to …" and
-//!   Roger's panel says so. One click downloads it, checks its signature against the public key in
-//!   tauri.conf.json, puts it in place and starts it again. The app fetches the file itself, so the
-//!   system doesn't ask to allow a download, as it does for one from a browser.
+//! - The app itself: when its latest GitHub release is newer, it is fetched, its signature checked
+//!   against the public key in tauri.conf.json, put in place and started again. A small update
+//!   (only the last number changes) does this by itself, once Roger is asleep, so it never
+//!   interrupts. A big one (a new middle number before 1.0, a new first number after) waits for
+//!   the person: the menu offers "Update to …" and Roger's panel shows Update. The app fetches the
+//!   file itself, so the system doesn't ask to allow a download, as it does for one from a browser.
 //!
 //! Both are looked at a minute after the app starts, then every six hours.
 use crate::corner::{self, event};
@@ -26,6 +28,8 @@ use tauri_plugin_updater::UpdaterExt;
 const FIRST_CHECK: Duration = Duration::from_secs(60);
 /// Then a look every six hours.
 const CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
+/// How often a small update waiting for Roger to sleep looks again.
+const QUIET_LOOK: Duration = Duration::from_secs(60);
 /// "Starting again…" stays on screen this long before the app restarts.
 const RESTART_PAUSE: Duration = Duration::from_millis(700);
 
@@ -49,10 +53,18 @@ pub struct AppUpdate {
     pub progress: Option<u8>,
     /// What went wrong the last time, in words for the person.
     pub error: Option<String>,
+    /// A small update: it installs by itself once Roger is asleep, so the panel offers nothing.
+    pub automatic: bool,
 }
 
-static NOW: Mutex<AppUpdate> =
-    Mutex::new(AppUpdate { version: None, installing: false, step: None, progress: None, error: None });
+static NOW: Mutex<AppUpdate> = Mutex::new(AppUpdate {
+    version: None,
+    installing: false,
+    step: None,
+    progress: None,
+    error: None,
+    automatic: false,
+});
 
 pub fn current() -> AppUpdate {
     lock(&NOW).clone()
@@ -95,6 +107,17 @@ pub fn newer(a: &str, b: &str) -> bool {
             .collect::<Vec<_>>()
     };
     parts(a) > parts(b)
+}
+
+/// Whether going from `have` to `new` is a big update, one the person chooses to install: a new
+/// first number, or before 1.0 a new middle number. Anything else installs by itself.
+pub fn big_update(have: &str, new: &str) -> bool {
+    let parts = |v: &str| {
+        let mut p = v.trim().trim_start_matches('v').split(['.', '-', '+']).map(|x| x.parse::<u64>().unwrap_or(0));
+        (p.next().unwrap_or(0), p.next().unwrap_or(0))
+    };
+    let ((a, b), (c, d)) = (parts(have), parts(new));
+    a != c || (a == 0 && b != d)
 }
 
 /// Looks for both kinds of update now and then, in the background.
@@ -147,14 +170,41 @@ async fn check_app(app: &AppHandle) {
                 now.version = Some(u.version.clone());
                 fresh
             };
+            let automatic = !big_update(&app.package_info().version.to_string(), &u.version);
+            lock(&NOW).automatic = automatic;
             if fresh {
-                log(&format!("update: Airband {} is out", u.version));
+                log(&format!(
+                    "update: Airband {} is out{}",
+                    u.version,
+                    if automatic { ", installing it once Roger is asleep" } else { "" }
+                ));
                 tell(app);
+                if automatic {
+                    install_when_quiet(app);
+                }
             }
         }
         Ok(None) => {}
         Err(e) => log(&format!("update: couldn't look for a newer app: {e}")),
     }
+}
+
+/// A small update installs once Roger is asleep: every chat done, nothing waiting for the person,
+/// so the few seconds the app takes to start again interrupt nothing.
+fn install_when_quiet(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || loop {
+        let (asleep, installing) = (lock(&app.state::<AppState>()).asleep, lock(&NOW).installing);
+        if installing {
+            return;
+        }
+        if asleep {
+            log("update: Roger is asleep, installing the update");
+            install(&app);
+            return;
+        }
+        std::thread::sleep(QUIET_LOOK);
+    });
 }
 
 /// `airband --update` while Airband runs: look now, and update only when there is a newer app.
@@ -280,6 +330,17 @@ pub async fn from_terminal(app: &AppHandle) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_small_update_installs_by_itself_and_a_big_one_waits_for_the_person() {
+        assert!(!big_update("0.2.0", "0.2.1"));
+        assert!(!big_update("0.2.3", "0.2.10"));
+        assert!(big_update("0.1.6", "0.2.0"));
+        assert!(big_update("0.9.4", "1.0.0"));
+        assert!(!big_update("1.2.0", "1.3.0"));
+        assert!(big_update("1.9.0", "2.0.0"));
+        assert!(!big_update("v0.2.0", "0.2.1-beta.1"));
+    }
 
     #[test]
     fn compares_versions_as_numbers() {

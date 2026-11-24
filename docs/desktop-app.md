@@ -135,9 +135,14 @@ Airband keeps itself current:
   version within a few hours, with nothing to click. Each engine is checked twice before it is
   installed: against npm's fingerprint, and against Airband's own signature on the GitHub release of
   that version. An engine that fails either check isn't installed.
-- **The app asks once.** When a newer app is out, Airband's menu shows **Update to Airband x.y.z**,
-  and Roger's panel shows **Update**. One click downloads it, checks its signature, and starts the new
-  version. No warning to click through, and your settings stay as they are.
+- **Small app updates install by themselves.** When only the last number changes (0.2.0 to 0.2.1),
+  the app downloads the update, checks its signature, and starts the new version once Roger is
+  asleep, so it never interrupts a chat. Roger then says he was updated.
+- **Big app updates ask once.** For a new middle number before 1.0 (0.2 to 0.3), or a new first
+  number after it, Airband's menu shows **Update to Airband x.y.z**, and Roger's panel shows
+  **Update**. One click downloads it, checks its signature, and starts the new version.
+- Either way there is no warning to click through, and your settings stay as they are. The menu
+  item is there for a small update too, to install it at once.
 
 Apps from before 0.1.2 can't update themselves: install 0.1.2 once, the same way as the first time.
 
