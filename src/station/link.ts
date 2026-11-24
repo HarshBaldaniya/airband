@@ -16,7 +16,7 @@
 // free plan never charges: past its daily limit the relay just stops until the next day.
 import { webcrypto } from "node:crypto";
 import { airbandFile, readJson, writeFileAtomic } from "../core/paths";
-import { openBox, pairingFragment, randomB64u, seal, unseal, type Box, type ComputerMessage, type PhoneMessage, type RelayFrame } from "../remote/box";
+import { openBox, pairingFragment, randomB64u, seal, sealForClaim, unseal, type Box, type ClaimedRoom, type ComputerMessage, type PhoneMessage, type RelayFrame } from "../remote/box";
 import { isPushEndpoint, newVapidKeys, sendPush, type PushTarget, type VapidKeys } from "../remote/webpush";
 import type { Answer } from "./reply";
 import type { LiveChat } from "./chats";
@@ -36,6 +36,8 @@ const MAX_RETRY_MS = 5 * 60_000;
 const STATE_EVERY_MS = 1000;
 const MAX_CHATS = 30;
 const DECISIONS = new Set(["allow", "always", "deny", "terminal"]);
+/** A claim with no key of its own comes from a copy of the iPhone app older than the locked handover. */
+const OLD_PHONE_APP = "This iPhone has an older copy of Airband. Close it, open it again, and scan a new code.";
 /** The longest title and body an alert carries. The Lock Screen shows the first lines, a long press the rest. */
 const ALERT_TITLE_MAX = 90;
 const ALERT_BODY_MAX = 360;
@@ -427,9 +429,17 @@ export class PhoneLink {
     const codeRoom = f.room;
     if (!f.codeUntil || f.codeUntil <= this.now()) return this.tell({ t: "reply", n: m.n, ok: false, error: "This code expired. Make a new one on your Mac." }, "msg", codeBox);
     if (typeof m.id !== "string" || !/^[a-f0-9]{8,40}$/.test(m.id)) return;
-    const codeWs = this.ws;
     const room = randomB64u(16);
     const secret = randomB64u(32);
+    // Locked for the claiming iPhone's own key: anyone else on the code's room hears it and can't open it.
+    let handover: { key: string; d: string };
+    try {
+      if (typeof m.key !== "string") throw new Error("no key");
+      handover = await sealForClaim(m.key, { room, secret } satisfies ClaimedRoom, this.now());
+    } catch {
+      return this.tell({ t: "reply", n: m.n, ok: false, error: OLD_PHONE_APP }, "msg", codeBox);
+    }
+    const codeWs = this.ws;
     clearTimeout(this.codeTimer);
     // The code's connection is set aside: its close no longer reconnects, and nothing more is heard on it.
     this.ws = undefined;
@@ -445,8 +455,8 @@ export class PhoneLink {
       const done = setTimeout(resolve, 5000);
       ws.addEventListener("open", () => (clearTimeout(done), resolve()), { once: true });
     });
-    // Then told on the code's room, locked with the code: only the iPhone holding the code reads it.
-    if (codeWs?.readyState === 1) codeWs.send(JSON.stringify({ k: "msg", d: await seal(codeBox, { t: "paired", n: m.n, room, secret } satisfies ComputerMessage, this.now()) }));
+    // Then told on the code's room: only the iPhone that made the claim can open it.
+    if (codeWs?.readyState === 1) codeWs.send(JSON.stringify({ k: "msg", d: await seal(codeBox, { t: "paired", n: m.n, ...handover } satisfies ComputerMessage, this.now()) }));
     this.station.changed();
     // A moment for the iPhone to read it, then the code's room goes: the code is worth nothing now.
     setTimeout(() => {

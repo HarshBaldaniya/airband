@@ -2,7 +2,7 @@
 // is locked with the pair's key; the relay sees only which kind of frame passes. It reconnects by
 // itself, and at once when the app comes back to the screen (a phone pauses connections in the
 // background).
-import { openBox, seal, unseal, type Box, type ComputerMessage, type Pairing, type PhoneMessage, type RelayFrame } from "../../src/remote/box";
+import { newClaimKey, openBox, openClaim, seal, unseal, type Box, type ClaimedRoom, type ClaimKey, type ComputerMessage, type Pairing, type PhoneMessage, type RelayFrame } from "../../src/remote/box";
 import type { StationState, Transport } from "../api";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> };
@@ -11,6 +11,8 @@ export class RelayLink implements Transport {
   private ws?: WebSocket;
   private n = 1;
   private waiting = new Map<number, Pending>();
+  /** The key pair of the claim on its way, so the answer can be opened. */
+  private claimKey?: ClaimKey;
   private onState?: (s: StationState) => void;
   private onLink?: (up: boolean) => void;
   private stopped = false;
@@ -121,10 +123,12 @@ export class RelayLink implements Transport {
       this.onState?.(m.state as StationState);
     } else if (m.t === "paired") {
       const w = this.waiting.get(m.n);
-      if (!w) return;
+      if (!w || !this.claimKey) return;
+      const own = await openClaim<ClaimedRoom>(this.claimKey, m.key, m.d);
+      if (!own) return;
       this.waiting.delete(m.n);
       clearTimeout(w.timer);
-      w.resolve({ room: m.room, secret: m.secret });
+      w.resolve({ room: own.room, secret: own.secret });
     } else if (m.t === "reply") {
       const w = this.waiting.get(m.n);
       if (!w) return;
@@ -167,8 +171,9 @@ export class RelayLink implements Transport {
   }
 
   /** Takes the link with the scanned code: the Mac answers with this iPhone's own room and secret. */
-  claim(id: string, name: string): Promise<{ room: string; secret: string }> {
-    return this.ask({ t: "claim", n: this.n++, id, name }) as Promise<{ room: string; secret: string }>;
+  async claim(id: string, name: string): Promise<ClaimedRoom> {
+    this.claimKey = await newClaimKey();
+    return (await this.ask({ t: "claim", n: this.n++, id, name, key: this.claimKey.publicKey })) as ClaimedRoom;
   }
 
   /** Opens the connection and waits until it is open (for a claim, before any state). */

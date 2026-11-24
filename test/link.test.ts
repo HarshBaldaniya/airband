@@ -6,7 +6,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fromB64u, openBox, pairingFragment, parsePairing, randomB64u, seal, toB64u, unseal, MAX_AGE_MS } from "../src/remote/box";
+import { fromB64u, newClaimKey, openBox, openClaim, pairingFragment, parsePairing, randomB64u, seal, toB64u, unseal, MAX_AGE_MS, type ClaimedRoom } from "../src/remote/box";
 import { isPushEndpoint, lockForPhone, newVapidKeys, sendPush, vapidAuthorization } from "../src/remote/webpush";
 import { LIMITS, RoomLogic, type Role, type RoomSocket } from "../relay/src/room";
 import { Station, type PendingView } from "../src/station/server";
@@ -256,8 +256,8 @@ interface Heard {
   n?: number;
   ok?: boolean;
   error?: string;
-  room?: string;
-  secret?: string;
+  key?: string;
+  d?: string;
   state?: { pending: { id: string; cwd?: string }[]; chats: { cwd?: string }[] };
 }
 
@@ -285,16 +285,25 @@ function newStation(relay: Relay, pushes: { body: Buffer }[], opts: { away?: () 
   return new Station({ port: 0, claude: null, pollMs: 60_000, catchUpMs: 0, watchMs: 0, link: { relay: "https://relay.test", WebSocket: class extends FakeSocket { constructor(url: string) { super(url, relay); } } as unknown as typeof WebSocket, fetch: fakeFetch, away: opts.away ?? (() => true), nudgeMs: 30, handoverMs: 20, ...(opts.now ? { now: opts.now } : {}) } });
 }
 
+/** Claims a code the way the iPhone app does, with a key of its own, and opens the answer. */
+async function claimOn(scanned: Awaited<ReturnType<typeof phoneOn>>, n = 1): Promise<ClaimedRoom> {
+  const key = await newClaimKey();
+  await scanned.say({ t: "claim", n, id: "a1b2c3d4e5f6", name: "iPhone", key: key.publicKey });
+  await until(() => scanned.heard.some((m) => m.t === "paired"), "the Mac hands over the iPhone's own secret");
+  const paired = scanned.heard.find((m) => m.t === "paired")!;
+  const own = await openClaim<ClaimedRoom>(key, paired.key!, paired.d!);
+  assert.ok(own, "the claiming iPhone opens its new secret");
+  return own;
+}
+
 /** Link, scan, claim: the iPhone's own room, joined and hearing the state. */
 async function pairIPhone(s: Station, relay: Relay) {
   const code = parsePairing(new URL(await s.link!.link()).hash)!;
   await until(() => s.snapshot().link!.online, "the Mac reaches the relay");
   const scanned = await phoneOn(relay, code.room, code.secret);
   await until(() => scanned.ws.readyState === 1, "the iPhone opens the code");
-  await scanned.say({ t: "claim", n: 1, id: "a1b2c3d4e5f6", name: "iPhone" });
-  await until(() => scanned.heard.some((m) => m.t === "paired"), "the Mac hands over the iPhone's own secret");
-  const paired = scanned.heard.find((m) => m.t === "paired")!;
-  const own = await phoneOn(relay, paired.room!, paired.secret!);
+  const paired = await claimOn(scanned);
+  const own = await phoneOn(relay, paired.room, paired.secret);
   await until(() => s.snapshot().link!.online && own.ws.readyState === 1, "the iPhone on its own room");
   await own.say({ t: "hello" });
   await until(() => own.heard.some((m) => m.t === "state"), "the iPhone hears the state");
@@ -319,9 +328,14 @@ test("a code works once, for one iPhone: it gets a secret of its own and the cod
   await scanned.say({ t: "hello" });
   await new Promise((r) => setTimeout(r, 40));
   assert.ok(!scanned.heard.some((m) => m.t === "state"), "no state on a code");
-  await scanned.say({ t: "claim", n: 1, id: "a1b2c3d4e5f6", name: "iPhone" });
-  await until(() => scanned.heard.some((m) => m.t === "paired"), "claimed");
-  const paired = scanned.heard.find((m) => m.t === "paired")!;
+  // Someone else who saw the code sits on its room too: they hear the answer and can't open it.
+  const onlooker = await phoneOn(relay, code.room, code.secret);
+  await until(() => onlooker.ws.readyState === 1, "the onlooker joins the code's room");
+  const paired = await claimOn(scanned);
+  await until(() => onlooker.heard.some((m) => m.t === "paired"), "the onlooker hears the answer");
+  const overheard = onlooker.heard.find((m) => m.t === "paired")!;
+  assert.ok(!JSON.stringify(overheard).includes(paired.secret), "the new secret is not in what the code opens");
+  assert.equal(await openClaim(await newClaimKey(), overheard.key!, overheard.d!), undefined, "and no other key opens it");
   assert.notEqual(paired.room, code.room);
   assert.notEqual(paired.secret, code.secret);
   assert.deepEqual(s.snapshot().link!.phones, [{ name: "iPhone", at: s.snapshot().link!.phones[0].at, alerts: false }]);
@@ -334,7 +348,7 @@ test("a code works once, for one iPhone: it gets a secret of its own and the cod
   await until(() => late.ws.readyState === 3, "a second iPhone is turned away");
   const saved = fs.readFileSync(path.join(process.env.AIRBAND_HOME!, "phone-link.json"), "utf8");
   assert.ok(!saved.includes(code.secret), "the Mac forgot the code's secret");
-  assert.ok(saved.includes(paired.secret!));
+  assert.ok(saved.includes(paired.secret));
 });
 
 test("a code nobody scans in 10 minutes runs out", async () => {
@@ -349,7 +363,7 @@ test("a code nobody scans in 10 minutes runs out", async () => {
   const scanned = await phoneOn(relay, code.room, code.secret, clock);
   await until(() => scanned.ws.readyState === 1, "open");
   offset = 11 * 60_000;
-  await scanned.say({ t: "claim", n: 1, id: "a1b2c3d4e5f6", name: "iPhone" });
+  await scanned.say({ t: "claim", n: 1, id: "a1b2c3d4e5f6", name: "iPhone", key: (await newClaimKey()).publicKey });
   await until(() => scanned.heard.some((m) => m.t === "reply"), "the Mac answers");
   assert.match(scanned.heard[0].error!, /expired/);
   assert.equal(s.snapshot().link!.linked, false);
@@ -418,7 +432,7 @@ test("pair an iPhone, see a request on it, allow it there: the chat gets the ans
   // Unlink this iPhone, on the iPhone: ended on both sides.
   await own.say({ t: "forget", id: "a1b2c3d4e5f6" });
   await until(() => !s.snapshot().link!.linked, "unlinked on the Mac");
-  assert.equal(await relay.room(paired.room!).logic.check(own.box.token), 410);
+  assert.equal(await relay.room(paired.room).logic.check(own.box.token), 410);
 });
 
 test("the Mac sends its state only while the iPhone app is open", async () => {
@@ -427,14 +441,14 @@ test("the Mac sends its state only while the iPhone app is open", async () => {
   await station.start();
   const s = station;
   const { own, paired } = await pairIPhone(s, relay);
-  const room = relay.room(paired.room!);
+  const room = relay.room(paired.room);
   own.ws.close();
   await new Promise((r) => setTimeout(r, 50));
   const before = room.data.get("state");
   s.sample();
   await new Promise((r) => setTimeout(r, 1500));
   assert.equal(room.data.get("state"), before, "nothing is sent while no iPhone looks");
-  const back = await phoneOn(relay, paired.room!, paired.secret!);
+  const back = await phoneOn(relay, paired.room, paired.secret);
   await until(() => back.ws.readyState === 1, "the app opens again");
   await until(() => back.heard.some((m) => m.t === "state" && m.state!.pending.length === 1), "it sees the request at once");
 });
@@ -488,4 +502,23 @@ test("an alert answers only a request it shows whole: no cut, no second line, no
   assert.equal(answeredOnAlert({ ...p, detail: "a".repeat(2000), truncated: true, detailLength: 5000 }, "x"), false, "the Station cut it");
   assert.equal(answeredOnAlert({ ...p, detail: "a".repeat(400) }, `Wants to run a command: ${"a".repeat(400)}`), false, "the alert would cut it");
   assert.equal(answeredOnAlert({ ...p, toolName: "ExitPlanMode" }, "x"), false);
+});
+
+test("a claim with no key of its own (an older iPhone app) is refused, and the code still works after", async () => {
+  const relay = memoryRelay();
+  station = newStation(relay, []);
+  await station.start();
+  const s = station;
+  const code = parsePairing(new URL(await s.link!.link()).hash)!;
+  await until(() => s.snapshot().link!.online, "online");
+  const scanned = await phoneOn(relay, code.room, code.secret);
+  await until(() => scanned.ws.readyState === 1, "open");
+  await scanned.say({ t: "claim", n: 1, id: "a1b2c3d4e5f6", name: "iPhone" });
+  await until(() => scanned.heard.some((m) => m.t === "reply"), "the Mac answers");
+  assert.match(scanned.heard[0].error!, /older copy/);
+  assert.equal(s.snapshot().link!.linked, false);
+  await scanned.say({ t: "claim", n: 2, id: "a1b2c3d4e5f6", name: "iPhone", key: "not-a-key" });
+  await until(() => scanned.heard.filter((m) => m.t === "reply").length === 2, "a bad key is refused too");
+  await claimOn(scanned, 3);
+  assert.equal(s.snapshot().link!.linked, true);
 });
