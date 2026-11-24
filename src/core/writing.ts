@@ -437,13 +437,16 @@ function shellValues(command: string, flags: string[], cwd?: string): string[] {
   const name = file && (file[2] ?? file[3] ?? file[4]);
   if (name && name !== "-") {
     try {
-      out.push(fs.readFileSync(path.resolve(cwd ?? ".", name), "utf8").slice(0, 64_000));
+      out.push(fs.readFileSync(path.resolve(cwd ?? ".", name), "utf8").slice(0, BODY_FILE_MAX));
     } catch {
       // A file not there yet: nothing to read.
     }
   }
   return out;
 }
+
+/** How much of a file a command sends (gh pr create --body-file) is read to check its words. */
+const BODY_FILE_MAX = 64_000;
 
 /** What an agent is about to send, read from the tool call; nothing for anything else. */
 export function outgoingText(toolName: string | undefined, input: unknown, cwd?: string): Outgoing | undefined {

@@ -12,9 +12,10 @@ import type { InboxItem } from "./types";
 import { readConfig, sameFolder } from "./updates";
 import { agentName } from "./agents";
 import { tokensFor } from "./text";
+import { HOUR_MS } from "./units";
 
 /** How far back "other chats worked here" looks. */
-const RECENT_MS = 12 * 3600e3;
+const RECENT_MS = 12 * HOUR_MS;
 
 /** The agent as people know it; an unknown one as it was given. */
 const agentLabel = (tool: string | undefined) => agentName(tool) ?? tool ?? "an agent";

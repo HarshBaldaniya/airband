@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import type { AgentId } from "./agents";
 import { tokensFor } from "./text";
 import { parseJsonLine } from "./json";
+import { MiB } from "./units";
 
 export type Kind = "finding" | "doing" | "other";
 
@@ -54,11 +55,11 @@ function resultText(content: unknown): string {
 }
 
 /** Reads a chat file line by line in slices, without holding it all in memory at once. */
-function eachLine(file: string, fn: (line: string) => void, maxBytes = 512 * 1024 * 1024) {
+function eachLine(file: string, fn: (line: string) => void, maxBytes = 512 * MiB) {
   const fd = fs.openSync(file, "r");
   try {
     const size = Math.min(fs.fstatSync(fd).size, maxBytes);
-    const chunk = Buffer.alloc(4 * 1024 * 1024);
+    const chunk = Buffer.alloc(4 * MiB);
     let pos = 0;
     let rest = Buffer.alloc(0);
     while (pos < size) {

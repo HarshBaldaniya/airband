@@ -17,6 +17,7 @@ import { knowledge } from "./knowledge";
 import type { Decision } from "./reply";
 import { plainText, plural } from "../core/text";
 import type { AnswerChoice, CompanionAnswer } from "./types";
+import { HOUR_MS, MiB } from "../core/units";
 
 export interface PendingBrief {
   id?: string;
@@ -27,13 +28,11 @@ export interface PendingBrief {
   detail?: string;
 }
 
-const HOUR = 3600e3;
-
 /** One line for the top of the companion's panel. */
 export function headline(chats: LiveChat[], pending: PendingBrief[], now = Date.now()): string {
   const needs = new Set([...chats.filter((c) => c.status === "waiting").map((c) => c.title), ...pending.map((p) => p.chatTitle)]).size;
   const working = chats.filter((c) => c.status === "working").length;
-  const finished = chats.filter((c) => c.status === "done" && now - c.since < HOUR).length;
+  const finished = chats.filter((c) => c.status === "done" && now - c.since < HOUR_MS).length;
   const parts: string[] = [];
   if (needs) parts.push(`${plural(needs, "chat needs", "chats need")} you.`);
   if (working) parts.push(needs ? `${working} ${working === 1 ? "is" : "are"} working.` : `${plural(working, "chat is", "chats are")} working.`);
@@ -51,7 +50,7 @@ export function whatsHappening(chats: LiveChat[], pending: PendingBrief[], now =
   for (const c of waiting.slice(0, 3)) lines.push(`${c.title} (${c.project}) waits${c.line ? `: ${c.line}` : " for your answer"}.`);
   const working = chats.filter((c) => c.status === "working");
   if (working.length) lines.push(`Working: ${working.slice(0, 4).map((c) => c.title).join(", ")}${working.length > 4 ? ` and ${working.length - 4} more` : ""}.`);
-  const done = chats.filter((c) => c.status === "done" && now - c.since < 3 * HOUR);
+  const done = chats.filter((c) => c.status === "done" && now - c.since < 3 * HOUR_MS);
   for (const c of done.slice(0, 2)) lines.push(`${c.title} finished${c.lastDid ? `: ${c.lastDid.slice(0, 120)}` : "."}`);
   return lines.join("\n");
 }
@@ -223,8 +222,11 @@ export function ownVoice(text: string, name: string): string {
   return [`I'm ${name}, Airband's helper, built by Harsh Baldaniya.`, ...kept].join(" ");
 }
 
+/** How long a look-up through Claude Code may take before the companion answers without it. */
+const LOOKUP_MS = 2 * 60_000;
+
 /** An open question, answered by Claude Code in one locked room, in a few lines. */
-function askClaude(claude: string, question: string, state: string, name: string, mode: LookupMode = "chats", timeoutMs = 120_000): Promise<string | undefined> {
+function askClaude(claude: string, question: string, state: string, name: string, mode: LookupMode = "chats", timeoutMs = LOOKUP_MS): Promise<string | undefined> {
   const prompt = mode === "web" ? [
     persona(name),
     "The person asks a general question.",
@@ -251,7 +253,7 @@ function askClaude(claude: string, question: string, state: string, name: string
     execFile(
       claude,
       lookupArgs(prompt, mcp, mode),
-      { cwd, timeout: timeoutMs, maxBuffer: 1024 * 1024, env: { ...process.env, AIRBAND_COMPANION: "1", ENABLE_CLAUDEAI_MCP_SERVERS: "false" }, windowsHide: true },
+      { cwd, timeout: timeoutMs, maxBuffer: MiB, env: { ...process.env, AIRBAND_COMPANION: "1", ENABLE_CLAUDEAI_MCP_SERVERS: "false" }, windowsHide: true },
       (err, stdout) => {
         const text = String(stdout ?? "").trim();
         resolve(err && !text ? undefined : text || undefined);

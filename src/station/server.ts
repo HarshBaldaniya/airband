@@ -25,6 +25,7 @@ import { openChat } from "./open";
 import { chatApp } from "../core/apps";
 import { describeRequest, questionsOf, ruleKey, type Answer } from "./reply";
 import type { CompanionAnswer, FinishedView, PendingView, StationSettings, StationState } from "./types";
+import { HOUR_MS, MiB } from "../core/units";
 
 const DEFAULT_PORT = 47821;
 
@@ -54,13 +55,17 @@ interface Waiting extends PendingView {
 
 const settingsFile = () => airbandFile("station-settings.json");
 const rulesFile = () => airbandFile("station-rules.json");
-const FINISHED_KEEP_MS = 2 * 3600e3;
+const FINISHED_KEEP_MS = 2 * HOUR_MS;
 /** The most of a request's detail (a command, a plan) a screen is sent. Longer ones say they were cut. */
 export const DETAIL_MAX = 2000;
 /** A chat first seen already done counts as just finished if it stopped this recently. */
 const JUST_FINISHED_MS = 2 * 60_000;
 /** How long a one-time link to the companion's screen works. */
 const ONE_TIME_MS = 2 * 60_000;
+/** A comment line on every open event stream this often, so nothing in between closes it as idle. */
+const SSE_PING_MS = 20_000;
+/** The largest request body the Station reads. */
+const BODY_MAX = MiB;
 const SOMETHING_WRONG = "Something went wrong in Airband's Station. Try again.";
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
@@ -144,7 +149,7 @@ export class Station extends EventEmitter {
       this.timers.push(setInterval(() => void this.watch?.tick(), watchEvery));
     }
     await this.link?.start();
-    this.timers.push(setInterval(() => this.sse.forEach((r) => r.write(": ping\n\n")), 20_000));
+    this.timers.push(setInterval(() => this.sse.forEach((r) => r.write(": ping\n\n")), SSE_PING_MS));
     try {
       fs.mkdirSync(statusDir(), { recursive: true });
       this.watcher = fs.watch(statusDir(), () => {
@@ -591,7 +596,7 @@ function send(res: http.ServerResponse, code: number, body: unknown): void {
   res.end(text);
 }
 
-function readBody(req: http.IncomingMessage, max = 1024 * 1024): Promise<unknown> {
+function readBody(req: http.IncomingMessage, max = BODY_MAX): Promise<unknown> {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks: Buffer[] = [];

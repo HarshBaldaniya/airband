@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { airbandHome } from "./paths";
+import { MiB } from "./units";
 
 /** What is worth keeping: personal, and impossible to rebuild. */
 const ITEMS = ["flightlogs", "library", "connections.json", "deliveries.jsonl"];
@@ -72,7 +73,7 @@ const RESTORED: Record<string, (rel: string, text: string) => boolean> = {
   "deliveries.jsonl": (_rel, text) => jsonLinesOfObjects(text),
 };
 /** The largest file a restore copies in. */
-const RESTORE_FILE_MAX = 64 * 1024 * 1024;
+const RESTORE_FILE_MAX = 64 * MiB;
 
 function parseObject(text: string): Record<string, unknown> | undefined {
   try {

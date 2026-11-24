@@ -4,8 +4,9 @@
 import * as fs from "node:fs";
 import type { ChatMessage, Usage } from "./types";
 import { parseJsonLine } from "./json";
+import { MiB } from "./units";
 
-const CHUNK = 4 * 1024 * 1024;
+const CHUNK = 4 * MiB;
 const FILE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
 
 /** Reads whole lines from `offset` to the end. `next` stops before a line still being written. */

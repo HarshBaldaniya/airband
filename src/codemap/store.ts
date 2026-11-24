@@ -32,6 +32,7 @@ const STORE_VERSION = 1;
 export { folderId, storeDir } from "./where";
 import { storeDir } from "./where";
 import { parseJsonLine } from "../core/json";
+import { MiB } from "../core/units";
 
 const filesPath = (root: string) => path.join(storeDir(root), "files.jsonl.gz");
 const metaPath = (root: string) => path.join(storeDir(root), "meta.json");
@@ -110,7 +111,7 @@ export async function listFiles(root: string): Promise<string[]> {
     execFile(
       "git",
       ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-      { cwd: root, maxBuffer: 256 * 1024 * 1024 },
+      { cwd: root, maxBuffer: 256 * MiB },
       (err, stdout) => resolve(err ? undefined : stdout.split("\0").filter(Boolean)),
     );
   });

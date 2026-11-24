@@ -27,6 +27,10 @@ import { renderSpend, renderWork, sinceDays, spendSince, workSince } from "../co
 import { completionOn, currentShell, refreshCompletion, turnCompletionOff, turnCompletionOn } from "./shell";
 import * as readline from "node:readline/promises";
 
+/** How long a global install and an uninstall may take: npm on a slow network is slow. */
+const INSTALL_MS = 3 * 60_000;
+const UNINSTALL_MS = 2 * 60_000;
+
 /** The `airband` command, looked up once (it asks the login shell, so not for every command). */
 let command: OurCommand | null | undefined;
 const theCommand = () => (command === undefined ? (command = ourCommand() ?? null) : command) ?? undefined;
@@ -571,7 +575,7 @@ export async function main(argv: string[]): Promise<number> {
     for (const pm of tries) {
       const g = globalInstall(pm, spec);
       const c = pmCommand(g.bin, g.args);
-      const r = spawnSync(c.cmd, c.args, { encoding: "utf8", shell: c.shell, windowsHide: true, timeout: 180_000 });
+      const r = spawnSync(c.cmd, c.args, { encoding: "utf8", shell: c.shell, windowsHide: true, timeout: INSTALL_MS });
       if (r.status === 0) {
         // Installed: from now on it is `airband` (this run's PATH may still show the temporary one first).
         command = { path: "airband", by: g.bin === "npm" ? "npm" : pm, pkg: NPM_PACKAGE };
@@ -595,14 +599,14 @@ export async function main(argv: string[]): Promise<number> {
     if (!old) return false;
     const u = globalUninstall(old.by, old.pkg);
     const c = pmCommand(u.bin, u.args);
-    return spawnSync(c.cmd, c.args, { encoding: "utf8", shell: c.shell, windowsHide: true, timeout: 120_000 }).status === 0;
+    return spawnSync(c.cmd, c.args, { encoding: "utf8", shell: c.shell, windowsHide: true, timeout: UNINSTALL_MS }).status === 0;
   }
 
   /** Uninstalls the `airband` command with the package manager that installed it. */
   function retireCommand(c: OurCommand): boolean {
     const u = globalUninstall(c.by, c.pkg);
     const r = pmCommand(u.bin, u.args);
-    return spawnSync(r.cmd, r.args, { encoding: "utf8", shell: r.shell, windowsHide: true, timeout: 120_000 }).status === 0;
+    return spawnSync(r.cmd, r.args, { encoding: "utf8", shell: r.shell, windowsHide: true, timeout: UNINSTALL_MS }).status === 0;
   }
 
   function run(c: { cmd: string; args: string[]; shell: boolean }): number {

@@ -10,14 +10,14 @@ import { addUsage, readLinesFrom } from "./transcript";
 import { NO_USAGE, type ChatSession, type Usage } from "./types";
 import { AGENTS } from "./agents";
 import { plural, shorten } from "./text";
+import { DAY_MS } from "./units";
 
-const DAY = 24 * 3600e3;
 
 /** Midnight (local time) `days - 1` days ago: 1 is today, 2 is yesterday and today. */
 export function sinceDays(days: number, now = Date.now()): number {
   const d = new Date(now);
   d.setHours(0, 0, 0, 0);
-  return d.getTime() - (Math.max(1, days) - 1) * DAY;
+  return d.getTime() - (Math.max(1, days) - 1) * DAY_MS;
 }
 
 const project = (h: RecordHead) => (h.cwd ? path.basename(h.cwd) : "(no folder)");

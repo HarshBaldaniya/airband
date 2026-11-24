@@ -13,6 +13,7 @@ import { installSkills, removeSkills, SKILLS, skillsState, type SkillAgent } fro
 import { agentOf, toolOf, type AgentId } from "./agents";
 import { findClaude, findNode } from "./process";
 import { newer, VERSION, VERSION_RE } from "./version";
+import { DAY_MS } from "./units";
 
 /** The npm package: `npx airband` sets everything up; `npm i -g airband` installs the
  *  `airband` command. */
@@ -245,6 +246,9 @@ export function updateChecksOff(): boolean {
   return on(process.env.AIRBAND_NO_UPDATE_CHECK) || on(process.env.AIRBAND_OFFLINE) || on(process.env.NO_UPDATE_NOTIFIER) || on(process.env.CI);
 }
 
+/** How often npm is asked for a newer Airband. */
+const UPDATE_CHECK_EVERY_MS = DAY_MS;
+
 /** The newest version on npm, asked at most once a day (the answer is kept in ~/.airband). Never
  *  slows anything down by more than `timeoutMs`, and says nothing when offline. */
 export async function latestVersion(o: { force?: boolean; timeoutMs?: number } = {}): Promise<string | undefined> {
@@ -253,7 +257,7 @@ export async function latestVersion(o: { force?: boolean; timeoutMs?: number } =
   if (!o.force) {
     try {
       const c = JSON.parse(fs.readFileSync(cache, "utf8")) as { at: number; latest?: string };
-      if (Date.now() - c.at < 24 * 3600e3) return c.latest;
+      if (Date.now() - c.at < UPDATE_CHECK_EVERY_MS) return c.latest;
     } catch {
       // No answer kept yet.
     }

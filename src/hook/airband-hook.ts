@@ -43,11 +43,12 @@ import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../adap
 import { AUTO_DELIVERY_ASK, buildUpdate, formatDelivery, readConfig, sameFolder } from "../core/updates";
 import { deliveryNotice, noticesOn, startNotice, toolNotice } from "../core/notices";
 import { HOOK_STEP_MAX, readAsksFrom, readHead, recordBehind, renderAsks, updateRecord } from "../core/record";
-import { askStation } from "../station/client";
+import { askStation, DECISION_MS } from "../station/client";
 import { readHookStatus } from "../core/status";
 import { describeRequest, permissionReply } from "../station/reply";
 import { briefFor, checkOutgoing, checkWrittenDoc, forgetGiven, holdOnce, notYetGiven, outgoingText, renderFindings, summarise, writingFor, writingSettings, writtenDoc, type WritingKind } from "../core/writing";
 import { toolOf, type AgentId } from "../core/agents";
+import { MiB } from "../core/units";
 
 export interface HookInput {
   session_id?: string;
@@ -162,7 +163,9 @@ export function readSince(tool: AgentId, file: string, cursor: number, seen?: st
 }
 
 /** Gemini CLI keeps a chat as one JSON file, read whole: past this size the hook doesn't read it. */
-const GEMINI_HOOK_MAX = 32 * 1024 * 1024;
+/** A permission request waits up to DECISION_MS for a click; this much more lets its answer be printed. */
+const EXIT_GRACE_MS = 5_000;
+const GEMINI_HOOK_MAX = 32 * MiB;
 
 /** Where a chat's file ends now, in its tool's cursor units. */
 export function endOf(tool: AgentId, file: string): number {
@@ -535,7 +538,7 @@ export function main(): void {
     if (input.hook_event_name === "PermissionRequest") {
       // The one event that waits for a person: the usual 4 s limit gives way to the app's own.
       clearTimeout(limit);
-      setTimeout(() => process.exit(0), 115_000).unref();
+      setTimeout(() => process.exit(0), DECISION_MS + EXIT_GRACE_MS).unref();
       void permission(input, tool).then(
         (out) => {
           if (out) process.stdout.write(out);

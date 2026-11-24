@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as https from "node:https";
 import * as path from "node:path";
 import { airbandFile, writeFileAtomic } from "../core/paths";
+import { MiB } from "../core/units";
 // The package is UMD; its default export is the web-tree-sitter namespace.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TreeSitter = require("@vscode/tree-sitter-wasm") as typeof import("@vscode/tree-sitter-wasm");
@@ -106,10 +107,14 @@ function bundledDir(): string | undefined {
   }
 }
 
-/** One HTTPS GET: follows up to 3 redirects, 30 s at most, 8 MB at most. */
+/** How long a grammar download may take, and how big a grammar may be. */
+const DOWNLOAD_MS = 30_000;
+const DOWNLOAD_MAX = 8 * MiB;
+
+/** One HTTPS GET: follows up to 3 redirects, DOWNLOAD_MS at most, DOWNLOAD_MAX at most. */
 function httpsGet(url: string, redirects = 3): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: 30_000, headers: { "user-agent": "airband" } }, (res) => {
+    const req = https.get(url, { timeout: DOWNLOAD_MS, headers: { "user-agent": "airband" } }, (res) => {
       const status = res.statusCode ?? 0;
       if (status >= 300 && status < 400 && res.headers.location && redirects > 0) {
         res.resume();
@@ -125,13 +130,13 @@ function httpsGet(url: string, redirects = 3): Promise<Buffer> {
       let size = 0;
       res.on("data", (c: Buffer) => {
         size += c.length;
-        if (size > 8 * 1024 * 1024) req.destroy(new Error("too large"));
+        if (size > DOWNLOAD_MAX) req.destroy(new Error("too large"));
         else chunks.push(c);
       });
       res.on("end", () => resolve(Buffer.concat(chunks)));
       res.on("error", reject);
     });
-    const deadline = setTimeout(() => req.destroy(new Error("timed out")), 30_000);
+    const deadline = setTimeout(() => req.destroy(new Error("timed out")), DOWNLOAD_MS);
     deadline.unref();
     req.on("close", () => clearTimeout(deadline));
     req.on("timeout", () => req.destroy(new Error("timed out")));

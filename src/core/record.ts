@@ -17,6 +17,7 @@ import { fullPath, relativeTo } from "./updates";
 import type { ChatMessage } from "./types";
 import { toolOf, type AgentId } from "./agents";
 import { plainText, shorten } from "./text";
+import { DAY_MS, MINUTE_MS, MiB } from "./units";
 
 
 export interface RecordAsk {
@@ -62,9 +63,15 @@ const DID_MAX = 400;
 const OPEN_MAX = 200;
 const REFS_MAX = 12;
 /** A new chat's record is started by the hook; an older, bigger one is caught up in the background. */
-export const HOOK_START_MAX = 8 * 1024 * 1024;
+export const HOOK_START_MAX = 8 * MiB;
 /** The most the hook reads in one go: more is left to the background catch-up. */
-export const HOOK_STEP_MAX = 16 * 1024 * 1024;
+export const HOOK_STEP_MAX = 16 * MiB;
+/** How much of a big chat's file the background catch-up reads between pauses. */
+const CATCH_UP_SLICE = 8 * MiB;
+/** A chat file written to this recently belongs to a chat still working. */
+const STILL_WORKING_MS = 2 * MINUTE_MS;
+/** The most one exchange is read at once: its tool output can be large. */
+const RANGE_MAX = 64 * MiB;
 
 const dir = () => airbandFile("flightlogs");
 const headFile = (id: string) => path.join(dir(), `${id}.json`);
@@ -121,7 +128,7 @@ export function setRecordTitle(id: string, title: string, cwd?: string): void {
 export function pruneRecords(keep: Set<string>, days = 30, now = Date.now()): number {
   let gone = 0;
   for (const h of listHeads()) {
-    if (keep.has(h.id) || now - h.updatedAt < days * 86_400_000) continue;
+    if (keep.has(h.id) || now - h.updatedAt < days * DAY_MS) continue;
     for (const f of [headFile(h.id), asksFile(h.id)]) fs.rmSync(f, { force: true });
     gone++;
   }
@@ -511,12 +518,12 @@ export function recordBehind(id: string, tool: AgentId, file: string): number {
 
 /** Reads a big chat's file into its record a slice at a time, letting everything else run between slices. */
 export async function catchUpRecord(id: string, tool: AgentId, file: string, opts: { cwd?: string; title?: string; slice?: number; quietMs?: number } = {}): Promise<void> {
-  const slice = opts.slice ?? 8 * 1024 * 1024;
+  const slice = opts.slice ?? CATCH_UP_SLICE;
   for (let i = 0; i < 100_000 && recordBehind(id, tool, file) > 0; i++) {
     const before = readHead(id)?.cursor;
-    // A file written to in the last 2 minutes belongs to a chat still working: its newest ask waits.
+    // A file written to in the last STILL_WORKING_MS belongs to a chat still working: its newest ask waits.
     // (The chat watcher knows a turn ended from the file itself, and says so with quietMs 0.)
-    const quiet = opts.quietMs ?? 120_000;
+    const quiet = opts.quietMs ?? STILL_WORKING_MS;
     const working = quiet > 0 && Date.now() - (fs.statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0) < quiet;
     updateRecord(id, tool, file, { cwd: opts.cwd, title: opts.title, maxBytes: slice, startMax: Infinity, holdOpen: working });
     if (readHead(id)?.cursor === before) break; // nothing more can be read (a line still being written)
@@ -524,9 +531,9 @@ export async function catchUpRecord(id: string, tool: AgentId, file: string, opt
   }
 }
 
-/** Exactly the bytes [start, end) of a file (at most 64 MB: one exchange's tool output can be large). */
+/** Exactly the bytes [start, end) of a file, at most RANGE_MAX of them. */
 function readRange(file: string, start: number, end: number): string {
-  const len = Math.max(0, Math.min(end - start, 64 * 1024 * 1024));
+  const len = Math.max(0, Math.min(end - start, RANGE_MAX));
   const fd = fs.openSync(file, "r");
   try {
     const buf = Buffer.alloc(len);

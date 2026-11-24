@@ -10,6 +10,7 @@ import { readHookStatus, resolveStatus } from "../core/status";
 import type { HookStatus, Status } from "../core/types";
 import { plainText, shorten } from "../core/text";
 import { parseJsonLine } from "../core/json";
+import { DAY_MS } from "../core/units";
 
 
 export interface LiveChat {
@@ -185,6 +186,9 @@ function repliedAfter(tool: AgentId, file: string | undefined, at: number): bool
   return after;
 }
 
+/** How far back the companion lists chats: the last day. */
+const LIVE_WINDOW_MS = DAY_MS;
+
 /** The agents whose chats tell Airband what they do (its hook is on), looked at once a minute. */
 let hooked: { at: number; tools: Set<string> } | undefined;
 function hookedTools(now: number): Set<string> {
@@ -200,7 +204,7 @@ function hookedTools(now: number): Set<string> {
   return hooked.tools;
 }
 
-export function liveChats(now = Date.now(), windowMs = 24 * 3600e3, limit = 60): LiveChat[] {
+export function liveChats(now = Date.now(), windowMs = LIVE_WINDOW_MS, limit = 60): LiveChat[] {
   const out: LiveChat[] = [];
   const told = hookedTools(now);
   for (const h of cachedHeads(now)) {

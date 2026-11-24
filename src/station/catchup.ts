@@ -12,9 +12,10 @@ import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, readHead, recordBehind, s
 import { readHookStatus } from "../core/status";
 import type { ChatSession } from "../core/types";
 import { agentOf } from "../core/agents";
+import { DAY_MS, MINUTE_MS } from "../core/units";
 
 /** Chats active within this long are kept caught up. */
-const CATCH_UP_WINDOW_MS = 24 * 3600e3;
+const CATCH_UP_WINDOW_MS = DAY_MS;
 
 /** The chats whose record the hook won't write, most urgent first: working or needing you, then the newest. */
 export function needsCatchUp(sessions: ChatSession[], now = Date.now(), windowMs = CATCH_UP_WINDOW_MS): ChatSession[] {
@@ -29,7 +30,7 @@ export function needsCatchUp(sessions: ChatSession[], now = Date.now(), windowMs
       if (behind <= 0) return false;
       // A chat replying now records its own ask as the reply ends; a quiet one, a big one, or a
       // record far behind is ours.
-      const quiet = now - s.lastModified > 120_000;
+      const quiet = now - s.lastModified > 2 * MINUTE_MS;
       return readHead(s.id) ? behind > HOOK_STEP_MAX : behind > HOOK_START_MAX || quiet;
     })
     .sort((a, b) => urgent(a) - urgent(b) || b.lastModified - a.lastModified);

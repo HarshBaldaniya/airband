@@ -9,6 +9,7 @@ import { memberName, type Edge } from "./graph";
 import type { CodeMap } from "./index";
 import { langOf } from "./parser";
 import { plural } from "../core/text";
+import { MiB } from "../core/units";
 
 /** A ref as git takes it; nothing that could pass for an option. */
 const REF = /^[A-Za-z0-9][A-Za-z0-9._/@~^{}-]*$/;
@@ -52,7 +53,7 @@ export interface DiffReport {
   orphans: { file: string; name: string; was: string[] }[];
 }
 
-function git(root: string, args: string[], maxBuffer = 16 * 1024 * 1024): string {
+function git(root: string, args: string[], maxBuffer = 16 * MiB): string {
   return execFileSync("git", ["-C", root, ...args], { encoding: "utf8", maxBuffer, timeout: 20_000, stdio: ["ignore", "pipe", "pipe"] });
 }
 
