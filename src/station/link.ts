@@ -332,7 +332,7 @@ export class PhoneLink {
 
   /** The state, cut to what an iPhone shows: no folder paths, no settings beyond the companion's. */
   private phoneState(s: StationState = this.station.snapshot()): unknown {
-    const { phoneUrl: _u, link: _l, test: _t, ...rest } = s;
+    const { link: _l, test: _t, ...rest } = s;
     return {
       ...rest,
       chats: s.chats.slice(0, MAX_CHATS).map(forPhone),

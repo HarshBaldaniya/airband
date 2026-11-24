@@ -20,7 +20,7 @@ export function PhoneView() {
           <span className="muted">{state?.headline ?? "Connecting to your computer…"}</span>
         </div>
       </header>
-      {!link && <p className="offline">Can't reach your computer. Is it awake and on the same Wi-Fi?</p>}
+      {!link && <p className="offline">Can't reach Airband's Station. Is it still running?</p>}
       {note && (
         <p className="offline" role="alert" onClick={() => setNote(undefined)}>
           {note}

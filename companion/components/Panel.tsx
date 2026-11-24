@@ -4,7 +4,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ExternalLink, MessageSquare, Send, Settings as Gear, X } from "lucide-react";
 import { api, desktop, MODE, onAppUpdate, type AppUpdate, type DesktopPrefs, type LiveChat, type StationState } from "../api";
-import { PHONE_LINK } from "../../src/station/phone";
 import { CompanionMark } from "../figure/Companion";
 import { sounds } from "../sound";
 import { AgentMark, ago, FinishedCard, RequestCard } from "./Cards";
@@ -280,10 +279,6 @@ function PhoneRow({ state }: { state: StationState }) {
 
 function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: DesktopPrefs; onPref: (k: keyof DesktopPrefs, on: boolean) => void }) {
   const s = state.settings;
-  const [qr, setQr] = useState<string>();
-  useEffect(() => {
-    if (state.phoneUrl) void desktop?.qr(state.phoneUrl).then(setQr);
-  }, [state.phoneUrl]);
   return (
     <section className="settings">
       <SettingRow title="Answer requests here" note="Allow or deny from this corner.">
@@ -298,19 +293,6 @@ function SettingsView({ state, prefs, onPref }: { state: StationState; prefs?: D
         </SettingRow>
       )}
       <PhoneRow state={state} />
-      {PHONE_LINK && (
-        <>
-          <SettingRow title="Phone link" note="Your phone, on the same Wi-Fi.">
-            <Toggle on={s.phone} label="Phone link" onChange={(on) => api.settings({ phone: on })} />
-          </SettingRow>
-          <div className={`phonelink${s.phone && qr ? " open" : ""}`}>
-            <div className="phoneinner">
-              {qr && <img src={qr} alt="QR code for the phone page" width={120} height={120} />}
-              <span className="muted">Scan with your phone's camera.</span>
-            </div>
-          </div>
-        </>
-      )}
       <p className="privacy muted">Sees your chats' records only. Never your files, folders or screen.</p>
       <p className="foot muted">
         {state.settings.companion.name}, from Airband {state.version}

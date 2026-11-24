@@ -1,13 +1,11 @@
 // The Station: a small local service that knows what every chat is doing, holds each permission
 // request until the person answers it in the Airband app or on their phone, and passes messages to chats.
 // It runs inside the Airband app (and as `airband station` without it). It listens on this computer
-// only, unless the person turns on the phone link: then it also answers on the local network, and
-// every request from there needs the phone's own key.
+// only. A linked iPhone reaches it through Airband's relay (link.ts), never over the network.
 import * as crypto from "node:crypto";
 import { EventEmitter } from "node:events";
 import * as fs from "node:fs";
 import * as http from "node:http";
-import * as os from "node:os";
 import * as path from "node:path";
 import { airbandFile, readJson, safeId, statusDir, writeFileAtomic } from "../core/paths";
 import { readHead } from "../core/record";
@@ -18,7 +16,6 @@ import { AGENT_NAME, forgetReads, liveChats, titleOf, type Agent, type LiveChat 
 import { CatchUp } from "./catchup";
 import { ChatWatch } from "./watch";
 import { DECISION_MS, NONCE_HEADER, PROOF_HEADER, readStationInfo, stationFile, stationProof, type StationInfo } from "./client";
-import { PHONE_LINK } from "./phone";
 import { PhoneLink, type LinkStatus, type PhoneLinkOptions } from "./link";
 import { cleanDesign, cleanName, DEFAULT_COMPANION, type CompanionSettings } from "./companion";
 import { ask, headline, tellText, type CompanionAnswer } from "./manager";
@@ -67,8 +64,6 @@ export interface FinishedView {
 export interface StationSettings {
   /** Permission requests come to the app. Off: every chat asks in its own terminal. */
   approvals: boolean;
-  /** The phone link: the Station also answers on the local network. */
-  phone: boolean;
   /** How long a request waits for a click before the terminal asks, in ms. */
   waitMs: number;
   /** The companion's name and look. */
@@ -88,7 +83,6 @@ export interface StationState {
   pending: PendingView[];
   finished: FinishedView[];
   settings: StationSettings;
-  phoneUrl?: string;
   /** The phone link through Airband's relay: whether a phone is linked, and which. */
   link?: LinkStatus;
   /** How the latest test request was answered, and where ("none": nobody answered in time). */
@@ -121,7 +115,6 @@ interface Waiting extends PendingView {
 
 const settingsFile = () => airbandFile("station-settings.json");
 const rulesFile = () => airbandFile("station-rules.json");
-const phoneKeyFile = () => airbandFile("station-phone.json");
 const FINISHED_KEEP_MS = 2 * 3600e3;
 /** The most of a request's detail (a command, a plan) a screen is sent. Longer ones say they were cut. */
 export const DETAIL_MAX = 2000;
@@ -133,38 +126,12 @@ const SOMETHING_WRONG = "Something went wrong in Airband's Station. Try again.";
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
 
-const defaultSettings = (): StationSettings => ({ approvals: true, phone: false, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: true, phoneAlways: true });
+const defaultSettings = (): StationSettings => ({ approvals: true, waitMs: DECISION_MS, companion: { ...DEFAULT_COMPANION }, lookups: true, phoneAlways: true });
 
 export function readSettings(): StationSettings {
-  const saved = readJson<Partial<StationSettings>>(settingsFile(), {});
-  return { ...defaultSettings(), ...saved, phone: PHONE_LINK && saved.phone === true, companion: { name: cleanName(saved.companion?.name), design: cleanDesign(saved.companion?.design) } };
-}
-
-// Adapters that are not the home network: virtual machines, containers, VPNs and tunnels. A phone on
-// the Wi-Fi cannot reach them, so the phone link never names them (Windows lists several of these
-// first: "vEthernet (WSL)", "VirtualBox Host-Only", ...).
-const NOT_HOME = /vethernet|virtual|vmware|vbox|hyper-v|docker|wsl|veth|^br-|bridge|utun|^tun|^tap|wireguard|^wg|tailscale|zerotier|vpn|^awdl|^llw|loopback|bluetooth/i;
-const PRIVATE_V4 = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
-// The usual names of a real Wi-Fi or cable adapter on macOS, Windows and Linux.
-const HOME_NAME = /^(en\d|wi-?fi|wlan|wlp|wl|ethernet|eth|enp|eno|ens)/i;
-
-/** Picks the address a phone on the same Wi-Fi can reach, from `os.networkInterfaces()`. */
-export function pickLanAddress(nets: NodeJS.Dict<os.NetworkInterfaceInfo[]>): string | undefined {
-  const found: { address: string; score: number }[] = [];
-  for (const [name, list] of Object.entries(nets)) {
-    if (NOT_HOME.test(name)) continue;
-    for (const n of list ?? []) {
-      if (n.family !== "IPv4" || n.internal || n.address.startsWith("169.254.")) continue;
-      const score = (PRIVATE_V4.test(n.address) ? 4 : 0) + (HOME_NAME.test(name) ? 2 : 0) + (name === "en0" ? 1 : 0);
-      found.push({ address: n.address, score });
-    }
-  }
-  return found.sort((a, b) => b.score - a.score)[0]?.address;
-}
-
-/** This computer's address on the local network, for the phone link. */
-export function lanAddress(): string | undefined {
-  return pickLanAddress(os.networkInterfaces());
+  // "phone" was the network phone link, gone since the relay: an old file's value is dropped.
+  const { phone: _phone, ...saved } = readJson<Partial<StationSettings> & { phone?: unknown }>(settingsFile(), {});
+  return { ...defaultSettings(), ...saved, companion: { name: cleanName(saved.companion?.name), design: cleanDesign(saved.companion?.design) } };
 }
 
 const key = () => crypto.randomBytes(18).toString("base64url");
@@ -172,7 +139,6 @@ const key = () => crypto.randomBytes(18).toString("base64url");
 export class Station extends EventEmitter {
   port = 0;
   readonly token = key();
-  private phoneKey: string;
   private settings: StationSettings;
   private server?: http.Server;
   private pending = new Map<string, Waiting>();
@@ -190,7 +156,6 @@ export class Station extends EventEmitter {
   constructor(private readonly o: StationOptions = {}) {
     super();
     this.settings = readSettings();
-    this.phoneKey = readJson<{ key?: string }>(phoneKeyFile(), {}).key ?? key();
     this.uiDir = o.uiDir ?? path.join(__dirname, "companion");
     // The phone link is Mac to iPhone only: offered on a Mac (or where a test asks for it).
     if (o.link !== false && (process.platform === "darwin" || o.link)) this.link = new PhoneLink(this, o.link ?? {});
@@ -212,7 +177,6 @@ export class Station extends EventEmitter {
     const other = readStationInfo();
     if (other && other.pid !== process.pid && (await ping(other))) throw new Error(`Airband's Station already runs (process ${other.pid}).`);
     fs.mkdirSync(airbandFile(), { recursive: true });
-    writeFileAtomic(phoneKeyFile(), JSON.stringify({ key: this.phoneKey }));
     await this.listen(this.o.port ?? DEFAULT_PORT);
     this.writeInfo();
     this.refresh(true);
@@ -255,13 +219,12 @@ export class Station extends EventEmitter {
 
   /** Listens on `port`; if it stays taken (another program has it), on any free one. */
   private async listen(port: number, tries = 6): Promise<void> {
-    const host = this.settings.phone ? "0.0.0.0" : "127.0.0.1";
     for (let i = 0; ; i++) {
       try {
         await new Promise<void>((resolve, reject) => {
           const server = http.createServer((req, res) => void this.handle(req, res));
           server.once("error", reject);
-          server.listen(port, host, () => {
+          server.listen(port, "127.0.0.1", () => {
             server.off("error", reject);
             this.server = server;
             this.port = (server.address() as { port: number }).port;
@@ -271,7 +234,7 @@ export class Station extends EventEmitter {
         return;
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== "EADDRINUSE" || port === 0) throw e;
-        // Just let go of a moment ago (a restart, the phone link turned on): it is free again shortly.
+        // Just let go of a moment ago (a restart): it is free again shortly.
         if (i >= tries) port = 0;
         else await new Promise((r) => setTimeout(r, 150));
       }
@@ -340,7 +303,6 @@ export class Station extends EventEmitter {
       pending,
       finished: [...this.finished.values()].sort((a, b) => b.at - a.at),
       settings: this.settings,
-      ...(this.settings.phone ? { phoneUrl: this.phoneUrl() } : {}),
       ...(this.link ? { link: this.link.status() } : {}),
       ...(this.lastTest ? { test: this.lastTest } : {}),
     };
@@ -358,11 +320,6 @@ export class Station extends EventEmitter {
       const line = `data: ${JSON.stringify(s)}\n\n`;
       for (const r of this.sse) r.write(line);
     });
-  }
-
-  phoneUrl(): string | undefined {
-    const ip = lanAddress();
-    return ip ? `http://${ip}:${this.port}/phone?t=${this.phoneKey}` : undefined;
   }
 
   // ---- what it does ----
@@ -513,28 +470,13 @@ export class Station extends EventEmitter {
     if (this.finished.delete(chatId)) this.changed();
   }
 
-  async setSettings(patch: Partial<StationSettings>): Promise<StationSettings> {
-    if (!PHONE_LINK) patch = { ...patch, phone: false };
-    const before = this.settings;
-    this.settings = { ...before, ...patch };
+  setSettings(patch: Partial<StationSettings>): StationSettings {
+    this.settings = { ...this.settings, ...patch };
     writeFileAtomic(settingsFile(), JSON.stringify(this.settings));
     if (patch.approvals === false) for (const w of [...this.pending.values()]) w.reply({ decision: "terminal" });
-    if (before.phone !== this.settings.phone && this.server) {
-      // The phone link changes where the Station listens: same port, now on the network or not.
-      const port = this.port;
-      this.letGo();
-      await this.listen(port);
-    }
     this.writeInfo();
     this.changed();
     return this.settings;
-  }
-
-  /** A new phone key: the old phone link stops working. */
-  newPhoneKey(): void {
-    this.phoneKey = key();
-    writeFileAtomic(phoneKeyFile(), JSON.stringify({ key: this.phoneKey }));
-    this.changed();
   }
 
   /**
@@ -557,14 +499,11 @@ export class Station extends EventEmitter {
 
   // ---- HTTP ----
 
-  private who(req: http.IncomingMessage, url: URL): "local" | "phone" | undefined {
-    const loop = LOOPBACK.has(req.socket.remoteAddress ?? "");
+  /** The request comes from this computer and carries the Station's key. */
+  private holdsKey(req: http.IncomingMessage, url: URL): boolean {
     const cookie = /(?:^|;\s*)airband_t=([^;]+)/.exec(req.headers.cookie ?? "")?.[1];
     const given = (req.headers["x-airband-token"] as string | undefined) ?? url.searchParams.get("t") ?? cookie;
-    if (!given) return undefined;
-    if (loop && safeEqual(given, this.token)) return "local";
-    if ((loop || this.settings.phone) && safeEqual(given, this.phoneKey)) return "phone";
-    return undefined;
+    return !!given && LOOPBACK.has(req.socket.remoteAddress ?? "") && safeEqual(given, this.token);
   }
 
   /**
@@ -577,7 +516,7 @@ export class Station extends EventEmitter {
   private fromHere(req: http.IncomingMessage): boolean {
     const own = new Set([`127.0.0.1:${this.port}`, `localhost:${this.port}`]);
     const host = req.headers.host ?? "";
-    if (!own.has(host) && !(this.settings.phone && host.endsWith(`:${this.port}`))) return false;
+    if (!own.has(host)) return false;
     const origin = req.headers.origin;
     if (origin && origin !== `http://${host}`) return false;
     if (req.method === "POST" && !/^application\/json\b/i.test(req.headers["content-type"] ?? "")) return false;
@@ -596,22 +535,22 @@ export class Station extends EventEmitter {
         res.writeHead(302, { location: "/app", "set-cookie": keyCookie(this.token), "cache-control": "no-store" });
         return void res.end();
       }
-      const who = this.who(req, url);
-      if (!who) return send(res, 401, { error: "This needs Airband's key." });
+      if (!this.holdsKey(req, url)) return send(res, 401, { error: "This needs Airband's key." });
       // A hook checks that this answer comes from the Station that holds the key (client.ts).
       const nonce = req.headers[NONCE_HEADER];
-      const proof = who === "local" && typeof nonce === "string" ? stationProof(this.token, nonce) : undefined;
+      const proof = typeof nonce === "string" ? stationProof(this.token, nonce) : undefined;
       if (proof) res.setHeader(PROOF_HEADER, proof);
       if (route === "/api/hook/permission") {
-        if (who !== "local" || req.method !== "POST") return send(res, 403, { error: "Only a chat on this computer can ask." });
+        if (req.method !== "POST") return send(res, 404, { error: "Not here." });
         const body = await readBody(req);
         let cancel: (() => void) | undefined;
         res.on("close", () => !res.writableEnded && cancel?.());
         const answer = await this.permission(body as Parameters<Station["permission"]>[0], (c) => (cancel = c));
         return send(res, 200, answer ? { answer } : {});
       }
-      if (req.method === "GET" && (route === "/app" || route === "/phone")) {
-        const mode = route === "/phone" || who === "phone" ? "phone" : url.searchParams.get("mode") === "desktop" ? "desktop" : "phone";
+      if (req.method === "GET" && route === "/app") {
+        // The Airband app asks for its corner; a browser (airband station) gets the full page.
+        const mode = url.searchParams.get("mode") === "desktop" ? "desktop" : "phone";
         const t = url.searchParams.get("t");
         const headers: Record<string, string> = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" };
         if (t) headers["set-cookie"] = keyCookie(t);
@@ -637,28 +576,21 @@ export class Station extends EventEmitter {
           const ok = this.decide(id, { decision, ...(body.answers ? { answers: body.answers as Answer["answers"] } : {}), ...(typeof body.message === "string" ? { message: body.message } : {}) });
           return send(res, ok ? 200 : 410, ok ? { ok } : { error: "That request has already ended." });
         }
-        // Asking and telling a chat are typed on the computer only: the phone link answers
-        // requests and shows what finished, and nothing written on a phone reaches a chat.
         case "/api/ask":
-          if (who !== "local") return send(res, 403, { error: "Ask on the computer." });
           return send(res, 200, await this.ask(String(body.text ?? "")));
-        case "/api/tell":
-          if (who !== "local") return send(res, 403, { error: "Message a chat from the computer." });
-          {
-            const id = String(body.chatId ?? "");
-            return send(res, 200, { title: this.tell(id, String(body.text ?? "")), when: this.tellWhen(id) });
-          }
+        case "/api/tell": {
+          const id = String(body.chatId ?? "");
+          return send(res, 200, { title: this.tell(id, String(body.text ?? "")), when: this.tellWhen(id) });
+        }
         case "/api/open":
           return send(res, 200, { text: this.open(String(body.chatId ?? "")) });
         case "/api/dismiss":
           this.dismiss(String(body.chatId ?? ""));
           return send(res, 200, { ok: true });
-        // Linking a phone happens on the computer only: the code it shows holds the pair's secret.
         case "/api/phone/link":
         case "/api/phone/code":
         case "/api/phone/test":
         case "/api/phone/unlink": {
-          if (who !== "local") return send(res, 403, { error: "Link a phone from the computer." });
           if (!this.link) return send(res, 404, { error: "The phone link is off here." });
           if (route === "/api/phone/unlink") return await this.link.unlink(), send(res, 200, { ok: true });
           if (route === "/api/phone/test") return send(res, 200, { results: await this.link.sample() });
@@ -666,16 +598,14 @@ export class Station extends EventEmitter {
           return send(res, 200, { url });
         }
         case "/api/settings": {
-          if (who !== "local") return send(res, 403, { error: "Settings change on the computer only." });
           const patch: Partial<StationSettings> = {};
           if (typeof body.approvals === "boolean") patch.approvals = body.approvals;
-          if (typeof body.phone === "boolean") patch.phone = body.phone;
           if (typeof body.lookups === "boolean") patch.lookups = body.lookups;
           if (typeof body.phoneAlways === "boolean") patch.phoneAlways = body.phoneAlways;
           if (typeof body.waitMs === "number") patch.waitMs = Math.max(5000, Math.min(body.waitMs, DECISION_MS));
           if (body.companionName !== undefined || body.companionDesign !== undefined)
             patch.companion = { name: body.companionName !== undefined ? cleanName(body.companionName) : this.settings.companion.name, design: body.companionDesign !== undefined ? cleanDesign(body.companionDesign) : this.settings.companion.design };
-          return send(res, 200, await this.setSettings(patch));
+          return send(res, 200, this.setSettings(patch));
         }
         default:
           return send(res, 404, { error: "Not here." });

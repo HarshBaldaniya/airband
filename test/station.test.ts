@@ -10,7 +10,7 @@ import * as path from "node:path";
 import { handle, permission } from "../src/hook/airband-hook";
 import { readInbox } from "../src/core/store";
 import { readHookStatus } from "../src/core/status";
-import { DETAIL_MAX, pickLanAddress, Station } from "../src/station/server";
+import { DETAIL_MAX, Station } from "../src/station/server";
 import { askStation, readStationInfo } from "../src/station/client";
 import { answersFit, describeRequest, permissionReply, questionsOf, ruleKey } from "../src/station/reply";
 import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/station/manager";
@@ -429,47 +429,6 @@ test("a chat open in one editor is opened there, never in another editor with th
 
 // ---- the phone link ----
 
-test("a phone answers requests and nothing else: asking, telling a chat and settings stay on the computer", async () => {
-  const s = await start();
-  const phone = (JSON.parse(fs.readFileSync(path.join(process.env.AIRBAND_HOME!, "station-phone.json"), "utf8")) as { key: string }).key;
-  const post = (route: string, key: string, body: unknown) =>
-    new Promise<number>((resolve) => {
-      const data = JSON.stringify(body);
-      const req = http.request({ host: "127.0.0.1", port: s.port, path: route, method: "POST", headers: { "content-type": "application/json", "content-length": Buffer.byteLength(data), "x-airband-token": key } }, (res) => {
-        res.resume();
-        resolve(res.statusCode ?? 0);
-      });
-      req.end(data);
-    });
-  assert.equal(await post("/api/ask", phone, { text: "what's happening?" }), 403);
-  assert.equal(await post("/api/tell", phone, { chatId: "x", text: "stop" }), 403);
-  assert.equal(await post("/api/settings", phone, { approvals: false }), 403);
-  assert.equal(await post("/api/hook/permission", phone, {}), 403, "a phone cannot pose as a chat");
-  assert.equal(readInbox("x").length, 0, "nothing typed on the phone reached a chat");
-  // What a phone is for: answering a real request.
-  const waiting = askStation({ agent: "claude", session_id: "c1", cwd: "/p/my-api", tool_name: "Bash", tool_input: { command: "npm test" } });
-  const p = await held(s);
-  assert.equal(await post("/api/decide", phone, { id: p.id, decision: "allow" }), 200);
-  assert.equal((await waiting)?.decision, "allow");
-  assert.equal(await post("/api/dismiss", phone, { chatId: "x" }), 200);
-  assert.equal(await post("/api/ask", s.token, { text: "what's happening?" }), 200, "the computer still asks");
-});
-
-const nic = (address: string, internal = false): os.NetworkInterfaceInfo => ({ address, family: "IPv4", internal, netmask: "255.255.255.0", mac: "00:00:00:00:00:00", cidr: null });
-
-test("the phone link names the Wi-Fi address, never a VPN, container or virtual machine", () => {
-  // Windows lists WSL and Hyper-V adapters before the Wi-Fi.
-  assert.equal(pickLanAddress({ "vEthernet (WSL)": [nic("172.24.16.1")], "Wi-Fi": [nic("192.168.1.23")], "Loopback Pseudo-Interface 1": [nic("127.0.0.1", true)] }), "192.168.1.23");
-  assert.equal(pickLanAddress({ "VirtualBox Host-Only Network": [nic("192.168.56.1")], Ethernet: [nic("10.0.0.12")] }), "10.0.0.12");
-  // macOS: a VPN tunnel and Internet Sharing's bridge are not the home network.
-  assert.equal(pickLanAddress({ utun4: [nic("100.101.1.2")], bridge100: [nic("192.168.64.1")], en0: [nic("192.168.1.40")] }), "192.168.1.40");
-  // Linux: Docker's bridge is not either.
-  assert.equal(pickLanAddress({ docker0: [nic("172.17.0.1")], wlp2s0: [nic("192.168.0.7")] }), "192.168.0.7");
-  assert.equal(pickLanAddress({ Ethernet: [nic("169.254.3.4")], "Wi-Fi": [nic("192.168.0.9")] }), "192.168.0.9", "a self-assigned address is never named");
-  assert.equal(pickLanAddress({ en0: [{ ...nic("fe80::1"), family: "IPv6", scopeid: 0 }] }), undefined, "IPv6 only: no link");
-  assert.equal(pickLanAddress({ lo0: [nic("127.0.0.1", true)] }), undefined);
-});
-
 test("Windows: a chat resumes in its own console window, in its folder, and each editor opens with its own command", () => {
   assert.equal(windowsResumeLine("C:\\Users\\Ana\\my app", "claude --resume abc"), '/d /s /k "cd /d "C:\\Users\\Ana\\my app" && claude --resume abc"', "the whole line runs in the new window");
   assert.equal(windowsResumeLine(undefined, "codex resume abc"), '/d /s /k "codex resume abc"');
@@ -486,13 +445,12 @@ test("the page's mode classes (body.desktop, body.phone) are never reused by a p
   assert.deepEqual(clash, []);
 });
 
-test("the phone link is parked: no setting turns it on, and the Station listens on this computer only", async () => {
+test("the Station listens on this computer only, and an old network phone setting is dropped", async () => {
   fs.mkdirSync(process.env.AIRBAND_HOME!, { recursive: true });
-  fs.writeFileSync(path.join(process.env.AIRBAND_HOME!, "station-settings.json"), JSON.stringify({ phone: true }));
+  fs.writeFileSync(path.join(process.env.AIRBAND_HOME!, "station-settings.json"), JSON.stringify({ phone: true, lookups: false }));
   const s = await start();
-  assert.equal(s.snapshot().settings.phone, false, "an old saved setting does not turn it on");
-  assert.equal((await s.setSettings({ phone: true })).phone, false);
-  assert.equal(s.snapshot().phoneUrl, undefined, "no phone address is offered");
+  assert.ok(!("phone" in s.snapshot().settings), "the old setting is gone");
+  assert.equal(s.snapshot().settings.lookups, false, "the rest of the file is kept");
   const addr = (s as unknown as { server: http.Server }).server.address() as { address: string };
   assert.equal(addr.address, "127.0.0.1");
 });
