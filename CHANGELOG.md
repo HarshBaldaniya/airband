@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1
 - **Small app updates install by themselves.** When only the last number changes, the app updates
   once Roger is asleep, with nothing to click. A big update (a new middle number before 1.0) still
   shows Update and waits for you. The menu offers every update, to install it at once.

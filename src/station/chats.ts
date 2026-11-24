@@ -87,6 +87,7 @@ export function forgetReads(): void {
   names.clear();
   replies.clear();
   forgetAgents();
+  hooked = undefined;
 }
 
 // A chat renamed in its agent (Claude Code's "rename"): the agent writes the new name into the chat's

@@ -19,6 +19,9 @@ const ID = "bbbb2222-0000-4000-8000-000000000002";
 let file = "";
 beforeEach(() => {
   process.env.AIRBAND_HOME = tmp("airband-first-home-");
+  // This computer's own Claude Code never counts: each test says whether the hook is set up.
+  process.env.CLAUDE_CONFIG_DIR = tmp("airband-first-config-");
+  process.env.AIRBAND_CLAUDE_SETTINGS = path.join(process.env.CLAUDE_CONFIG_DIR, "settings.json");
   const dir = path.join(tmp("airband-first-claude-"), "-work-shop");
   fs.mkdirSync(dir, { recursive: true });
   file = path.join(dir, `${ID}.jsonl`);
@@ -102,8 +105,7 @@ test("a new Claude app chat is working from its start, while its startup hooks s
 });
 
 test("done stays done while the app writes its own lines after the turn; a new reply after it is work", () => {
-  const hooks = path.join(tmp("airband-first-settings-"), "settings.json");
-  process.env.AIRBAND_CLAUDE_SETTINGS = hooks;
+  const hooks = process.env.AIRBAND_CLAUDE_SETTINGS!;
   const { connect } = require("../src/install/agent-hooks") as typeof import("../src/install/agent-hooks");
   connect('"/usr/bin/node" "/h/.airband/airband-hook.js"', hooks);
   const at = Date.now() - 30_000;
