@@ -1,6 +1,6 @@
 // What a linked chat is sent from a record: a line per ask, or a short summary of each.
-import { fullPath, relativeTo } from "../paths";
-import { shorten } from "../text";
+import { fullPath, relativeTo } from "../../core/paths";
+import { shorten } from "../../core/text";
 import { askLog, readAsks, readHead, type RecordAsk } from "./store";
 
 /** How much a link sends after each reply: a line per ask, a short summary, or the words themselves. */

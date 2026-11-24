@@ -3,16 +3,16 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../../adapters/gemini";
-import { toolOf, type AgentId } from "../agents";
-import { parseJsonLine } from "../json";
-import { OLD_NAMES } from "../legacy";
-import { claudeProjectsDir, codexSessionsDir, geminiTmpDir } from "../paths";
-import { redact } from "../redact";
-import { shorten } from "../text";
+import { toolOf, type AgentId } from "../../core/agents";
+import { parseJsonLine } from "../../core/json";
+import { OLD_NAMES } from "../../core/legacy";
+import { claudeProjectsDir, codexSessionsDir, geminiTmpDir } from "../../core/paths";
+import { redact } from "../../core/redact";
+import { shorten } from "../../core/text";
 import { lineMessages } from "../../adapters/transcripts";
-import { fileSize, readLinesFrom } from "../file-lines";
-import type { ChatMessage } from "../types";
-import { MiB } from "../units";
+import { fileSize, readLinesFrom } from "../../core/file-lines";
+import type { ChatMessage } from "../../core/types";
+import { MiB } from "../../core/units";
 import { readAsks, readHead, type RecordAsk } from "./store";
 import { briefOf, YOURS } from "./summary";
 

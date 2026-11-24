@@ -4,8 +4,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { PlanUsage, PlanWindow } from "./types";
-import { parseJsonLine } from "./json";
+import type { PlanUsage, PlanWindow } from "../core/types";
+import { parseJsonLine } from "../core/json";
 
 type Win = { utilization?: number | null; resets_at?: string | null } | null | undefined;
 type Limit = { kind?: string; percent?: number | null; resets_at?: string | null; scope?: { model?: { display_name?: string | null } | null } | null };

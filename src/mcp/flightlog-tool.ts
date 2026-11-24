@@ -3,11 +3,11 @@
 import * as path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { exchangeText } from "../core/record/extract";
-import { listHeads, readAsks, recordName, type RecordAsk, type RecordHead } from "../core/record/store";
-import { catchUpRecord, recordBehind } from "../core/record/update";
+import { exchangeText } from "../sessions/record/extract";
+import { listHeads, readAsks, recordName, type RecordAsk, type RecordHead } from "../sessions/record/store";
+import { catchUpRecord, recordBehind } from "../sessions/record/update";
 import { plural, shorten } from "../core/text";
-import { renderTokenReport, tokenReport } from "../core/tokens";
+import { renderTokenReport, tokenReport } from "../sessions/tokens";
 import { data, text } from "./answer";
 import { freshMap } from "./maps";
 

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { renderTokenReport, tokenReport } from "../src/core/tokens";
+import { renderTokenReport, tokenReport } from "../src/sessions/tokens";
 
 const j = (o: unknown) => JSON.stringify(o) + "\n";
 let n = 0;

@@ -7,10 +7,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { record } from "../src/hook/status";
-import { readHookStatus } from "../src/core/status";
+import { readHookStatus } from "../src/sessions/status";
 import { forgetReads, liveChats } from "../src/station/chats";
-import { updateRecord } from "../src/core/record/update";
-import { claudeAppHost } from "../src/core/apps";
+import { updateRecord } from "../src/sessions/record/update";
+import { claudeAppHost } from "../src/sessions/apps";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 const j = (o: unknown) => JSON.stringify(o) + "\n";

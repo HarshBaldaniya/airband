@@ -68,7 +68,7 @@ test("a branch is matched by the start of its task, in its folder, while fresh",
   assert.equal(matchPending("Fix the caption overlap on 9:16 cards", "/repo", 1000 + 31 * 60_000), undefined);
 });
 
-import { resolveStatus } from "../src/core/status";
+import { resolveStatus } from "../src/sessions/status";
 
 test("status: the hook wins, file activity is the fallback", () => {
   const now = 100 * 60_000;

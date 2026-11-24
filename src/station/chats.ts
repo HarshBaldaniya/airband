@@ -3,10 +3,10 @@
 import * as fs from "node:fs";
 import { airbandHome, safeId, statusDir } from "../core/paths";
 import { AGENTS, type AgentId } from "../core/agents";
-import { listHeads, readAsks, setRecordTitle, type RecordHead } from "../core/record/store";
-import { chatApp, type ChatApp } from "../core/apps";
+import { listHeads, readAsks, setRecordTitle, type RecordHead } from "../sessions/record/store";
+import { chatApp, type ChatApp } from "../sessions/apps";
 import { agentSummary } from "../core/setup";
-import { readHookStatus, resolveStatus } from "../core/status";
+import { readHookStatus, resolveStatus } from "../sessions/status";
 import type { HookStatus, Status } from "../core/types";
 import { plainText, shorten } from "../core/text";
 import { parseJsonLine } from "../core/json";

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { chatApp, claudeAppChats, claudeAppLink, claudeAppOf, codexAppLink, codexAppOf } from "../src/core/apps";
+import { chatApp, claudeAppChats, claudeAppLink, claudeAppOf, codexAppLink, codexAppOf } from "../src/sessions/apps";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 const j = (o: unknown) => JSON.stringify(o) + "\n";

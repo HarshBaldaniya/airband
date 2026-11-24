@@ -1,6 +1,6 @@
 // A finished reply as a notification can carry it: the outcome, then a few key points, and
 // whether it left the next step to the person.
-import { plainText } from "../text";
+import { plainText } from "../../core/text";
 
 /** Cut at the end of a sentence near `max`, else at a word, never mid-word. */
 export function sentenceClip(text: string, max: number): string {

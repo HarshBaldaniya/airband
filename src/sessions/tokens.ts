@@ -2,10 +2,10 @@
 // writing), the biggest single reads, files read again and again, and what would have saved tokens.
 // Read from the chat's own file, a slice at a time; nothing is sent anywhere.
 import * as fs from "node:fs";
-import type { AgentId } from "./agents";
-import { tokensFor } from "./text";
-import { parseJsonLine } from "./json";
-import { MiB } from "./units";
+import type { AgentId } from "../core/agents";
+import { tokensFor } from "../core/text";
+import { parseJsonLine } from "../core/json";
+import { MiB } from "../core/units";
 
 export type Kind = "finding" | "doing" | "other";
 

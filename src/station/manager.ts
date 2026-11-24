@@ -59,7 +59,7 @@ export function whatsHappening(chats: LiveChat[], pending: PendingBrief[], now =
 async function today(now = Date.now()): Promise<string> {
   // Loaded only when someone asks: the worklog reads chats through Claude's SDK, which the app
   // otherwise never needs, so it never takes memory for it.
-  const { sinceDays, workSince } = await import("../core/worklog");
+  const { sinceDays, workSince } = await import("../sessions/worklog");
   const work = workSince(sinceDays(1, now));
   if (!work.length) return "Nothing yet today.";
   const asks = work.reduce((n, w) => n + w.asks.length, 0);

@@ -5,8 +5,8 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { claudeHome } from "./paths";
-import type { AgentId } from "./agents";
+import { claudeHome } from "../core/paths";
+import type { AgentId } from "../core/agents";
 
 export type ChatApp = "claude-app" | "codex-app" | "vscode" | "terminal";
 

@@ -7,11 +7,11 @@
 //   ~/.airband/flightlogs/<id>.jsonl   one line per ask, appended
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentId } from "../agents";
-import { parseJsonLines, readJson } from "../json";
-import { airbandFile, safeId, writeFileAtomic } from "../paths";
-import { shorten } from "../text";
-import { DAY_MS, MiB } from "../units";
+import type { AgentId } from "../../core/agents";
+import { parseJsonLines, readJson } from "../../core/json";
+import { airbandFile, safeId, writeFileAtomic } from "../../core/paths";
+import { shorten } from "../../core/text";
+import { DAY_MS, MiB } from "../../core/units";
 
 export interface RecordAsk {
   n: number;

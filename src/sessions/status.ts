@@ -2,8 +2,8 @@
 // otherwise from when the chat's file last changed (a good guess).
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { HookStatus, Status } from "./types";
-import { statusDir } from "./paths";
+import type { HookStatus, Status } from "../core/types";
+import { statusDir } from "../core/paths";
 
 /** A chat whose file changed this recently is probably still replying. */
 const WORKING_MS = 20_000;

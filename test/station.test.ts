@@ -10,7 +10,7 @@ import * as path from "node:path";
 import { handle } from "../src/hook/handle";
 import { permission } from "../src/hook/permission";
 import { readInbox } from "../src/core/store";
-import { readHookStatus } from "../src/core/status";
+import { readHookStatus } from "../src/sessions/status";
 import { DETAIL_MAX, Station } from "../src/station/server";
 import { askStation, readStationInfo } from "../src/station/client";
 import { answersFit, describeRequest, permissionReply, questionsOf, ruleKey } from "../src/station/reply";
@@ -18,7 +18,7 @@ import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/st
 import { knowledge } from "../src/station/knowledge";
 import { cleanDesign, cleanName, DEFAULT_COMPANION } from "../src/station/companion";
 import { forgetReads, liveChats, renamedTitle, type LiveChat } from "../src/station/chats";
-import { readHead } from "../src/core/record/store";
+import { readHead } from "../src/sessions/record/store";
 import { editorCommand, windowsResumeLine } from "../src/station/open";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));

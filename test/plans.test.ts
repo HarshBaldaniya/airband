@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { claudePlanFrom, codexPlanFrom, geminiPlan } from "../src/core/plans";
+import { claudePlanFrom, codexPlanFrom, geminiPlan } from "../src/sessions/plans";
 
 const now = Date.parse("2026-11-12T12:00:00Z");
 

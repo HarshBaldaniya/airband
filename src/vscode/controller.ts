@@ -25,7 +25,7 @@ import { allCommands, STARTER_DESCRIPTION, userLibraryDir } from "../library/ind
 /** Folders picked with "Map another folder", newest first. */
 const MAPPED_FOLDERS = "airband.mappedFolders";
 import { BoardStore } from "../core/state";
-import { readHookStatus, resolveStatus } from "../core/status";
+import { readHookStatus, resolveStatus } from "../sessions/status";
 import {
   addConnection,
   addPending,
@@ -46,16 +46,16 @@ import type { ChatDigest, ChatRef, ChatSession, Connection, PlanUsage, Status } 
 import type { Tool } from "../core/agents";
 import { NO_USAGE } from "../core/types";
 import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pickElsewhere, registerWindow, takeOpenRequests, unregisterWindow } from "../core/folders";
-import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../core/plans";
+import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../sessions/plans";
 import { recentRollouts } from "../adapters/codex";
 import { readTail } from "../core/file-lines";
 import { CONTEXT_BUDGET, type ContextSize } from "../core/config";
 import { buildContext, buildUpdate, formatDelivery } from "../core/delivery";
 import { sameFolder } from "../core/paths";
-import { HOOK_START_MAX, HOOK_STEP_MAX, pruneRecords, readHead, readAsks, setRecordTitle } from "../core/record/store";
-import { catchUpRecord, recordBehind } from "../core/record/update";
-import { readAsksFrom } from "../core/record/extract";
-import { recordContext, recordPointer, renderAsks, type LinkLevel } from "../core/record/render";
+import { HOOK_START_MAX, HOOK_STEP_MAX, pruneRecords, readHead, readAsks, setRecordTitle } from "../sessions/record/store";
+import { catchUpRecord, recordBehind } from "../sessions/record/update";
+import { readAsksFrom } from "../sessions/record/extract";
+import { recordContext, recordPointer, renderAsks, type LinkLevel } from "../sessions/record/render";
 import { agentOf } from "../core/agents";
 import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";
 import { moveOldHome, moveOldWorkspace } from "../core/migrate";

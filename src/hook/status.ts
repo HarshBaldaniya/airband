@@ -3,7 +3,7 @@
 import * as path from "node:path";
 import type { AgentId } from "../core/agents";
 import { safeId, statusDir, writeFileAtomic } from "../core/paths";
-import { readHookStatus } from "../core/status";
+import { readHookStatus } from "../sessions/status";
 import { cleanText } from "../adapters/chat-text";
 import type { HookStatus, Status } from "../core/types";
 import { describeRequest } from "../station/reply";

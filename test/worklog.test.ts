@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { airbandFile } from "../src/core/paths";
-import { renderSpend, renderWork, sinceDays, spendSince, totalOf, workSince } from "../src/core/worklog";
+import { renderSpend, renderWork, sinceDays, spendSince, totalOf, workSince } from "../src/sessions/worklog";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 const HOUR = 3600e3;

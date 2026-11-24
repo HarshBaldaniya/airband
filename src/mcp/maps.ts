@@ -1,6 +1,6 @@
 // The code maps the tools answer from, one per folder, brought up to date before each answer.
 import { CodeMap } from "../codemap/index";
-import { listHeads, readAsks } from "../core/record/store";
+import { listHeads, readAsks } from "../sessions/record/store";
 
 /** A map read this recently answers as it is. */
 const FRESH_MS = 1500;

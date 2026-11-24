@@ -10,9 +10,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { claudeProjectsDir, codexSessionsDir, safeId, statusDir, writeFileAtomic } from "../core/paths";
 import type { AgentId } from "../core/agents";
-import { catchUpRecord } from "../core/record/update";
-import { readHead } from "../core/record/store";
-import { readHookStatus } from "../core/status";
+import { catchUpRecord } from "../sessions/record/update";
+import { readHead } from "../sessions/record/store";
+import { readHookStatus } from "../sessions/status";
 import type { HookStatus, Status } from "../core/types";
 import { parseJsonLine } from "../core/json";
 

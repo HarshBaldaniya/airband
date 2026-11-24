@@ -126,7 +126,7 @@ test("claude: real chats list, read and count tokens", { skip: !fs.existsSync(cl
 
 import { claudeLatest } from "../src/adapters/claude-transcript";
 import { contextWindow } from "../src/core/types";
-import { resolveStatus } from "../src/core/status";
+import { resolveStatus } from "../src/sessions/status";
 
 test("model and context: Claude's latest main reply, not a subagent's", () => {
   const lines = [

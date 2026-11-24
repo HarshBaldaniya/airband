@@ -14,7 +14,7 @@
 //   6. Otherwise it is resumed in a new Terminal window.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { claudeAppChats, claudeAppHost, claudeAppLink, codexAppLink } from "../core/apps";
+import { claudeAppChats, claudeAppHost, claudeAppLink, codexAppLink } from "../sessions/apps";
 import { addOpenRequest, windowFor } from "../core/folders";
 import { findCommand, launch, output, succeeds } from "../core/process";
 import { claudeHome, safeId } from "../core/paths";

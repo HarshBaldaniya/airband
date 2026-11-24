@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as http from "node:http";
 import * as path from "node:path";
 import { airbandFile, safeId, statusDir, writeFileAtomic } from "../core/paths";
-import { readHead } from "../core/record/store";
+import { readHead } from "../sessions/record/store";
 import { appendInbox } from "../core/store";
 import type { Status } from "../core/types";
 import { VERSION } from "../core/version";
@@ -20,7 +20,7 @@ import { DECISION_MS, readStationInfo, stationAnswers, stationFile, type Station
 import { PhoneLink, type PhoneLinkOptions } from "./link";
 import { ask, headline, tellText } from "./manager";
 import { openChat } from "./open";
-import { chatApp } from "../core/apps";
+import { chatApp } from "../sessions/apps";
 import { describeRequest, questionsOf, ruleKey, type Answer } from "./reply";
 import type { CompanionAnswer, FinishedView, PendingView, StationSettings, StationState } from "./types";
 import { HOUR_MS } from "../core/units";

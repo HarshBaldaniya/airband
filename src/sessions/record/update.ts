@@ -1,11 +1,11 @@
 // Keeping a record current: the hook brings it up to date after each reply, and a big chat is
 // caught up in the background, a slice at a time.
 import * as fs from "node:fs";
-import type { AgentId } from "../agents";
-import { safeId } from "../paths";
-import { shorten } from "../text";
-import { fileSize } from "../file-lines";
-import { MINUTE_MS, MiB } from "../units";
+import type { AgentId } from "../../core/agents";
+import { safeId } from "../../core/paths";
+import { shorten } from "../../core/text";
+import { fileSize } from "../../core/file-lines";
+import { MINUTE_MS, MiB } from "../../core/units";
 import { readAsksFrom } from "./extract";
 import { appendAsks, clearAsks, HOOK_START_MAX, readHead, writeHead, type RecordAsk } from "./store";
 

@@ -3,10 +3,10 @@
 import { toolOf, type AgentId } from "../core/agents";
 import { buildUpdate, formatDelivery } from "../core/delivery";
 import { sameFolder } from "../core/paths";
-import { HOOK_STEP_MAX, readHead } from "../core/record/store";
-import { readAsksFrom } from "../core/record/extract";
-import { recordBehind, updateRecord } from "../core/record/update";
-import { renderAsks } from "../core/record/render";
+import { HOOK_STEP_MAX, readHead } from "../sessions/record/store";
+import { readAsksFrom } from "../sessions/record/extract";
+import { recordBehind, updateRecord } from "../sessions/record/update";
+import { renderAsks } from "../sessions/record/render";
 import { addConnection, appendInbox, getSentReply, logDelivery, matchPending, readConnections, readCursor, readInbox, removePending, setCursor, setSentReply, takeInbox } from "../core/store";
 import { cleanText } from "../adapters/chat-text";
 import { fileSize, readLinesFrom } from "../core/file-lines";
