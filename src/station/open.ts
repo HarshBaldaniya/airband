@@ -18,10 +18,11 @@ import * as path from "node:path";
 import { claudeAppChats, claudeAppHost, claudeAppLink, codexAppLink } from "../core/apps";
 import { addOpenRequest, windowFor } from "../core/folders";
 import { findCommand } from "../core/hooks";
-import { claudeHome } from "../core/paths";
+import { claudeHome, safeId } from "../core/paths";
 import { toolName } from "../core/record";
 import type { LiveChat } from "./chats";
 
+const CANT_RESUME = "That chat's id isn't one Airband types into a terminal. Open it in its own app.";
 const RESUME: Record<LiveChat["agent"], (id: string) => string> = {
   claude: (id) => `claude --resume ${id}`,
   codex: (id) => `codex resume ${id}`,
@@ -316,7 +317,8 @@ export function openChat(chat: Pick<LiveChat, "id" | "agent" | "cwd" | "title" |
   // the app's link didn't show it, the app itself comes forward.
   const home = chat.app === "claude-app" && chat.agent === "claude" ? "Claude" : chat.app === "codex-app" && chat.agent === "codex" ? "Codex" : undefined;
   if (home && process.platform === "darwin" && run("open", ["-a", home])) return `Showing the ${home} app. The chat is in its list.`;
-  // 6. Resume it in a new terminal window: the lightest way to see it.
+  // 6. Resume it in a new terminal window: the lightest way to see it. The id is typed into a shell.
+  if (!safeId(chat.id)) return CANT_RESUME;
   const resume = RESUME[chat.agent](chat.id);
   const line = chat.cwd ? `cd ${quote(chat.cwd)} && ${resume}` : resume;
   if (process.platform === "darwin") {

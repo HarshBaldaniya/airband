@@ -7,7 +7,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { redact, REDACTED } from "../src/core/redact";
 import { listNotes, readNote, saveNote } from "../src/core/notes";
-import { airbandHome, writeFileAtomic } from "../src/core/paths";
+import { airbandHome, safeId, writeFileAtomic } from "../src/core/paths";
 import { formatDelivery } from "../src/core/updates";
 import { VERSION_RE } from "../src/core/setup";
 import { CodeMap } from "../src/codemap/index";
@@ -171,4 +171,9 @@ test("a parser fetched on demand is used only when it matches the build's finger
     delete process.env.AIRBAND_OFFLINE;
     setGrammarFetcher(undefined);
   }
+});
+
+test("an id typed into a terminal to resume a chat can never read as an option", () => {
+  for (const real of ["3f0c2a9e-5d1b-4c8e-9a7f-2b6d1e0c4f8a", "019a5b2c-7d3e-7f10-8a2b-3c4d5e6f7a8b", "rollout-2025-11-03T10-00-00-abc", "a1b2c3d4"]) assert.ok(safeId(real), real);
+  for (const bad of ["-c", "--resume", "-rm", "a b", "../x", "a;b", "", "x".repeat(129)]) assert.ok(!safeId(bad), bad);
 });

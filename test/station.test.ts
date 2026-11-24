@@ -185,6 +185,34 @@ test("with approvals off, every request goes to the terminal", async () => {
   assert.equal(await askStation({ agent: "claude", tool_name: "Bash", tool_input: { command: "ls" } }), undefined);
 });
 
+test("the Station's errors keep their details in its log; pages get a plain sentence", async () => {
+  const s = await start();
+  const post = (route: string, body: string) =>
+    new Promise<{ code: number; body: string }>((resolve) => {
+      const req = http.request({ host: "127.0.0.1", port: s.port, path: route, method: "POST", headers: { "content-type": "application/json", "x-airband-token": s.token } }, (res) => {
+        let text = "";
+        res.on("data", (c) => (text += c));
+        res.on("end", () => resolve({ code: res.statusCode ?? 0, body: text }));
+      });
+      req.end(body);
+    });
+  assert.deepEqual(await post("/api/tell", '{"chatId":"-x","text":"hi"}'), { code: 400, body: '{"error":"Nothing to send."}' });
+  assert.equal((await post("/api/ask", "{not json")).code, 400);
+  const broken = s as unknown as { ask: () => never };
+  broken.ask = () => {
+    throw new Error("ENOENT: /Users/ana/secret/path");
+  };
+  const errors = console.error;
+  console.error = () => undefined;
+  try {
+    const r = await post("/api/ask", '{"text":"hi"}');
+    assert.equal(r.code, 500);
+    assert.ok(!r.body.includes("/Users/ana"), "no file paths or messages from inside");
+  } finally {
+    console.error = errors;
+  }
+});
+
 test("a message to a chat waits in its inbox for its next turn", async () => {
   const s = await start();
   assert.equal(s.tell("c9", "the API changed: use /v2/seats"), "c9");

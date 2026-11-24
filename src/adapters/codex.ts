@@ -6,7 +6,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ChatDigest, ChatMessage, ChatSession, ChatStats, Usage } from "../core/types";
 import { NO_USAGE, contextWindow } from "../core/types";
-import { codexSessionsDir } from "../core/paths";
+import { codexSessionsDir, safeId } from "../core/paths";
 import { cleanText, fileSize, readLinesFrom, readTail } from "../core/transcript";
 import type { Adapter } from "./adapter";
 import { today } from "./adapter";
@@ -43,7 +43,8 @@ export class CodexAdapter implements Adapter {
     const out: ChatSession[] = [];
     for (const { file, mtime } of recentRollouts(codexSessionsDir(), SCAN_FILES)) {
       const meta = this.meta(file, mtime);
-      if (!meta || !meta.cwd || (root && !sameFolder(meta.cwd, root))) continue;
+      // The id is typed into a terminal to resume the chat (codex resume <id>): only plain ids.
+      if (!meta || !meta.cwd || !safeId(meta.id) || (root && !sameFolder(meta.cwd, root))) continue;
       out.push({ id: meta.id, tool: "Codex", title: meta.title, cwd: meta.cwd, branch: meta.branch, createdAt: meta.createdAt, lastModified: mtime, status: "idle", file });
       if (out.length >= limit) break;
     }

@@ -141,7 +141,11 @@ export function readJson<T>(file: string, fallback: T): T {
   }
 }
 
-/** Ids from tools are used as file names: only plain ones are accepted. */
+/**
+ * Ids from tools are used as file names and typed into a terminal to resume a chat (`claude --resume
+ * <id>`): only plain ones are accepted, and never one that starts with "-", which a command would read
+ * as an option.
+ */
 export function safeId(id: string): boolean {
-  return /^[A-Za-z0-9_-]{1,128}$/.test(id);
+  return /^[A-Za-z0-9_][A-Za-z0-9_-]{0,127}$/.test(id);
 }

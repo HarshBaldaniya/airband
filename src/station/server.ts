@@ -127,6 +127,7 @@ const FINISHED_KEEP_MS = 2 * 3600e3;
 export const DETAIL_MAX = 2000;
 /** A chat first seen already done counts as just finished if it stopped this recently. */
 const JUST_FINISHED_MS = 2 * 60_000;
+const SOMETHING_WRONG = "Something went wrong in Airband's Station. Try again.";
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 const MIME: Record<string, string> = { ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
 
@@ -476,7 +477,7 @@ export class Station extends EventEmitter {
 
   /** Puts a message in a chat's inbox: Airband hands it over with the chat's next turn. */
   tell(chatId: string, text: string): string {
-    if (!safeId(chatId) || !text.trim()) throw new Error("Nothing to send.");
+    if (!safeId(chatId) || !text.trim()) throw new Refusal(400, "Nothing to send.");
     const chat = this.chats.find((c) => c.id === chatId);
     const head = chat ? undefined : readHead(chatId);
     const title = chat?.title ?? (head ? titleOf(head) : chatId.slice(0, 8));
@@ -652,7 +653,10 @@ export class Station extends EventEmitter {
           return send(res, 404, { error: "Not here." });
       }
     } catch (e) {
-      if (!res.headersSent) send(res, 500, { error: e instanceof Error ? e.message : "Something went wrong." });
+      if (e instanceof Refusal) return void (!res.headersSent && send(res, e.status, { error: e.message }));
+      // What went wrong stays in the Station's log: a page is told only that it did.
+      console.error("airband station:", e);
+      if (!res.headersSent) send(res, 500, { error: SOMETHING_WRONG });
     }
   }
 
@@ -662,6 +666,16 @@ export class Station extends EventEmitter {
     if (!type || !fs.existsSync(file)) return send(res, 404, { error: "Not here." });
     res.writeHead(200, { "content-type": type, "cache-control": "no-cache" });
     fs.createReadStream(file).pipe(res);
+  }
+}
+
+/** A request the Station turns down on purpose: its sentence is the person's to read. */
+class Refusal extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
   }
 }
 
@@ -684,7 +698,7 @@ function readBody(req: http.IncomingMessage, max = 1024 * 1024): Promise<unknown
     req.on("data", (c: Buffer) => {
       size += c.length;
       if (size > max) {
-        reject(new Error("Too much."));
+        reject(new Refusal(413, "Too much."));
         req.destroy();
       } else chunks.push(c);
     });
@@ -693,7 +707,7 @@ function readBody(req: http.IncomingMessage, max = 1024 * 1024): Promise<unknown
         const text = Buffer.concat(chunks).toString("utf8");
         resolve(text ? JSON.parse(text) : {});
       } catch {
-        reject(new Error("Not JSON."));
+        reject(new Refusal(400, "Not JSON."));
       }
     });
     req.on("error", reject);

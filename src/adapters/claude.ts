@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import { getSessionMessages, listSessions } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatDigest, ChatSession, ChatStats, Usage } from "../core/types";
 import { NO_USAGE, contextWindow } from "../core/types";
-import { claudeProjectsDir, findClaudeTranscript, readJson, airbandFile, writeFileAtomic } from "../core/paths";
+import { claudeProjectsDir, findClaudeTranscript, readJson, airbandFile, safeId, writeFileAtomic } from "../core/paths";
 import { addUsage, claudeLatest, claudeMessages, claudeUsage, cleanText, fileSize, readLinesFrom, readTail } from "../core/transcript";
 import type { Adapter } from "./adapter";
 import { today } from "./adapter";
@@ -43,7 +43,8 @@ export class ClaudeAdapter implements Adapter {
   async list(root: string | undefined, limit: number): Promise<ChatSession[]> {
     // With no folder, Claude Code lists the newest chats of every project.
     const infos = await listSessions(root ? { dir: root, limit } : { limit });
-    return infos.map((s) => ({
+    // The id is typed into a terminal to resume the chat (claude --resume <id>): only plain ids.
+    return infos.filter((s) => safeId(s.sessionId)).map((s) => ({
       id: s.sessionId,
       tool: "Claude" as const,
       title: cleanTitle(s.customTitle || s.summary || s.firstPrompt || "Untitled chat"),
