@@ -336,6 +336,7 @@ export class Station extends EventEmitter {
     return shown;
   }
 
+  /** The person's answer to a request. "always" also allows the same thing in that folder from now on. */
   decide(id: string, a: Answer, from: "phone" | "computer" = "computer"): boolean {
     const w = this.pending.get(id);
     if (!w) return false;
