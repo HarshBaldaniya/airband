@@ -22,6 +22,7 @@ import writeDocs from "../../skills/airband-write-docs/SKILL.md";
 import writeMessages from "../../skills/airband-write-messages/SKILL.md";
 import { guardRealHome, writeFileAtomic } from "./paths";
 import type { AgentId } from "./agents";
+import { OLD_SKILLS } from "./legacy";
 
 export const SKILLS: { name: string; text: string }[] = [
   { name: "airband-find-code", text: findCode },
@@ -43,12 +44,8 @@ export const SKILLS: { name: string; text: string }[] = [
 
 /** A file in each skill folder Airband wrote, so it only ever replaces or removes its own. */
 const MARK = ".airband";
-/** Skills Airband wrote under its earlier name: removed wherever Airband's are written or removed,
- *  and only when their folder carries that name's mark (so a person's own folder is never touched). */
-const OLD_SKILLS = [
-  { names: ["crosstalk-find-code", "crosstalk-recall", "crosstalk-catchup"], mark: ".crosstalk" },
-];
-
+/** Skills Airband wrote under its earlier name (legacy.ts) are removed wherever Airband's are written
+ *  or removed, and only when their folder carries that name's mark: a person's own is never touched. */
 function retireOldSkills(agents: SkillAgent[]): number {
   let n = 0;
   for (const a of agents) {

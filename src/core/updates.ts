@@ -63,11 +63,6 @@ function deliveryMax(size: ContextSize = readConfig().contextSize): number {
   return CONTEXT_BUDGET[size] + 12_000;
 }
 
-/** Where Airband kept readable copies of whole conversations, before session records replaced them. */
-export function oldConversationsDir(): string {
-  return airbandFile("chats");
-}
-
 interface Exchange {
   ask?: ChatMessage;
   reply?: ChatMessage;

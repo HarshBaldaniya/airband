@@ -5,7 +5,10 @@ import * as fs from "node:fs";
 import type { ChatMessage, Usage } from "./types";
 import { parseJsonLine } from "./json";
 import { MiB } from "./units";
+import { OLD_NAMES } from "./legacy";
 
+/** A line Airband wrote into a chat, under its name or an earlier one: "[Airband] ...". */
+const OWN_LINE = new RegExp(`^(Stop hook feedback:\\s*)?\\[(${["Airband", ...OLD_NAMES].join("|")})\\]`);
 const CHUNK = 4 * MiB;
 const FILE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
 
@@ -193,7 +196,7 @@ export function cleanText(text: string): string {
   if (/^(The summarized conversation|This session is being continued from a previous conversation)/.test(t)) t = "";
   // Airband's own deliveries (also when Claude Code wraps them as hook feedback) are not part of the
   // conversation. They start with "[Airband]"; a reply that only quotes Airband's words is kept.
-  if (/^(Stop hook feedback:\s*)?\[(Airband|Crosstalk|Relay)\]/.test(t) || /^Noted the updates from (linked|connected) chats\.?$/.test(t)) t = "";
+  if (OWN_LINE.test(t) || /^Noted the updates from (linked|connected) chats\.?$/.test(t)) t = "";
   return t;
 }
 

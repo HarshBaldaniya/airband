@@ -18,6 +18,7 @@ import type { ChatMessage } from "./types";
 import { toolOf, type AgentId } from "./agents";
 import { plainText, shorten } from "./text";
 import { DAY_MS, MINUTE_MS, MiB } from "./units";
+import { OLD_NAMES } from "./legacy";
 
 
 export interface RecordAsk {
@@ -212,7 +213,9 @@ function refsIn(text: string, into: Set<string>, raw: boolean): void {
  * Messages the system sends in the person's place (a background task finishing, a hook's
  * feedback, another session's message, an interruption, a command's output): not asks.
  */
-const SYSTEM_TURN = /^(<task-notification>|<agent-message|<local-command-|Stop hook feedback|Another Claude session sent a message|\[Request interrupted|Caveat: The messages below|<system-reminder>|\[(?:Airband|Crosstalk|Relay)\])/;
+const SYSTEM_TURN = new RegExp(
+  `^(<task-notification>|<agent-message|<local-command-|Stop hook feedback|Another Claude session sent a message|\\[Request interrupted|Caveat: The messages below|<system-reminder>|\\[(?:${["Airband", ...OLD_NAMES].join("|")})\\])`,
+);
 
 /** A slash command the person typed, as they typed it: "/pr-review 845". */
 function slashCommand(text: string): string | undefined {

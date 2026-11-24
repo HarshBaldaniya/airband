@@ -11,6 +11,9 @@ import { claudeSettingsPath } from "./hooks";
 import { builtinCommands, renderCommand, type LibraryCommand } from "../library/index";
 import type { AgentId } from "./agents";
 import { readJson } from "./json";
+// The tool server and Codex command list under Airband's earlier name are taken out wherever
+// Airband's are added or removed, so a computer that had Crosstalk never has both.
+import { OLD_MCP_SERVERS, OLD_PROMPT_MANIFESTS } from "./legacy";
 
 
 export interface AgentState {
@@ -39,10 +42,6 @@ export const codexConfigPath = () => path.join(codexHome(), "config.toml");
 export const codexPromptsDir = () => path.join(codexHome(), "prompts");
 export const geminiSettingsPath = () => path.join(geminiHome(), "settings.json");
 const MANIFEST = ".airband-manifest";
-/** The tool server and Codex command list under Airband's earlier name: taken out wherever Airband's
- *  are added or removed, so a computer that had Crosstalk never has both. */
-const OLD_SERVERS = ["crosstalk"];
-const OLD_MANIFESTS = [".crosstalk-manifest"];
 
 /** Two copies before Airband changes an agent's settings: the file as it was the first time
  *  (.airband-backup, kept for good) and as it was just before this change (.airband-last). */
@@ -126,7 +125,7 @@ function allowInClaude(on: boolean): void {
   const permissions = settings.permissions ?? {};
   const allow = Array.isArray(permissions.allow) ? permissions.allow : [];
   // The rule under Airband's earlier name goes either way; Airband's own is added or taken out.
-  const old = OLD_SERVERS.map((n) => `mcp__${n}`);
+  const old = OLD_MCP_SERVERS.map((n) => `mcp__${n}`);
   const kept = allow.filter((r) => r !== CLAUDE_ALLOW && !old.includes(r));
   const next = on ? [...kept, CLAUDE_ALLOW] : kept;
   if (next.length === allow.length && next.every((r, i) => r === allow[i])) return;
@@ -142,13 +141,13 @@ async function addToClaude(node: string, claudeCli: string | undefined, run: Run
     // No `claude` on PATH (a desktop app or IDE install): write the same user-scope entry it would,
     // after a backup. Claude Code reads it when its next chat starts.
     editClaudeJson((servers) => {
-      for (const old of OLD_SERVERS) delete servers[old];
+      for (const old of OLD_MCP_SERVERS) delete servers[old];
       servers[SERVER] = { type: "stdio", command: node, args: [mcpServerPath()], env: {} };
     });
     return `Claude Code: tools and ${builtinCommands().length} commands added.`;
   }
   // Through Claude's own command: it owns ~/.claude.json and writes it safely while it runs.
-  for (const name of [SERVER, ...OLD_SERVERS]) await run(claudeCli, ["mcp", "remove", name, "--scope", "user"]);
+  for (const name of [SERVER, ...OLD_MCP_SERVERS]) await run(claudeCli, ["mcp", "remove", name, "--scope", "user"]);
   const r = await run(claudeCli, ["mcp", "add", SERVER, "--scope", "user", "--", node, mcpServerPath()]);
   return r.ok ? `Claude Code: tools and ${builtinCommands().length} commands added (as /mcp__airband__review and so on).` : `Claude Code: couldn't add the tools (${r.out.slice(0, 200)}).`;
 }
@@ -173,11 +172,11 @@ async function removeFromClaude(claudeCli: string | undefined, run: Runner): Pro
     let had = false;
     editClaudeJson((servers) => {
       had = SERVER in servers;
-      for (const name of [SERVER, ...OLD_SERVERS]) delete servers[name];
+      for (const name of [SERVER, ...OLD_MCP_SERVERS]) delete servers[name];
     });
     return had ? "Claude Code: tools removed." : "Claude Code: no Airband tools to remove.";
   }
-  for (const old of OLD_SERVERS) await run(claudeCli, ["mcp", "remove", old, "--scope", "user"]);
+  for (const old of OLD_MCP_SERVERS) await run(claudeCli, ["mcp", "remove", old, "--scope", "user"]);
   const r = await run(claudeCli, ["mcp", "remove", SERVER, "--scope", "user"]);
   return r.ok ? "Claude Code: tools removed." : "Claude Code: no Airband tools to remove.";
 }
@@ -198,7 +197,7 @@ export function withoutCodexBlock(toml: string): string {
     const header = /^\s*\[([^\]]+)\]\s*$/.exec(line);
     if (header) {
       const h = header[1].trim();
-      skipping = [SERVER, ...OLD_SERVERS].some((n) => h === `mcp_servers.${n}` || h.startsWith(`mcp_servers.${n}.`));
+      skipping = [SERVER, ...OLD_MCP_SERVERS].some((n) => h === `mcp_servers.${n}` || h.startsWith(`mcp_servers.${n}.`));
     }
     if (!skipping) out.push(line);
   }
@@ -241,7 +240,7 @@ function removeFromCodex(): string {
 /** The Codex command files Airband wrote (under its earlier name too, so they are replaced). */
 function ownedPrompts(): string[] {
   const out = new Set<string>();
-  for (const m of [MANIFEST, ...OLD_MANIFESTS]) {
+  for (const m of [MANIFEST, ...OLD_PROMPT_MANIFESTS]) {
     try {
       for (const n of fs.readFileSync(path.join(codexPromptsDir(), m), "utf8").split("\n")) {
         if (n && fs.existsSync(path.join(codexPromptsDir(), n))) out.add(n);
@@ -277,7 +276,7 @@ function writeCodexPrompts(commands: LibraryCommand[]): number {
   writeFileAtomic(path.join(dir, MANIFEST), `${written.join("\n")}\n`);
   // Files the earlier name wrote that this Library no longer has, and its list, go.
   for (const f of owned) if (!written.includes(f)) fs.rmSync(path.join(dir, f), { force: true });
-  for (const m of OLD_MANIFESTS) fs.rmSync(path.join(dir, m), { force: true });
+  for (const m of OLD_PROMPT_MANIFESTS) fs.rmSync(path.join(dir, m), { force: true });
   return written.length;
 }
 
@@ -290,7 +289,7 @@ function removeCodexPrompts(): number {
   const owned = ownedPrompts();
   guardRealHome(codexPromptsDir());
   for (const f of owned) fs.rmSync(path.join(codexPromptsDir(), f), { force: true });
-  for (const m of [MANIFEST, ...OLD_MANIFESTS]) fs.rmSync(path.join(codexPromptsDir(), m), { force: true });
+  for (const m of [MANIFEST, ...OLD_PROMPT_MANIFESTS]) fs.rmSync(path.join(codexPromptsDir(), m), { force: true });
   return owned.length;
 }
 
@@ -303,7 +302,7 @@ function addToGemini(node: string): string {
   backup(file);
   const servers = (settings.mcpServers as Record<string, unknown> | undefined) ?? {};
   // trust: Gemini CLI runs the tools without a confirmation each time (they only read, see codexBlock).
-  for (const old of OLD_SERVERS) delete servers[old];
+  for (const old of OLD_MCP_SERVERS) delete servers[old];
   servers[SERVER] = { command: node, args: [mcpServerPath()], trust: true };
   settings.mcpServers = servers;
   writeFileAtomic(file, `${JSON.stringify(settings, null, 2)}\n`);
@@ -314,9 +313,9 @@ function removeFromGemini(): string {
   const file = geminiSettingsPath();
   const settings = readJson<Record<string, unknown> | undefined>(file, undefined);
   const servers = settings?.mcpServers as Record<string, unknown> | undefined;
-  if (!settings || !servers || ![SERVER, ...OLD_SERVERS].some((n) => n in servers)) return "Gemini CLI: no tools to remove.";
+  if (!settings || !servers || ![SERVER, ...OLD_MCP_SERVERS].some((n) => n in servers)) return "Gemini CLI: no tools to remove.";
   backup(file);
-  for (const name of [SERVER, ...OLD_SERVERS]) delete servers[name];
+  for (const name of [SERVER, ...OLD_MCP_SERVERS]) delete servers[name];
   writeFileAtomic(file, `${JSON.stringify(settings, null, 2)}\n`);
   return "Gemini CLI: tools removed.";
 }

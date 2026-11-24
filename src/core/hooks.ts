@@ -6,6 +6,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { airbandHome, guardRealHome, writeFileAtomic } from "./paths";
+import { OLD_HOOK_PROGRAMS } from "./legacy";
 
 export const HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest", "Notification", "Stop", "SessionEnd"] as const;
 /** A permission request may wait for a click in the Airband app (110 s at most), so Claude Code
@@ -15,10 +16,9 @@ export const CLAUDE_TIMEOUTS: Partial<Record<string, number>> = { PermissionRequ
  *  Not file reads and edits, so most tool calls start no process at all. */
 const PRE_TOOL_MATCHER: Record<string, string> = { claude: "Bash|mcp__.*", gemini: "run_shell_command|.*__.*|mcp_.*" };
 const MARK = "airband-hook.js";
-/** Hooks written when Airband was called Relay or Crosstalk: still ours, so they are replaced, never
- *  doubled (staleHookTargets reports them, since they don't name airband-hook.js). */
-const OLD_MARKS = ["relay-hook.js", "crosstalk-hook.js"];
-const ours = (command: string | undefined) => !!command && (command.includes(MARK) || OLD_MARKS.some((m) => command.includes(m)));
+/** A hook Airband wrote, under its name or an earlier one (legacy.ts). An old one is replaced, never
+ *  doubled: staleHookTargets reports it, since it doesn't name airband-hook.js. */
+const ours = (command: string | undefined) => !!command && (command.includes(MARK) || OLD_HOOK_PROGRAMS.some((m) => command.includes(m)));
 
 interface HookCommand {
   type: string;

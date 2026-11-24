@@ -7,24 +7,18 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { OLD_HOME_FOLDERS, OLD_PROGRAMS, RENAMED_FOLDERS } from "./legacy";
 
 /** Files an old version wrote that this one makes afresh: its programs, its version stamp (which
  *  would otherwise read as a newer install), its update check and its Tab-completion scripts. */
 const OLD_ONLY = new Set([
-  "relay-hook.js",
-  "relay-mcp.js",
-  "crosstalk-hook.js",
-  "crosstalk-mcp.js",
-  "crosstalk.js",
+  ...OLD_PROGRAMS,
   "version.json",
   "update-check.json",
   "completion.zsh",
   "completion.bash",
 ]);
 
-/** The folders Airband's data lived in under its earlier names, oldest first. */
-const OLD_HOME_NAMES = [".relay", ".crosstalk"];
-const RENAMED: Record<string, string> = { sessions: "flightlogs" };
 
 /** Moves one folder's contents into another, keeping whatever the new one already has. */
 function merge(from: string, to: string): number {
@@ -34,7 +28,7 @@ function merge(from: string, to: string): number {
   for (const name of fs.readdirSync(from)) {
     if (OLD_ONLY.has(name)) continue;
     const src = path.join(from, name);
-    const dest = path.join(to, RENAMED[name] ?? name);
+    const dest = path.join(to, RENAMED_FOLDERS[name] ?? name);
     if (!fs.existsSync(dest)) {
       fs.renameSync(src, dest);
       moved++;
@@ -48,7 +42,7 @@ function merge(from: string, to: string): number {
 }
 
 /** ~/.relay and ~/.crosstalk into Airband's home. Returns how many things moved. */
-export function moveOldHome(home: string, olds = OLD_HOME_NAMES.map((n) => path.join(os.homedir(), n))): number {
+export function moveOldHome(home: string, olds = OLD_HOME_FOLDERS.map((n) => path.join(os.homedir(), n))): number {
   try {
     let moved = 0;
     for (const old of olds) moved += merge(old, home);
@@ -65,7 +59,7 @@ export function moveOldHome(home: string, olds = OLD_HOME_NAMES.map((n) => path.
 export function moveOldWorkspace(root: string, to: string): number {
   try {
     let moved = 0;
-    for (const n of OLD_HOME_NAMES) moved += merge(path.join(root, n), to);
+    for (const n of OLD_HOME_FOLDERS) moved += merge(path.join(root, n), to);
     return moved;
   } catch {
     return 0;

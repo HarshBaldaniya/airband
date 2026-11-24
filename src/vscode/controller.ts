@@ -49,7 +49,7 @@ import { addOpenRequest, dropOpenRequest, openRequestWaiting, isTempFolder, pick
 import { claudePlanFrom, codexPlanFrom, geminiPlan, type ClaudeUsageAnswer } from "../core/plans";
 import { recentRollouts } from "../adapters/codex";
 import { readTail } from "../core/transcript";
-import { CONTEXT_BUDGET, buildContext, buildUpdate, formatDelivery, oldConversationsDir, sameFolder, type ContextSize } from "../core/updates";
+import { CONTEXT_BUDGET, buildContext, buildUpdate, formatDelivery, sameFolder, type ContextSize } from "../core/updates";
 import { HOOK_START_MAX, HOOK_STEP_MAX, catchUpRecord, pruneRecords, readHead, recordBehind, readAsks, readAsksFrom, recordContext, recordPointer, renderAsks, setRecordTitle, type LinkLevel } from "../core/record";
 import { agentOf } from "../core/agents";
 import { workspaceAirbandPath, writeFileAtomic } from "../core/paths";
@@ -58,6 +58,7 @@ import { findClaude, findNode } from "../core/process";
 import { claudeAiCreditShown, connect, disconnect, hookCommandFor, hookTargets, installedHookPath, isConnected, isToolConnected, setClaudeAiCredit, staleHookTargets } from "../core/hooks";
 import { claudeExtensionInstalled, openClaude, openInTerminal } from "./open";
 import { webviewHtml } from "./webview-html";
+import { OLD_CONVERSATIONS_FOLDER } from "../core/legacy";
 
 const POLL_MS = 10_000;
 const PER_TOOL = 60;
@@ -1060,7 +1061,7 @@ export class Controller implements vscode.Disposable {
    */
   private tidyStorage(): void {
     try {
-      fs.rmSync(oldConversationsDir(), { recursive: true, force: true });
+      fs.rmSync(airbandFile(OLD_CONVERSATIONS_FOLDER), { recursive: true, force: true });
       pruneRecords(new Set(readConnections().flatMap((c) => [c.from.id, c.to.id])));
     } catch {
       // Tidying is a nicety.

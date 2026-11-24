@@ -14,13 +14,11 @@ import { agentOf, toolOf, type AgentId } from "./agents";
 import { findClaude, findNode } from "./process";
 import { newer, VERSION, VERSION_RE } from "./version";
 import { DAY_MS } from "./units";
+import { OLD_CLAUDE_PLUGIN } from "./legacy";
 
 /** The npm package: `npx airband` sets everything up; `npm i -g airband` installs the
  *  `airband` command. */
 export const NPM_PACKAGE = "airband";
-/** The name Airband was first published under (0.0.1 and 0.0.2). An install of it is replaced by
- *  NPM_PACKAGE: both give the `airband` command, and npm won't let two packages own one command. */
-export const OLD_PACKAGES = ["crosstalk-ai"];
 
 const FILES = ["airband-mcp.js", "airband-hook.js", "airband.js"];
 
@@ -42,7 +40,7 @@ export function claudePluginInstalled(): boolean {
 
 /** The Crosstalk plugin is still installed in Claude Code; its repository is gone, so it no longer works. */
 function oldClaudePluginInstalled(): boolean {
-  return claudePlugins("crosstalk");
+  return claudePlugins(OLD_CLAUDE_PLUGIN);
 }
 
 /** Copies Airband's runnable pieces into ~/.airband, where every agent's settings point, so an
@@ -188,7 +186,7 @@ export function doctor(latest?: string, self = "airband"): Check[] {
   );
   if (latest && newer(latest, iv ?? VERSION)) checks.push({ ok: "warn", what: `Airband ${latest} is out (you have ${iv ?? VERSION})`, fix: `Run: ${self} update` });
 
-  if (oldClaudePluginInstalled()) checks.push({ ok: "warn", what: "Claude Code: the old Crosstalk plugin is still installed", fix: "In Claude Code, type: /plugin uninstall crosstalk" });
+  if (oldClaudePluginInstalled()) checks.push({ ok: "warn", what: "Claude Code: the old Crosstalk plugin is still installed", fix: `In Claude Code, type: /plugin uninstall ${OLD_CLAUDE_PLUGIN}` });
   const states = agentStates();
   const present = states.filter((a) => a.present);
   if (!present.length) checks.push({ ok: false, what: "No Claude Code, Codex or Gemini CLI found", fix: `Install one of them, then run: ${self}` });

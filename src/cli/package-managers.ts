@@ -3,7 +3,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { findCommand } from "../core/process";
-import { npmCommand, NPM_PACKAGE, OLD_PACKAGES } from "../core/setup";
+import { npmCommand, NPM_PACKAGE } from "../core/setup";
+import { OLD_COMMAND, OLD_NPM_PACKAGES } from "../core/legacy";
 
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
@@ -121,8 +122,8 @@ export function ourCommand(found = findOnPath("airband")): OurCommand | undefine
   return commandFrom(found, [NPM_PACKAGE]);
 }
 
-/** The `crosstalk` command from Airband's earlier name (the crosstalk-ai package): uninstalled by
- *  setup and update, since `airband` takes its place. */
-export function oldCommand(found = findOnPath("crosstalk")): OurCommand | undefined {
-  return commandFrom(found, OLD_PACKAGES);
+/** The command from Airband's earlier name (legacy.ts): uninstalled by setup and update, since
+ *  `airband` takes its place. npm won't let two packages own one command. */
+export function oldCommand(found = findOnPath(OLD_COMMAND)): OurCommand | undefined {
+  return commandFrom(found, OLD_NPM_PACKAGES);
 }

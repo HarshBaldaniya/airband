@@ -6,11 +6,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { airbandFile, writeFileAtomic } from "../core/paths";
 import { completion, type Shell } from "./help";
+import { OLD_COMPLETION_MARKS, OLD_FISH_FILES } from "../core/legacy";
 
 const MARK = "# Airband: Tab completion for the airband command (airband remove takes this out)";
-/** The line Airband's earlier name added (taken out with Airband's own), and its fish file. */
-const OLD_MARKS = ["# Crosstalk: Tab completion for the crosstalk command (crosstalk remove takes this out)"];
-const OLD_FISH = ["crosstalk.fish"];
 
 /** A startup file without a marked block: the mark, the line after it, and the blank line before it. */
 function withoutBlock(text: string, mark: string): string {
@@ -41,11 +39,11 @@ const fishFile = () => path.join(shellHome(), ".config", "fish", "completions", 
 const scriptFile = (shell: "zsh" | "bash") => airbandFile(`completion.${shell}`);
 
 export function completionOn(shell: "zsh" | "bash" | "fish"): boolean {
-  if (shell === "fish") return [fishFile(), ...OLD_FISH.map((n) => path.join(path.dirname(fishFile()), n))].some((f) => fs.existsSync(f));
+  if (shell === "fish") return [fishFile(), ...OLD_FISH_FILES.map((n) => path.join(path.dirname(fishFile()), n))].some((f) => fs.existsSync(f));
   try {
     // On under the earlier name counts as on: the next refresh swaps it for Airband's.
     const text = fs.readFileSync(startupFile(shell), "utf8");
-    return [MARK, ...OLD_MARKS].some((m) => text.includes(m));
+    return [MARK, ...OLD_COMPLETION_MARKS].some((m) => text.includes(m));
   } catch {
     return false;
   }
@@ -54,14 +52,14 @@ export function completionOn(shell: "zsh" | "bash" | "fish"): boolean {
 /** Turns completion on (or refreshes the script after an update, so new commands complete). */
 export function turnCompletionOn(shell: "zsh" | "bash" | "fish"): string {
   if (shell === "fish") {
-    for (const f of OLD_FISH) fs.rmSync(path.join(path.dirname(fishFile()), f), { force: true });
+    for (const f of OLD_FISH_FILES) fs.rmSync(path.join(path.dirname(fishFile()), f), { force: true });
     writeFileAtomic(fishFile(), completion("fish"));
     return fishFile();
   }
   writeFileAtomic(scriptFile(shell), completion(shell as Shell));
   const rc = startupFile(shell);
   const before = fs.existsSync(rc) ? fs.readFileSync(rc, "utf8") : "";
-  let text = OLD_MARKS.reduce(withoutBlock, before);
+  let text = OLD_COMPLETION_MARKS.reduce(withoutBlock, before);
   if (!text.includes(MARK)) {
     const line = `[ -f ${JSON.stringify(scriptFile(shell))} ] && source ${JSON.stringify(scriptFile(shell))}`;
     text = `${text}${text && !text.endsWith("\n") ? "\n" : ""}\n${MARK}\n${line}\n`;
@@ -82,7 +80,7 @@ export function turnCompletionOff(): boolean {
     const rc = startupFile(shell);
     try {
       const text = fs.readFileSync(rc, "utf8");
-      const next = [MARK, ...OLD_MARKS].reduce(withoutBlock, text);
+      const next = [MARK, ...OLD_COMPLETION_MARKS].reduce(withoutBlock, text);
       if (next === text) continue;
       writeFileAtomic(rc, next);
       changed = true;
@@ -91,7 +89,7 @@ export function turnCompletionOff(): boolean {
     }
     fs.rmSync(scriptFile(shell), { force: true });
   }
-  for (const f of [fishFile(), ...OLD_FISH.map((n) => path.join(path.dirname(fishFile()), n))]) {
+  for (const f of [fishFile(), ...OLD_FISH_FILES.map((n) => path.join(path.dirname(fishFile()), n))]) {
     if (!fs.existsSync(f)) continue;
     fs.rmSync(f, { force: true });
     changed = true;
