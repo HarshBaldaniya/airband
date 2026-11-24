@@ -30,6 +30,14 @@ const FIRST_CHECK: Duration = Duration::from_secs(60);
 const CHECK_EVERY: Duration = Duration::from_secs(6 * 60 * 60);
 /// How often a small update waiting for Roger to sleep looks again.
 const QUIET_LOOK: Duration = Duration::from_secs(60);
+/// Reaching GitHub's download servers: the whole time to connect, split across their addresses,
+/// so one that never answers is left after a few seconds for the next. A network that blocks one
+/// of GitHub's four addresses left the download waiting on it for ever.
+const CONNECT_WITHIN: Duration = Duration::from_secs(20);
+/// A download that receives nothing for this long has stalled, and is tried again.
+const STALLED_AFTER: Duration = Duration::from_secs(30);
+/// How many times a download is tried before the panel says it didn't finish.
+const DOWNLOAD_TRIES: u32 = 3;
 /// "Starting again…" stays on screen this long before the app restarts.
 const RESTART_PAUSE: Duration = Duration::from_millis(700);
 
@@ -120,6 +128,11 @@ pub fn big_update(have: &str, new: &str) -> bool {
     a != c || (a == 0 && b != d)
 }
 
+/// The updater, with time limits: without them a connection that never opens waits for ever.
+fn updater(app: &AppHandle) -> tauri_plugin_updater::Result<tauri_plugin_updater::Updater> {
+    app.updater_builder().configure_client(|c| c.connect_timeout(CONNECT_WITHIN).read_timeout(STALLED_AFTER)).build()
+}
+
 /// Looks for both kinds of update now and then, in the background.
 pub fn watch(app: &AppHandle) {
     let app = app.clone();
@@ -161,7 +174,7 @@ fn engine_update(app: &AppHandle) {
 // ---- the app: one click ----
 
 async fn check_app(app: &AppHandle) {
-    let Ok(updater) = app.updater() else { return };
+    let Ok(updater) = updater(app) else { return };
     match updater.check().await {
         Ok(Some(u)) => {
             let fresh = {
@@ -235,7 +248,25 @@ pub fn install(app: &AppHandle) {
     tell(app);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        match download_and_install(&app).await {
+        // A failed or stalled download is tried again, from the start, before the panel says so.
+        let mut tries = 0;
+        let done = loop {
+            tries += 1;
+            match download_and_install(&app).await {
+                Ok(v) => break Ok(v),
+                Err(e) if tries < DOWNLOAD_TRIES => {
+                    log(&format!("update: the download stopped ({e}), trying again"));
+                    {
+                        let mut now = lock(&NOW);
+                        now.step = Some(UpdateStep::Downloading);
+                        now.progress = None;
+                    }
+                    tell(&app);
+                }
+                Err(e) => break Err(e),
+            }
+        };
+        match done {
             Ok(v) => {
                 log(&format!("update: Airband {v} installed, starting it"));
                 set_step(&app, UpdateStep::Restarting);
@@ -255,7 +286,7 @@ pub fn install(app: &AppHandle) {
                     now.installing = false;
                     now.step = None;
                     now.progress = None;
-                    now.error = Some("The update didn't finish. Try again in a moment.".into());
+                    now.error = Some("The update didn't download. Check the connection, then try again.".into());
                 }
                 tell(&app);
             }
@@ -264,7 +295,7 @@ pub fn install(app: &AppHandle) {
 }
 
 async fn download_and_install(app: &AppHandle) -> Result<String> {
-    let u = app.updater()?.check().await?.ok_or("this is already the newest")?;
+    let u = updater(app)?.check().await?.ok_or("this is already the newest")?;
     let mut got: u64 = 0;
     let (a, b) = (app.clone(), app.clone());
     let to = u.version.clone();
@@ -295,7 +326,7 @@ async fn download_and_install(app: &AppHandle) -> Result<String> {
 /// `airband --update` in a terminal: the same update, with what happened printed.
 pub async fn from_terminal(app: &AppHandle) -> i32 {
     let have = app.package_info().version.to_string();
-    let found = match app.updater() {
+    let found = match updater(app) {
         Ok(u) => u.check().await,
         Err(e) => {
             eprintln!("error: {e}");

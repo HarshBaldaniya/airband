@@ -1,6 +1,10 @@
 # Changelog
 
 ## 0.2.1
+- **An app update never hangs on Downloading.** On a network that can't reach one of GitHub's
+  download servers, the download waited on it for ever. It now moves on to another server within
+  seconds, and a download that stalls is tried again, up to three times. The bar moves until the
+  download starts, then shows how far it is. If the download fails, the bar says so and offers Try again.
 - **Small app updates install by themselves.** When only the last number changes, the app updates
   once Roger is asleep, with nothing to click. A big update (a new middle number before 1.0) still
   shows Update and waits for you. The menu offers every update, to install it at once.

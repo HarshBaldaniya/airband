@@ -100,7 +100,10 @@ button { font: inherit; color: inherit; }
 .updatebar .fill { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--ab-brand) 22%, transparent); transition: width 0.3s ease; }
 .updatebar .spin { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--ab-brand) 30%, transparent); border-top-color: var(--ab-brand); animation: upspin 0.8s linear infinite; }
 @keyframes upspin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .updatebar .spin { animation: none; } .updatebar .fill { transition: none; } }
+/* Before the first bytes, or when the size is unknown: a band that moves, not a bar that stands still. */
+.updatebar .fill.waiting { width: 35%; animation: upwait 1.3s ease-in-out infinite; }
+@keyframes upwait { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) { .updatebar .spin { animation: none; } .updatebar .fill { transition: none; } .updatebar .fill.waiting { animation: none; width: 100%; opacity: 0.5; } }
 @keyframes toastlife { 0% { opacity: 0; transform: translateY(8px); } 3% { opacity: 1; transform: none; } 92% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(4px); } }
 .more { align-self: stretch; height: 34px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ab-waiting); cursor: pointer; font-weight: 600; }
 

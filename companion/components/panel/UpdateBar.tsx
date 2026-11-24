@@ -18,10 +18,14 @@ export function UpdateBar() {
         ? `Installing Airband ${u.version}…`
         : u.step === "restarting"
           ? "Starting again. I'll be right back."
-          : `Downloading Airband ${u.version}${pct != null ? ` · ${pct}%` : "…"}`;
+          : pct != null
+            ? `Downloading Airband ${u.version} · ${pct}%`
+            : `Getting Airband ${u.version}…`;
+  // Downloading with no size yet: the band moves until the first bytes say how far it is.
+  const waiting = u.installing && u.step === "downloading" && pct == null;
   return (
     <div className={`updatebar${u.installing ? " busy" : ""}`} role="status">
-      {u.installing && <span className="fill" style={{ width: `${u.step === "downloading" ? (pct ?? 4) : 100}%` }} />}
+      {u.installing && <span className={`fill${waiting ? " waiting" : ""}`} style={waiting ? undefined : { width: `${u.step === "downloading" ? pct : 100}%` }} />}
       <span className="ellipsis">{say}</span>
       {u.installing ? (
         <span className="spin" aria-hidden />
