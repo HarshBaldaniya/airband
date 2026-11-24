@@ -1,11 +1,11 @@
 import { ArrowUpRight, Eye, KeyRound, Lock, ServerOff } from "lucide-react";
-import { HeroRoger } from "@/components/HeroRoger";
-import { DownloadButton, InstallLine } from "@/components/DownloadButton";
-import { How } from "@/components/How";
-import { GitHub, Npm } from "@/components/Marks";
-import { Reveal } from "@/components/Reveal";
-import { Ways } from "@/components/Ways";
-import { NEW_TAB } from "@/lib/ext";
+import { HeroRoger } from "@/components/home/HeroRoger";
+import { DownloadButton, InstallLine } from "@/components/download/DownloadButton";
+import { HowItWorks } from "@/components/home/HowItWorks";
+import { GitHub, Npm } from "@/components/ui/BrandMarks";
+import { Reveal } from "@/components/layout/Reveal";
+import { WaysIn } from "@/components/home/WaysIn";
+import { NEW_TAB } from "@/lib/links";
 import { downloads, VERSION } from "@/lib/release";
 import { SITE } from "@/lib/site";
 import { JsonLd, faqGraph } from "@/lib/schema";
@@ -70,7 +70,7 @@ export default async function Home() {
             <p>One ear on every chat, so you never have to check them.</p>
           </Reveal>
           <Reveal delay={0.1}>
-            <How />
+            <HowItWorks />
           </Reveal>
         </div>
       </section>
@@ -102,7 +102,7 @@ export default async function Home() {
             <p>Pick one. Each sets up every agent it finds.</p>
           </Reveal>
           <Reveal delay={0.1}>
-            <Ways files={files} />
+            <WaysIn files={files} />
           </Reveal>
           <Reveal delay={0.2}>
             <div className="pills">

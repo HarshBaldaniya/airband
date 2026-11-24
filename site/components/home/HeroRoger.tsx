@@ -9,7 +9,7 @@ import { Companion } from "@/roger/companion/Companion";
 import type { Mood } from "@/roger/companion/types";
 import { setSoundsOn } from "@/roger/sound";
 import { ANSWERS, type Answer } from "@/lib/answers";
-import { NEW_TAB } from "@/lib/ext";
+import { NEW_TAB } from "@/lib/links";
 
 const DAY: { mood: Mood; say: string }[] = [
   { mood: "hello", say: "Hi, I'm Roger. I listen to your AI coding chats." },

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Check, Laptop, Lock, Server, Smartphone } from "lucide-react";
-import { Reveal } from "@/components/Reveal";
-import { NEW_TAB } from "@/lib/ext";
+import { Reveal } from "@/components/layout/Reveal";
+import { NEW_TAB } from "@/lib/links";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Privacy", description: "What Airband keeps, where, and what leaves your computer: nothing, unless you link an iPhone.", alternates: { canonical: "/privacy/" } };

@@ -1,0 +1,41 @@
+/* Airband's site. Three faces (Plus Jakarta Sans for headings, Inter to read, JetBrains Mono for
+   commands), one dark palette, one scale.
+   Type: 76 / 48 / 22 / 17 / 15 / 13. Radius: 14 / 20 / 28. Every card: a one-line title and a
+   one-line line, so a row of cards always lines up. */
+:root {
+  --bg: #08080a; --panel: #0f0f12; --raise: #15151a; --glass: rgba(255, 255, 255, 0.04); --glass-2: rgba(255, 255, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.08); --line-2: rgba(255, 255, 255, 0.14);
+  --ink: #f5f5f7; --soft: #c7c7cf; --muted: #8a8a94; --faint: #5d5d67;
+  --brand: var(--ab-brand); --brand-2: #f39b72; --teal: #45c6b0; --ok: var(--ab-done); --needs: var(--ab-waiting);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+body { margin: 0; color: var(--ink); font: 400 16px/1.6 var(--font-sans), system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; max-width: 100%; }
+button, input { font: inherit; color: inherit; }
+code, kbd, pre, .mono { font-family: var(--font-mono), ui-monospace, monospace; }
+:not(pre) > code { font-size: 0.88em; padding: 0.1em 0.4em; border-radius: 6px; background: var(--glass-2); border: 1px solid var(--line); }
+kbd { font-size: 0.82em; padding: 0.1em 0.45em; border-radius: 6px; border: 1px solid var(--line-2); border-bottom-width: 2px; background: var(--glass); }
+h1, h2, h3 { margin: 0; font-family: var(--font-display), var(--font-sans), sans-serif; font-weight: 800; letter-spacing: -0.04em; line-height: 1.04; }
+/* Every title in a card is the heading face, bold. */
+.way b, .four b, .then b, .how .step b, .mock-head b, .mock-title, .latest header b, .gs h2, .gs-steps b, .gs-tiles b { font-family: var(--font-display), var(--font-sans), sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+p { margin: 0; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid rgba(224, 122, 79, 0.55); outline-offset: 2px; }
+::selection { background: rgba(224, 122, 79, 0.32); }
+.wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+.one { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grad { background: linear-gradient(180deg, #fff 35%, rgba(255, 255, 255, 0.6)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.warm { background: linear-gradient(95deg, #f6a97f, var(--brand) 55%, #cf5d33); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ---- the sky: drawn once, never repainted while scrolling ---- */
+.sky { position: fixed; inset: 0; z-index: -1; pointer-events: none; background:
+  radial-gradient(60vmax 42vmax at 50% -12%, rgba(224, 122, 79, 0.26), transparent 70%),
+  radial-gradient(40vmax 34vmax at 100% 40%, rgba(69, 198, 176, 0.07), transparent 70%),
+  radial-gradient(40vmax 34vmax at 0% 85%, rgba(224, 122, 79, 0.06), transparent 70%), var(--bg); }
+.sky::after { content: ""; position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 72px 72px; mask-image: radial-gradient(ellipse 60% 45% at 50% 0%, #000 15%, transparent 75%); opacity: 0.5; }

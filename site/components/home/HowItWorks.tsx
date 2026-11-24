@@ -236,7 +236,7 @@ function Phone() {
 
 const SCENES = [Needs, Done, Share, Phone];
 
-export function How() {
+export function HowItWorks() {
   const [at, setAt] = useState(0);
   const [paused, setPaused] = useState(false);
   useEffect(() => {

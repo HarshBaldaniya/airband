@@ -1,0 +1,28 @@
+/* ---- footer: a glass panel with three columns, a base line, and the logo, large and fading ---- */
+.foot { position: relative; padding: 48px 0 0; overflow: hidden; }
+.foot-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: start; padding: 36px 40px; border-radius: 28px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)); }
+.foot-brand { display: flex; align-items: center; gap: 16px; }
+.foot-brand img { height: 24px; width: auto; }
+.foot-brand p { margin-top: 8px; font-size: 14.5px; color: var(--muted); }
+.foot-roger { display: grid; place-items: center; width: 72px; height: 72px; flex: none; border-radius: 20px; border: 1px solid var(--line); background: radial-gradient(closest-side, rgba(224, 122, 79, 0.2), transparent); cursor: pointer; }
+.foot-cols { display: grid; grid-template-columns: repeat(3, 150px); gap: 24px; }
+.foot-cols div { display: grid; gap: 10px; align-content: start; }
+.foot-cols b { font-family: var(--font-display), var(--font-sans), sans-serif; font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.foot-cols a { font-size: 14px; color: var(--muted); transition: color 0.2s; width: max-content; }
+.foot-cols a:hover { color: var(--ink); }
+.foot-base { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 22px 8px; font-size: 13px; color: var(--faint); }
+.foot-base a { color: var(--muted); }
+.foot-base a:hover { color: var(--ink); }
+.foot-base .ver { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--line); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.foot-base .ver i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+.foot-word { display: flex; justify-content: center; padding: 8px 24px 0; margin-bottom: -4vw; opacity: 0.09; mask-image: linear-gradient(180deg, #000 30%, transparent 92%); -webkit-mask-image: linear-gradient(180deg, #000 30%, transparent 92%); pointer-events: none; user-select: none; }
+.foot-word img { width: min(1120px, 100%); height: auto; }
+@media (max-width: 900px) {
+  .foot-card { grid-template-columns: minmax(0, 1fr); padding: 28px; }
+  .foot-cols { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .foot-card { padding: 24px 22px; gap: 28px; }
+  .foot-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; }
+  .foot-base { flex-direction: column-reverse; gap: 12px; }
+}

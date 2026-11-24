@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
-import { Foot } from "@/components/Foot";
-import { Smooth } from "@/components/Smooth";
-import { Top } from "@/components/Top";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SmoothScroll } from "@/components/layout/SmoothScroll";
+import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SITE } from "@/lib/site";
 import { VERSION } from "@/lib/release";
 import { JsonLd, siteGraph } from "@/lib/schema";
@@ -39,11 +39,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${display.variable} ${sans.variable} ${mono.variable}`}>
       <body>
         <div className="sky" aria-hidden />
-        <Smooth />
+        <SmoothScroll />
         <JsonLd data={siteGraph(VERSION)} />
-        <Top />
+        <SiteHeader />
         <main>{children}</main>
-        <Foot />
+        <SiteFooter />
       </body>
     </html>
   );

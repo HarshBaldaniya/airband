@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { NEW_TAB } from "@/lib/ext";
+import { NEW_TAB } from "@/lib/links";
 import { SITE } from "@/lib/site";
 import { VERSION } from "@/lib/release";
-import { FootRoger } from "./FootRoger";
+import { FooterRoger } from "@/components/layout/FooterRoger";
 
-export function Foot() {
+export function SiteFooter() {
   return (
     <footer className="foot">
       <div className="wrap">
         <div className="foot-card">
           <div className="foot-brand">
-            <FootRoger />
+            <FooterRoger />
             <div>
               <img src="/brand/airband-wordmark-dark.svg" alt="Airband" />
               <p>Every AI agent, on one frequency.</p>

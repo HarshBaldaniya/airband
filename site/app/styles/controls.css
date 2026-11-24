@@ -1,0 +1,28 @@
+/* ---- buttons and commands: one height, 48 (40 when small) ---- */
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 48px; padding: 0 22px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--glass); font-size: 15px; font-weight: 600; white-space: nowrap; cursor: pointer; overflow: hidden; transition: transform 0.25s var(--ease), background 0.25s, border-color 0.25s, box-shadow 0.35s; }
+.btn:hover { background: var(--glass-2); border-color: rgba(255, 255, 255, 0.22); transform: translateY(-1px); }
+.btn:active { transform: scale(0.985); }
+.btn.primary { background: #fff; color: #09090b; border-color: transparent; box-shadow: 0 10px 34px -10px rgba(224, 122, 79, 0.7); }
+.btn.primary:hover { background: #fff; box-shadow: 0 14px 44px -10px rgba(224, 122, 79, 0.9); }
+.btn.small { height: 40px; padding: 0 16px; font-size: 14px; border-radius: 12px; }
+.btn.block { width: 100%; }
+.btn svg { width: 18px; height: 18px; flex: none; }
+.cmd { display: inline-flex; align-items: center; justify-content: space-between; gap: 14px; height: 48px; padding: 0 6px 0 18px; border-radius: 14px; border: 1px solid var(--line-2); background: rgba(0, 0, 0, 0.4); font-size: 14px; color: var(--soft); min-width: 0; }
+.cmd.small { height: 40px; border-radius: 12px; font-size: 13px; }
+.cmd.block { display: flex; width: 100%; }
+.cmd .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmd .txt::before { content: "$ "; color: var(--brand); }
+.cmd button { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; transition: background 0.2s, color 0.2s; }
+.cmd.small button { width: 30px; height: 30px; }
+.cmd button:hover { background: var(--glass-2); color: var(--ink); }
+.cmd svg { width: 15px; height: 15px; }
+
+/* ---- arriving on screen ---- */
+.reveal { opacity: 0; transform: translateY(26px); transition: opacity 1s var(--ease), transform 1s var(--ease); transition-delay: var(--d, 0s); }
+.reveal.in { opacity: 1; transform: none; }
+
+/* ---- sections: one rhythm ---- */
+.section { padding: 128px 0; }
+.head { text-align: center; max-width: 640px; margin: 0 auto 56px; }
+.head h2 { font-size: clamp(34px, 4.6vw, 52px); }
+.head p { margin-top: 16px; color: var(--muted); font-size: 17px; }

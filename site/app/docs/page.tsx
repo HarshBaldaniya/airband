@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight, Cable, Headphones, LifeBuoy, Rocket, Smartphone, SquareTerminal, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Copy } from "@/components/Copy";
-import { InstallLine } from "@/components/DownloadButton";
-import { Reveal } from "@/components/Reveal";
-import { Toc } from "@/components/Toc";
+import { CopyCommand } from "@/components/ui/CopyCommand";
+import { InstallLine } from "@/components/download/DownloadButton";
+import { Reveal } from "@/components/layout/Reveal";
+import { Toc } from "@/components/docs/Toc";
 
 export const metadata: Metadata = { title: "Guide", description: "Get started with Airband, meet Roger, link your iPhone and fix what isn't right. One short page.", alternates: { canonical: "/docs/" } };
 
@@ -179,7 +179,7 @@ export default function Guide() {
                 </li>
                 <li>Quit Airband from its menu, then delete the app.</li>
               </ol>
-              <Copy text="npx airband remove" />
+              <CopyCommand text="npx airband remove" />
             </Part>
           </article>
         </div>

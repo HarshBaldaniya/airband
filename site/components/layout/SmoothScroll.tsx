@@ -4,7 +4,7 @@
 import Lenis from "lenis";
 import { useEffect } from "react";
 
-export function Smooth() {
+export function SmoothScroll() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     // Quick to follow the wheel (lerp 0.18): smooth, but never floaty or slow to stop. Touch keeps

@@ -3,11 +3,11 @@
 // action at the bottom.
 import { AppWindow, Puzzle, SquareTerminal } from "lucide-react";
 import { type Download } from "@/lib/download";
-import { Copy } from "./Copy";
-import { useOs } from "./DownloadButton";
-import { Apple, Windows } from "./Marks";
+import { CopyCommand } from "@/components/ui/CopyCommand";
+import { useOs } from "@/components/download/useOs";
+import { Apple, Windows } from "@/components/ui/BrandMarks";
 
-export function Ways({ files }: { files: Download[] }) {
+export function WaysIn({ files }: { files: Download[] }) {
   const os = useOs();
   const f = files.find((x) => x.platform === (os === "windows" ? "windows" : "mac-arm"))!;
   return (
@@ -32,7 +32,7 @@ export function Ways({ files }: { files: Download[] }) {
         <b className="one">Command line</b>
         <span className="one">Any computer with Node.js 20+</span>
         <div className="act">
-          <Copy text="npx airband" block />
+          <CopyCommand text="npx airband" block />
         </div>
       </div>
       <div className="way">
@@ -42,7 +42,7 @@ export function Ways({ files }: { files: Download[] }) {
         <b className="one">Claude Code plugin</b>
         <span className="one">Inside Claude Code, in one line</span>
         <div className="act">
-          <Copy text="/plugin install airband --marketplace HarshBaldaniya/airband" show="/plugin install airband" block />
+          <CopyCommand text="/plugin install airband --marketplace HarshBaldaniya/airband" show="/plugin install airband" block />
         </div>
       </div>
     </div>

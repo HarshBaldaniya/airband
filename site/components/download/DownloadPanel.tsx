@@ -5,9 +5,9 @@
 import { ArrowDownToLine, Check, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { mb, type Download } from "@/lib/download";
-import { Copy } from "./Copy";
-import { useOs } from "./DownloadButton";
-import { Apple, Windows } from "./Marks";
+import { CopyCommand } from "@/components/ui/CopyCommand";
+import { useOs } from "@/components/download/useOs";
+import { Apple, Windows } from "@/components/ui/BrandMarks";
 
 const KINDS = {
   mac: {
@@ -46,7 +46,7 @@ function useChip() {
  *  it is starting, then where the file went. */
 type Started = { platform: Download["platform"]; step: "starting" | "started" };
 
-export function Get({ files, version }: { files: Download[]; version: string }) {
+export function DownloadPanel({ files, version }: { files: Download[]; version: string }) {
   const [started, setStarted] = useState<Started>();
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -75,7 +75,7 @@ export function Get({ files, version }: { files: Download[]; version: string }) 
       </div>
       <div className="get-body">
         <span className="get-label">{k.where}</span>
-        <Copy text={k.line} show={k.show} block />
+        <CopyCommand text={k.line} show={k.show} block />
         <p className="get-sub">Installs Airband and opens it. Nothing to click through.</p>
         <div className="get-or">
           <span>or download the file</span>

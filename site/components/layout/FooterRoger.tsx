@@ -5,7 +5,7 @@ import { Companion } from "@/roger/companion/Companion";
 import type { Mood } from "@/roger/companion/types";
 import { setSoundsOn } from "@/roger/sound";
 
-export function FootRoger() {
+export function FooterRoger() {
   const [mood, setMood] = useState<Mood>("idle");
   const el = useRef<HTMLSpanElement>(null);
   useEffect(() => {

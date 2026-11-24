@@ -1,15 +1,19 @@
 "use client";
 // A command with a copy button. `show` can be shorter than what is copied.
 import { Check, Copy as CopyIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export function Copy({ text, show, small, block }: { text: string; show?: string; small?: boolean; block?: boolean }) {
+/** How long the check shows after a copy. */
+const COPIED_MS = 1400;
+
+export function CopyCommand({ text, show, small, block }: { text: string; show?: string; small?: boolean; block?: boolean }) {
   const [done, setDone] = useState(false);
-  const copy = () =>
-    void navigator.clipboard?.writeText(text).then(() => {
-      setDone(true);
-      setTimeout(() => setDone(false), 1400);
-    });
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(() => setDone(false), COPIED_MS);
+    return () => clearTimeout(t);
+  }, [done]);
+  const copy = () => void navigator.clipboard?.writeText(text).then(() => setDone(true));
   return (
     <span className={`cmd mono${small ? " small" : ""}${block ? " block" : ""}`}>
       <span className="txt" title={text}>

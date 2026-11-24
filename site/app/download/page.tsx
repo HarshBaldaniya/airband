@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { ArrowUpRight } from "lucide-react";
-import { Copy } from "@/components/Copy";
-import { Get } from "@/components/Get";
-import { GitHub, Npm } from "@/components/Marks";
-import { Reveal } from "@/components/Reveal";
-import { NEW_TAB } from "@/lib/ext";
+import { CopyCommand } from "@/components/ui/CopyCommand";
+import { DownloadPanel } from "@/components/download/DownloadPanel";
+import { GitHub, Npm } from "@/components/ui/BrandMarks";
+import { Reveal } from "@/components/layout/Reveal";
+import { NEW_TAB } from "@/lib/links";
 import { downloads, VERSION } from "@/lib/release";
 import { SITE } from "@/lib/site";
 
@@ -26,7 +26,7 @@ export default async function DownloadPage() {
           <p>Version {VERSION}. About 3 MB, and Roger sets up the rest.</p>
         </Reveal>
         <Reveal delay={0.05}>
-          <Get files={files} version={VERSION} />
+          <DownloadPanel files={files} version={VERSION} />
         </Reveal>
         <Reveal delay={0.15}>
           <div className="then" id="first">
@@ -44,7 +44,7 @@ export default async function DownloadPage() {
         <Reveal delay={0.1}>
           <div className="alt">
             <b>Only the agents, no app</b>
-            <Copy text="npx airband" />
+            <CopyCommand text="npx airband" />
             <a className="pill" href={SITE.npm} {...NEW_TAB}>
               <Npm /> npm <ArrowUpRight className="arrow" />
             </a>

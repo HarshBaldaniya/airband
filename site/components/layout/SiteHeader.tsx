@@ -6,11 +6,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { WORDMARK } from "@/roger/wordmark";
-import { NEW_TAB } from "@/lib/ext";
+import { NEW_TAB } from "@/lib/links";
 import { NAV, SITE } from "@/lib/site";
-import { GitHub, Npm } from "./Marks";
+import { GitHub, Npm } from "@/components/ui/BrandMarks";
 
-export function Top() {
+export function SiteHeader() {
   const path = usePathname();
   const [scrolled, setScrolled] = useState(false);
   // A glass pill behind the current page's link. It slides to the link under the pointer, and

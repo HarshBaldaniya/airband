@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowDownToLine, ArrowUpRight } from "lucide-react";
-import { Reveal } from "@/components/Reveal";
+import { Reveal } from "@/components/layout/Reveal";
 import { changelog, releaseDates, type Release } from "@/lib/release";
 import { inline } from "@/lib/inline";
-import { NEW_TAB } from "@/lib/ext";
+import { NEW_TAB } from "@/lib/links";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = { title: "What's new", description: "What's new in the latest Airband.", alternates: { canonical: "/changelog/" } };

@@ -1,5 +1,6 @@
 // Copies what the site shares with the app, so there is one source for each:
 //   Roger (companion/figure and its sounds)       -> roger/
+//   the brand and status colours (shared/)        -> roger/tokens.css
 //   the wordmark and icon (media/)               -> public/brand/
 //   the agents' logos (the app's icon set)        -> public/brand/agents/
 import { cpSync, mkdirSync, rmSync, copyFileSync, readFileSync, writeFileSync } from "node:fs";
@@ -12,6 +13,7 @@ rmSync(join(site, "roger"), { recursive: true, force: true });
 mkdirSync(join(site, "roger"), { recursive: true });
 cpSync(join(repo, "companion/figure"), join(site, "roger/companion"), { recursive: true });
 copyFileSync(join(repo, "companion/sound.ts"), join(site, "roger/sound.ts"));
+copyFileSync(join(repo, "shared/tokens.css"), join(site, "roger/tokens.css"));
 mkdirSync(join(site, "public/brand"), { recursive: true });
 for (const f of ["airband-wordmark-dark.svg", "airband-wordmark-light.svg", "airband-icon.svg", "icon.png"]) copyFileSync(join(repo, "media", f), join(site, "public/brand", f));
 copyFileSync(join(repo, "media/airband-icon.svg"), join(site, "app/icon.svg"));
