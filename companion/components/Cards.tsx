@@ -153,6 +153,7 @@ export function RequestCard({ request, onError, compact = false }: { request: Pe
       <CardHead agent={p.agent} title={p.chatTitle} project={p.project} at={p.at} tone="needs" />
       <span className="qtext">{p.title}</span>
       {p.detail && <pre className={`detail${plan ? " plan" : ""}`}>{p.detail}</pre>}
+      {p.truncated && <span className="muted">This shows the first {p.detail?.length ?? 0} of {p.detailLength} characters. Read the whole request in the chat before you allow it.</span>}
       <div className="actions">
         <button className="btn primary" disabled={busy} onClick={() => decide("allow")}>
           <Check size={14} /> {plan ? "Approve" : "Allow"}

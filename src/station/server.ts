@@ -39,6 +39,10 @@ export interface PendingView {
   toolName?: string;
   title: string;
   detail?: string;
+  /** The detail was too long to show whole: only its first DETAIL_MAX characters are in `detail`. */
+  truncated?: true;
+  /** The whole detail's length, when it was cut. */
+  detailLength?: number;
   questions?: Question[];
   at: number;
   expiresAt: number;
@@ -119,6 +123,8 @@ const settingsFile = () => airbandFile("station-settings.json");
 const rulesFile = () => airbandFile("station-rules.json");
 const phoneKeyFile = () => airbandFile("station-phone.json");
 const FINISHED_KEEP_MS = 2 * 3600e3;
+/** The most of a request's detail (a command, a plan) a screen is sent. Longer ones say they were cut. */
+export const DETAIL_MAX = 2000;
 /** A chat first seen already done counts as just finished if it stopped this recently. */
 const JUST_FINISHED_MS = 2 * 60_000;
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
@@ -389,7 +395,8 @@ export class Station extends EventEmitter {
         ...(cwd ? { cwd } : {}),
         ...(b.tool_name ? { toolName: b.tool_name } : {}),
         title: d.title,
-        ...(d.detail ? { detail: d.detail.slice(0, 2000) } : {}),
+        ...(d.detail ? { detail: d.detail.slice(0, DETAIL_MAX) } : {}),
+        ...(d.detail && d.detail.length > DETAIL_MAX ? { truncated: true as const, detailLength: d.detail.length } : {}),
         ...(questions ? { questions } : {}),
         at: now,
         expiresAt: now + wait,

@@ -10,7 +10,7 @@ import * as path from "node:path";
 import { handle, permission } from "../src/hook/airband-hook";
 import { readInbox } from "../src/core/store";
 import { readHookStatus } from "../src/core/status";
-import { pickLanAddress, Station } from "../src/station/server";
+import { DETAIL_MAX, pickLanAddress, Station } from "../src/station/server";
 import { askStation, readStationInfo } from "../src/station/client";
 import { answersFit, describeRequest, permissionReply, questionsOf } from "../src/station/reply";
 import { ask, headline, lookupArgs, lookupMode, whatsHappening } from "../src/station/manager";
@@ -108,6 +108,18 @@ test("a request is held until the person clicks, then the chat gets the answer",
   assert.deepEqual(await waiting, { decision: "allow" });
   assert.equal(s.snapshot().pending.length, 0, "answered requests leave the list");
   assert.equal(s.decide(p.id, { decision: "deny" }), false, "an ended request takes no second answer");
+});
+
+test("a long command is cut on screen and says so, with its whole length", async () => {
+  const s = await start();
+  const command = `echo ${"x".repeat(2500)} && rm -rf ~/work`;
+  const waiting = askStation({ agent: "claude", session_id: "c1", cwd: "/p/my-api", tool_name: "Bash", tool_input: { command } });
+  const p = await held(s);
+  assert.equal(p.detail?.length, DETAIL_MAX);
+  assert.equal(p.truncated, true);
+  assert.equal(p.detailLength, command.length);
+  s.decide(p.id, { decision: "deny" });
+  await waiting;
 });
 
 test("always allow lets the same command in the same folder through without asking again", async () => {

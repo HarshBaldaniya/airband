@@ -36,6 +36,9 @@ const MAX_RETRY_MS = 5 * 60_000;
 const STATE_EVERY_MS = 1000;
 const MAX_CHATS = 30;
 const DECISIONS = new Set(["allow", "always", "deny", "terminal"]);
+/** The longest title and body an alert carries. The Lock Screen shows the first lines, a long press the rest. */
+const ALERT_TITLE_MAX = 90;
+const ALERT_BODY_MAX = 360;
 
 export interface LinkedPhone {
   id: string;
@@ -474,10 +477,9 @@ export class PhoneLink {
     const tell = () => {
       this.nudges.delete(p.id);
       if (!this.station.snapshot().pending.some((x) => x.id === p.id)) return;
-      // A question or a plan is answered in the app; a plain request can be answered on the alert.
-      const kind = p.questions?.length || p.toolName === "ExitPlanMode" ? "question" : "request";
       // The iPhone shows "Airband" and the icon itself: the title is the chat, the body what it wants.
-      void this.push({ title: p.chatTitle, body: p.detail ? `${p.title}: ${p.detail}` : p.title, tag: p.id, id: p.id, kind });
+      const body = p.detail ? `${p.title}: ${p.detail}` : p.title;
+      void this.push({ title: p.chatTitle, body, tag: p.id, id: p.id, kind: answeredOnAlert(p, body) ? "request" : "question" });
     };
     if (this.away()) return tell();
     // At the computer: the iPhone is told only if the request is still waiting a little later.
@@ -497,8 +499,7 @@ export class PhoneLink {
     const phone = this.file?.phone;
     if (!this.file || !phone?.push) return [];
     const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-    // Room for a real summary (the Lock Screen shows its first lines; a long press shows it all).
-    const payload = { ...note, title: clip(note.title, 90), body: clip(note.body, 360) };
+    const payload = { ...note, title: clip(note.title, ALERT_TITLE_MAX), body: clip(note.body, ALERT_BODY_MAX) };
     let report: PushReport;
     try {
       const r = await sendPush(phone.push, payload, this.file.vapid, { topic: note.tag, ...(this.o.fetch ? { fetch: this.o.fetch } : {}) });
@@ -514,4 +515,15 @@ export class PhoneLink {
     }
     return [report];
   }
+}
+
+/**
+ * Whether Allow and Deny may sit on the alert itself. Only for a plain request the alert shows whole:
+ * a question or a plan is answered in the app, and so is a command that was cut or runs over several
+ * lines, where the Lock Screen could hide the part that matters.
+ */
+export function answeredOnAlert(p: PendingView, body: string): boolean {
+  if (p.questions?.length || p.toolName === "ExitPlanMode") return false;
+  if (p.truncated || p.detail?.includes("\n") || p.detail?.includes("\r")) return false;
+  return body.length <= ALERT_BODY_MAX;
 }

@@ -9,7 +9,8 @@ import * as path from "node:path";
 import { fromB64u, openBox, pairingFragment, parsePairing, randomB64u, seal, toB64u, unseal, MAX_AGE_MS } from "../src/remote/box";
 import { isPushEndpoint, lockForPhone, newVapidKeys, sendPush, vapidAuthorization } from "../src/remote/webpush";
 import { LIMITS, RoomLogic, type Role, type RoomSocket } from "../relay/src/room";
-import { Station } from "../src/station/server";
+import { Station, type PendingView } from "../src/station/server";
+import { answeredOnAlert } from "../src/station/link";
 import { askStation } from "../src/station/client";
 
 // ---- the lock ----
@@ -478,4 +479,13 @@ test("a link from the first version with no iPhone is cleaned up; one with an iP
   await station.start();
   assert.equal(station.snapshot().link!.linked, true);
   assert.deepEqual(station.snapshot().link!.phones.map((p) => [p.name, p.alerts]), [["iPhone", true]]);
+});
+
+test("an alert answers only a request it shows whole: no cut, no second line, no question", () => {
+  const p = { id: "r1", agent: "claude", agentName: "Claude Code", chatTitle: "Billing", project: "billing", title: "Wants to run a command", at: 0, expiresAt: 1 } as PendingView;
+  assert.equal(answeredOnAlert({ ...p, detail: "npm test" }, "Wants to run a command: npm test"), true);
+  assert.equal(answeredOnAlert({ ...p, detail: "npm test\nrm -rf ~" }, "x"), false, "a second line could hide below the first");
+  assert.equal(answeredOnAlert({ ...p, detail: "a".repeat(2000), truncated: true, detailLength: 5000 }, "x"), false, "the Station cut it");
+  assert.equal(answeredOnAlert({ ...p, detail: "a".repeat(400) }, `Wants to run a command: ${"a".repeat(400)}`), false, "the alert would cut it");
+  assert.equal(answeredOnAlert({ ...p, toolName: "ExitPlanMode" }, "x"), false);
 });
