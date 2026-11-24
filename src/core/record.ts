@@ -10,7 +10,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { codexMessages } from "../adapters/codex";
 import { geminiMessages, geminiSeen, geminiStart, loadGeminiChat } from "../adapters/gemini";
-import { claudeProjectsDir, codexSessionsDir, airbandFile, geminiTmpDir, readJson, safeId, writeFileAtomic } from "./paths";
+import { claudeProjectsDir, codexSessionsDir, airbandFile, geminiTmpDir, safeId, writeFileAtomic } from "./paths";
+import { parseJsonLine, parseJsonLines, readJson } from "./json";
 import { claudeMessages, fileSize, readLinesFrom } from "./transcript";
 import { fullPath, relativeTo } from "./updates";
 import type { ChatMessage } from "./types";
@@ -93,15 +94,7 @@ export function readAsks(id: string, last?: number): RecordAsk[] {
     return [];
   }
   const lines = text.split("\n").filter(Boolean);
-  const out: RecordAsk[] = [];
-  for (const l of last ? lines.slice(-last) : lines) {
-    try {
-      out.push(JSON.parse(l));
-    } catch {
-      // A line cut short by a crash: skipped.
-    }
-  }
-  return out;
+  return parseJsonLines<RecordAsk>((last ? lines.slice(-last) : lines).join("\n"));
 }
 
 /** All records kept on this computer, newest first. */
@@ -224,12 +217,8 @@ function slashCommand(text: string): string | undefined {
 
 /** A slash command in a raw chat line (a damaged line is just not one). */
 function commandIn(line: string): string | undefined {
-  try {
-    const content = JSON.parse(line)?.message?.content;
-    return typeof content === "string" ? slashCommand(content) : undefined;
-  } catch {
-    return undefined;
-  }
+  const content = parseJsonLine<{ message?: { content?: unknown } }>(line)?.message?.content;
+  return typeof content === "string" ? slashCommand(content) : undefined;
 }
 
 /** The person's words in a message, or nothing for a message the system sent. */

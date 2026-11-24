@@ -1,7 +1,8 @@
 // The workspace's board, in `.airband/state.json`: which chats are on it and where.
 import * as path from "node:path";
 import type { BoardState } from "./types";
-import { readJson, workspaceAirbandDir, workspaceAirbandPath, writeFileAtomic } from "./paths";
+import { workspaceAirbandDir, workspaceAirbandPath, writeFileAtomic } from "./paths";
+import { readJson } from "./json";
 
 export class BoardStore {
   constructor(private readonly root: string) {}

@@ -10,6 +10,7 @@ import { airbandFile, guardRealHome, writeFileAtomic } from "./paths";
 import { claudeSettingsPath } from "./hooks";
 import { builtinCommands, renderCommand, type LibraryCommand } from "../library/index";
 import type { AgentId } from "./agents";
+import { readJson } from "./json";
 
 
 export interface AgentState {
@@ -53,19 +54,11 @@ function backup(file: string) {
   fs.copyFileSync(file, `${file}.airband-last`);
 }
 
-function readJsonFile<T>(file: string): T | undefined {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8")) as T;
-  } catch {
-    return undefined;
-  }
-}
-
 // ---------------------------------------------------------------- what each agent has
 
 export function agentStates(): AgentState[] {
-  const claudeServers = readJsonFile<{ mcpServers?: Record<string, unknown> }>(claudeJsonPath())?.mcpServers ?? {};
-  const gemini = readJsonFile<{ mcpServers?: Record<string, unknown> }>(geminiSettingsPath())?.mcpServers ?? {};
+  const claudeServers = readJson<{ mcpServers?: Record<string, unknown> } | undefined>(claudeJsonPath(), undefined)?.mcpServers ?? {};
+  const gemini = readJson<{ mcpServers?: Record<string, unknown> } | undefined>(geminiSettingsPath(), undefined)?.mcpServers ?? {};
   let codexToml = "";
   try {
     codexToml = fs.readFileSync(codexConfigPath(), "utf8");
@@ -76,7 +69,7 @@ export function agentStates(): AgentState[] {
   const codexTools = new RegExp(`^\\[mcp_servers\\.${SERVER}\\]`, "m").test(codexToml);
   // The tools run without a question each time (setup allows them; older setups didn't).
   const codexBlockText = codexToml.split(new RegExp(`^\\[mcp_servers\\.${SERVER}\\]`, "m"))[1]?.split(/^\[/m)[0] ?? "";
-  const claudeAllow = readJsonFile<{ permissions?: { allow?: unknown } }>(claudeSettingsPath())?.permissions?.allow;
+  const claudeAllow = readJson<{ permissions?: { allow?: unknown } } | undefined>(claudeSettingsPath(), undefined)?.permissions?.allow;
   return [
     {
       id: "claude",
@@ -128,7 +121,7 @@ const CLAUDE_ALLOW = `mcp__${SERVER}`;
 function allowInClaude(on: boolean): void {
   const file = claudeSettingsPath();
   if (!fs.existsSync(file) && !on) return;
-  const settings = fs.existsSync(file) ? readJsonFile<Record<string, unknown> & { permissions?: { allow?: string[] } }>(file) : {};
+  const settings = fs.existsSync(file) ? readJson<Record<string, unknown> & { permissions?: { allow?: string[] } } | undefined>(file, undefined) : {};
   if (!settings || typeof settings !== "object" || Array.isArray(settings)) return;
   const permissions = settings.permissions ?? {};
   const allow = Array.isArray(permissions.allow) ? permissions.allow : [];
@@ -165,7 +158,7 @@ function editClaudeJson(change: (servers: Record<string, unknown>) => void): voi
   const file = claudeJsonPath();
   // A file that doesn't read as JSON (Claude Code halfway through writing it) is left alone: writing
   // a fresh one would lose the person's projects, servers and sign-in state.
-  const data = fs.existsSync(file) ? readJsonFile<Record<string, unknown> & { mcpServers?: Record<string, unknown> }>(file) : {};
+  const data = fs.existsSync(file) ? readJson<Record<string, unknown> & { mcpServers?: Record<string, unknown> } | undefined>(file, undefined) : {};
   if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error(`${file} couldn't be read, so it was left as it is. Try again in a moment.`);
   backup(file);
   const servers = { ...(data.mcpServers ?? {}) };
@@ -305,8 +298,8 @@ function removeCodexPrompts(): number {
 
 function addToGemini(node: string): string {
   const file = geminiSettingsPath();
-  const settings = readJsonFile<Record<string, unknown>>(file) ?? {};
-  if (fs.existsSync(file) && !readJsonFile(file)) return "Gemini CLI: its settings.json couldn't be read, so it was left alone.";
+  const settings = readJson<Record<string, unknown> | undefined>(file, undefined) ?? {};
+  if (fs.existsSync(file) && !readJson(file, undefined)) return "Gemini CLI: its settings.json couldn't be read, so it was left alone.";
   backup(file);
   const servers = (settings.mcpServers as Record<string, unknown> | undefined) ?? {};
   // trust: Gemini CLI runs the tools without a confirmation each time (they only read, see codexBlock).
@@ -319,7 +312,7 @@ function addToGemini(node: string): string {
 
 function removeFromGemini(): string {
   const file = geminiSettingsPath();
-  const settings = readJsonFile<Record<string, unknown>>(file);
+  const settings = readJson<Record<string, unknown> | undefined>(file, undefined);
   const servers = settings?.mcpServers as Record<string, unknown> | undefined;
   if (!settings || !servers || ![SERVER, ...OLD_SERVERS].some((n) => n in servers)) return "Gemini CLI: no tools to remove.";
   backup(file);

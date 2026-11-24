@@ -18,6 +18,7 @@ import { addUsage, cleanText } from "../core/transcript";
 import type { Adapter } from "./adapter";
 import { today } from "./adapter";
 import { oneLine } from "../core/text";
+import { parseJsonLine } from "../core/json";
 
 const WRITE_TOOLS = /^(write_file|replace|edit|write_new_file)$/;
 /** What Gemini CLI itself puts in a chat as if the person said it (its opening workspace summary). */
@@ -224,13 +225,8 @@ export function loadGeminiChat(file: string): GeminiChat | null {
   let chat: GeminiChat | null = null;
   const byId = new Map<string, GeminiMessage>();
   for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    let r: any;
-    try {
-      r = JSON.parse(line);
-    } catch {
-      continue; // a line still being written
-    }
+    // A line still being written reads as nothing.
+    const r = parseJsonLine<any>(line);
     if (!r || typeof r !== "object") continue;
     if (typeof r.$rewindTo === "string") {
       let found = false;

@@ -3,6 +3,7 @@
 // token usage. Light on purpose: the hook imports it.
 import * as fs from "node:fs";
 import type { ChatMessage, Usage } from "./types";
+import { parseJsonLine } from "./json";
 
 const CHUNK = 4 * 1024 * 1024;
 const FILE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
@@ -107,7 +108,7 @@ export function claudeMessages(lines: string[]): { messages: ChatMessage[]; file
   const messages: ChatMessage[] = [];
   const files = new Set<string>();
   for (const line of lines) {
-    const o = parse<ClaudeLine>(line);
+    const o = parseJsonLine<ClaudeLine>(line);
     if (!o || (o.type !== "user" && o.type !== "assistant")) continue;
     if (o.isSidechain || o.isMeta || o.isCompactSummary) continue;
     const content = o.message?.content;
@@ -138,7 +139,7 @@ export function claudeMessages(lines: string[]): { messages: ChatMessage[]; file
 export function claudeUsage(lines: string[], into: Map<string, { u: Usage; day: string }>): void {
   for (const line of lines) {
     if (!line.includes('"usage"')) continue;
-    const o = parse<ClaudeLine>(line);
+    const o = parseJsonLine<ClaudeLine>(line);
     const u = o?.message?.usage;
     const id = o?.message?.id;
     if (o?.type !== "assistant" || !u || !id) continue;
@@ -162,7 +163,7 @@ export function claudeLatest(lines: string[], prev?: { model?: string; used?: nu
   let last = prev ?? {};
   for (const line of lines) {
     if (!line.includes('"usage"')) continue;
-    const o = parse<ClaudeLine & { message?: { model?: string } }>(line);
+    const o = parseJsonLine<ClaudeLine & { message?: { model?: string } }>(line);
     const u = o?.message?.usage;
     if (o?.type !== "assistant" || !u || o.isSidechain) continue;
     const model = (o.message as { model?: string }).model;
@@ -199,11 +200,3 @@ export function addUsage(a: Usage, b: Usage): Usage {
   return { input: a.input + b.input, output: a.output + b.output, cacheRead: a.cacheRead + b.cacheRead, cacheWrite: a.cacheWrite + b.cacheWrite };
 }
 
-function parse<T>(line: string): T | undefined {
-  if (!line) return undefined;
-  try {
-    return JSON.parse(line) as T;
-  } catch {
-    return undefined;
-  }
-}

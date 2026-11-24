@@ -6,7 +6,8 @@ import { fenced, headingSafe, newFenceTag } from "./fence";
 import { redact } from "./redact";
 import * as path from "node:path";
 import type { ChatDigest, ChatMessage, ChatRef, InboxItem } from "./types";
-import { readJson, airbandFile, writeFileAtomic } from "./paths";
+import { airbandFile, writeFileAtomic } from "./paths";
+import { readJson } from "./json";
 
 export type ContextSize = "compact" | "standard" | "full";
 /** Characters of conversation sent on connecting (tokens ≈ chars / 4). */

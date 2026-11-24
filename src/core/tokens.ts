@@ -4,6 +4,7 @@
 import * as fs from "node:fs";
 import type { AgentId } from "./agents";
 import { tokensFor } from "./text";
+import { parseJsonLine } from "./json";
 
 export type Kind = "finding" | "doing" | "other";
 
@@ -118,13 +119,8 @@ export function tokenReport(tool: AgentId, file: string): TokenReport {
   };
 
   eachLine(file, (line) => {
-    if (!line) return;
-    let o: any;
-    try {
-      o = JSON.parse(line);
-    } catch {
-      return;
-    }
+    const o = parseJsonLine<any>(line);
+    if (!o) return;
     if (tool === "claude") {
       const m = o.message;
       if (o.type === "assistant" && m?.usage && m.id && !o.isSidechain) {

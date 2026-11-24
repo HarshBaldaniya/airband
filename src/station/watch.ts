@@ -13,6 +13,7 @@ import type { AgentId } from "../core/agents";
 import { catchUpRecord, readHead } from "../core/record";
 import { readHookStatus } from "../core/status";
 import type { HookStatus, Status } from "../core/types";
+import { parseJsonLine } from "../core/json";
 
 /** The event name on a status the watcher wrote. */
 export const WATCHED = "Watched";
@@ -58,13 +59,9 @@ export function readWritten(tool: AgentId, text: string): { replied: boolean; en
   let ended = false;
   let cwd: string | undefined;
   for (const raw of text.split("\n")) {
-    if (!raw.trim()) continue;
-    let o: any;
-    try {
-      o = JSON.parse(raw);
-    } catch {
-      continue; // a line cut at the start, or still being written
-    }
+    // A line cut at the start, or still being written, reads as nothing.
+    const o = parseJsonLine<any>(raw);
+    if (!o) continue;
     if (tool === "codex") {
       const p = o?.payload ?? {};
       if (o?.type === "session_meta" && typeof p.cwd === "string") cwd = p.cwd;

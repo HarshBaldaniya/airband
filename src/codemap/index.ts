@@ -11,6 +11,7 @@ import { makeResolver, type Resolver } from "./resolve";
 import { isLowValuePath, SearchIndex, words, type Doc, type Hit } from "./search";
 import { contentHash, listFiles, loadEntries, MAX_FILE_BYTES, readMeta, saveEntries, storeDir, type FileEntry } from "./store";
 import { CHARS_PER_TOKEN, tokensFor } from "../core/text";
+import { readJson } from "../core/json";
 
 export interface CodeMapStats {
   files: number;
@@ -524,7 +525,7 @@ export class CodeMap {
   overview(budget = 500): string {
     this.load();
     const out: string[] = [];
-    const pkg = readJsonFile(path.join(this.root, "package.json")) as { name?: string; scripts?: Record<string, string> } | undefined;
+    const pkg = readJson<{ name?: string; scripts?: Record<string, string> } | undefined>(path.join(this.root, "package.json"), undefined);
     if (pkg?.scripts) {
       const keep = Object.keys(pkg.scripts).filter((s) => /^(dev|start|build|test|lint|typecheck|check|e2e|format)(:|$)/.test(s)).slice(0, 8);
       if (keep.length) out.push(`commands: ${keep.map((s) => `npm run ${s}`).join(" · ")}`);
@@ -643,14 +644,6 @@ export class CodeMap {
 
   /** Words that would find this file: used by the replay benchmark and the Board. */
   static words = words;
-}
-
-function readJsonFile(file: string): unknown {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    return undefined;
-  }
 }
 
 function commonDir(paths: string[]): string {

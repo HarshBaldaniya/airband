@@ -11,6 +11,7 @@ import { cleanText, fileSize, readLinesFrom, readTail } from "../core/transcript
 import type { Adapter } from "./adapter";
 import { today } from "./adapter";
 import { oneLine } from "../core/text";
+import { parseJsonLine } from "../core/json";
 
 const SCAN_FILES = 400;
 const NOISE = /^(<environment_context>|<user_instructions>|<permissions|# AGENTS\.md|<user_shell_command>)/;
@@ -163,7 +164,7 @@ function readMeta(file: string): Meta | null {
   let createdAt: number | undefined;
   let branch: string | undefined;
   for (const raw of lines) {
-    const o = parse(raw);
+    const o = parseJsonLine<Line>(raw);
     if (!o) continue;
     const p = o.type === "session_meta" ? o.payload : !o.type && o.id && o.timestamp ? o : undefined;
     if (p && !id) {
@@ -194,7 +195,7 @@ export function codexMessages(lines: string[]): { messages: ChatMessage[]; files
   const files = new Set<string>();
   let n = 0;
   for (const raw of lines) {
-    const o = parse(raw);
+    const o = parseJsonLine<Line>(raw);
     if (!o) continue;
     const item = o.type === "response_item" ? o.payload : o.type === "message" || o.type === "function_call" || o.type === "custom_tool_call" ? o : undefined;
     if (!item) continue;
@@ -226,11 +227,11 @@ export function codexUsage(lines: string[], day: string): ChatStats {
   let window: number | undefined;
   for (const raw of lines) {
     if (raw.includes("turn_context")) {
-      const t = parse(raw);
+      const t = parseJsonLine<Line>(raw);
       if (t?.type === "turn_context" && t.payload?.model) model = t.payload.model;
     }
     if (!raw.includes("token_count")) continue;
-    const o = parse(raw);
+    const o = parseJsonLine<Line>(raw);
     const info = o?.type === "event_msg" && o.payload?.type === "token_count" ? o.payload.info : undefined;
     if (info?.last_token_usage) used = (info.last_token_usage.input_tokens ?? 0) + (info.last_token_usage.output_tokens ?? 0);
     if (info?.model_context_window) window = info.model_context_window;
@@ -262,11 +263,3 @@ function sameFolder(a: string, b: string): boolean {
   return path.resolve(a) === path.resolve(b);
 }
 
-function parse(line: string): Line | undefined {
-  if (!line || line[0] !== "{") return undefined;
-  try {
-    return JSON.parse(line) as Line;
-  } catch {
-    return undefined;
-  }
-}

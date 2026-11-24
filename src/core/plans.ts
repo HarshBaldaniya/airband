@@ -5,6 +5,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { PlanUsage, PlanWindow } from "./types";
+import { parseJsonLine } from "./json";
 
 type Win = { utilization?: number | null; resets_at?: string | null } | null | undefined;
 type Limit = { kind?: string; percent?: number | null; resets_at?: string | null; scope?: { model?: { display_name?: string | null } | null } | null };
@@ -101,12 +102,8 @@ const windowLabel = (minutes?: number) =>
 export function codexPlanFrom(lines: string[], now = Date.now()): PlanUsage | undefined {
   for (let i = lines.length - 1; i >= 0; i--) {
     if (!lines[i].includes("rate_limits")) continue;
-    let o: { timestamp?: string; type?: string; payload?: { type?: string; rate_limits?: Record<string, unknown> } };
-    try {
-      o = JSON.parse(lines[i]);
-    } catch {
-      continue;
-    }
+    const o = parseJsonLine<{ timestamp?: string; type?: string; payload?: { type?: string; rate_limits?: Record<string, unknown> } }>(lines[i]);
+    if (!o) continue;
     const rl = o.payload?.rate_limits as
       | { primary?: CodexWin | null; secondary?: CodexWin | null; plan_type?: string | null }
       | undefined;

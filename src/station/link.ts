@@ -15,7 +15,8 @@
 // second, and at most DAILY_FRAMES frames a day; a quiet link costs a keep-alive a minute. Cloudflare's
 // free plan never charges: past its daily limit the relay just stops until the next day.
 import { webcrypto } from "node:crypto";
-import { airbandFile, readJson, writeFileAtomic } from "../core/paths";
+import { airbandFile, writeFileAtomic } from "../core/paths";
+import { readJson } from "../core/json";
 import { openBox, pairingFragment, randomB64u, seal, sealForClaim, unseal, type Box, type ClaimedRoom, type ComputerMessage, type PhoneMessage, type RelayFrame } from "../remote/box";
 import { isPushEndpoint, newVapidKeys, sendPush, type PushTarget, type VapidKeys } from "../remote/webpush";
 import type { Answer } from "./reply";

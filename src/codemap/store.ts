@@ -31,6 +31,7 @@ const STORE_VERSION = 1;
 // Kept in ./where so the hook can find a map without loading the parser.
 export { folderId, storeDir } from "./where";
 import { storeDir } from "./where";
+import { parseJsonLine } from "../core/json";
 
 const filesPath = (root: string) => path.join(storeDir(root), "files.jsonl.gz");
 const metaPath = (root: string) => path.join(storeDir(root), "meta.json");
@@ -50,13 +51,9 @@ export function loadEntries(root: string): Map<string, FileEntry> {
     if (meta.v !== STORE_VERSION) return out;
     const text = zlib.gunzipSync(fs.readFileSync(filesPath(root))).toString("utf8");
     for (const line of text.split("\n")) {
-      if (!line) continue;
-      try {
-        const e = JSON.parse(line) as FileEntry;
-        out.set(e.p, e);
-      } catch {
-        // A torn line is re-read from the file on the next sweep.
-      }
+      // A torn line is read from the file again on the next sweep.
+      const e = parseJsonLine<FileEntry>(line);
+      if (e) out.set(e.p, e);
     }
   } catch {
     // No map yet.

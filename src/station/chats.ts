@@ -9,6 +9,7 @@ import { agentSummary } from "../core/setup";
 import { readHookStatus, resolveStatus } from "../core/status";
 import type { HookStatus, Status } from "../core/types";
 import { plainText, shorten } from "../core/text";
+import { parseJsonLine } from "../core/json";
 
 
 export interface LiveChat {
@@ -102,12 +103,9 @@ export function renamedTitle(file: string, size: number, from = 0): string | und
     let name: string | undefined;
     for (const line of text.split("\n")) {
       if (!line.includes('"custom-title"')) continue;
-      try {
-        const o = JSON.parse(line) as { type?: string; customTitle?: string };
-        if (o.type === "custom-title" && typeof o.customTitle === "string" && o.customTitle.trim()) name = o.customTitle.trim();
-      } catch {
-        // A line cut at the start of the tail.
-      }
+      // A line cut at the start of the tail reads as nothing.
+      const o = parseJsonLine<{ type?: string; customTitle?: string }>(line);
+      if (o?.type === "custom-title" && typeof o.customTitle === "string" && o.customTitle.trim()) name = o.customTitle.trim();
     }
     return name;
   } catch {
@@ -172,14 +170,11 @@ function repliedAfter(tool: AgentId, file: string | undefined, at: number): bool
     fs.readSync(fd, buf, 0, buf.length, start);
     for (const line of buf.toString("utf8").split("\n")) {
       if (!line.includes('"assistant"')) continue;
-      try {
-        const o = JSON.parse(line) as { type?: string; isSidechain?: boolean; timestamp?: string; payload?: { type?: string; role?: string } };
-        const reply = tool === "codex" ? o.type === "response_item" && o.payload?.type === "message" && o.payload.role === "assistant" : o.type === "assistant" && !o.isSidechain;
-        // A second's margin: the reply that just ended is written as the Stop runs.
-        if (reply && Date.parse(o.timestamp ?? "") > at + 1000) after = true;
-      } catch {
-        // A line cut at the start of the tail.
-      }
+      const o = parseJsonLine<{ type?: string; isSidechain?: boolean; timestamp?: string; payload?: { type?: string; role?: string } }>(line);
+      if (!o) continue;
+      const reply = tool === "codex" ? o.type === "response_item" && o.payload?.type === "message" && o.payload.role === "assistant" : o.type === "assistant" && !o.isSidechain;
+      // A second's margin: the reply that just ended is written as the Stop runs.
+      if (reply && Date.parse(o.timestamp ?? "") > at + 1000) after = true;
     }
   } catch {
     // Unread: the hook's word stands.

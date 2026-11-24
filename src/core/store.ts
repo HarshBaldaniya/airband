@@ -6,7 +6,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomBytes } from "node:crypto";
 import type { ChatRef, Connection, Delivery, InboxItem, PendingBranch } from "./types";
-import { readJson, airbandFile, safeId, writeFileAtomic } from "./paths";
+import { airbandFile, safeId, writeFileAtomic } from "./paths";
+import { parseJsonLines, readJson } from "./json";
 
 const PENDING_MS = 30 * 60_000;
 
@@ -127,23 +128,11 @@ export function appendInbox(chatId: string, item: InboxItem): void {
   withLock(`inbox-${chatId}`, () => fs.appendFileSync(inboxFile(chatId), `${JSON.stringify(item)}\n`));
 }
 
-function parseLines<T>(text: string): T[] {
-  const out: T[] = [];
-  for (const line of text.split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      out.push(JSON.parse(line) as T);
-    } catch {
-      // A torn line is skipped.
-    }
-  }
-  return out;
-}
 
 export function readInbox(chatId: string): InboxItem[] {
   if (!safeId(chatId)) return [];
   try {
-    return parseLines<InboxItem>(fs.readFileSync(inboxFile(chatId), "utf8"));
+    return parseJsonLines<InboxItem>(fs.readFileSync(inboxFile(chatId), "utf8"));
   } catch {
     return [];
   }
@@ -278,7 +267,7 @@ export function readDeliveries(max = 2000): Delivery[] {
     try {
       const buf = Buffer.alloc(want);
       fs.readSync(fd, buf, 0, want, size - want);
-      const lines = parseLines<Delivery>(buf.toString("utf8"));
+      const lines = parseJsonLines<Delivery>(buf.toString("utf8"));
       return lines.slice(-max);
     } finally {
       fs.closeSync(fd);

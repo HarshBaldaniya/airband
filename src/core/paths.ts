@@ -133,14 +133,6 @@ export function writeFileAtomic(file: string, text: string | Uint8Array): void {
   }
 }
 
-export function readJson<T>(file: string, fallback: T): T {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8")) as T;
-  } catch {
-    return fallback;
-  }
-}
-
 /**
  * Ids from tools are used as file names and typed into a terminal to resume a chat (`claude --resume
  * <id>`): only plain ones are accepted, and never one that starts with "-", which a command would read

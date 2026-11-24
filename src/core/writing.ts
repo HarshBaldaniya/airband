@@ -8,7 +8,8 @@
 // `.airband.json` at the project's root, committed with the code, wins where it says something.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { airbandFile, readJson, writeFileAtomic } from "./paths";
+import { airbandFile, writeFileAtomic } from "./paths";
+import { readJson } from "./json";
 import { readConfig } from "./updates";
 
 export type WritingKind = "docs" | "messages" | "replies";
