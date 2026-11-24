@@ -13,7 +13,7 @@ import { tellText } from "../src/station/manager";
 import { claudeChatLink, editorFolder, folderNames, isVSCode, tabScript, vscodeFolderFor } from "../src/station/open";
 
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
-const ID = "c076f7be-8ca5-47bc-acea-7a0fa53ba111";
+const ID = "5e1f0c2a-7d3b-4c8e-9a41-2b6d8e0f3c17";
 let file = "";
 beforeEach(() => {
   process.env.AIRBAND_HOME = tmp("airband-tell-home-");

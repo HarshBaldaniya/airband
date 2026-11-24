@@ -60,7 +60,11 @@ the tour: each step says what it needs, and **Continue anyway** still works. Fin
 ## Using Roger
 
 - **A chat needs you:** Roger hops and shows the request. Choose **Allow**, **Always** or **Deny**,
-  or pick an answer to the chat's question. The chat carries on.
+  or pick an answer to the chat's question. The chat carries on. When no answer fits, **Write my
+  own** opens the chat to type your own, and **Skip** lets it carry on without one: it says what it
+  assumed.
+- **A chat running agents is one chat.** It shows as working while any of its agents works, its row
+  says how many ("3 agents running"), and Roger says it is done once, when the last one ends.
 - **A chat is done:** he says what it did, and **Review** opens the chat. A turn that hands you the
   next step says "your turn", with what to do.
 - **Open a chat** from his panel (or **Review** on a finished one). It opens where it lives:
@@ -81,7 +85,9 @@ the tour: each step says what it needs, and **Continue anyway** still works. Fin
   CLI) or before it stops (Codex). The Message button shows only on working chats.
 - **Ask him:** "what's happening?", "what did I do today?", "open the billing chat", "tell the API
   chat that the route changed". If he isn't sure which chat you mean, he asks.
-- **Move him** by dragging; he settles against the nearest edge. The **–** button tucks him away.
+- **Move him** anywhere, on any screen, by dragging. Near an edge he glides onto it, into a corner
+  onto both. Dropped on the other half of the screen, his cards then open towards the middle. The
+  **–** button tucks him away.
   Only Roger and his panel take clicks: the rest of his corner lets them through.
 - **Show or hide him** anywhere with <kbd>⌥</kbd><kbd>⌘</kbd><kbd>R</kbd> on a Mac, or
   <kbd>Alt</kbd><kbd>Ctrl</kbd><kbd>R</kbd> on Windows.

@@ -63,7 +63,8 @@ npx airband
 
 It finds Claude Code, Codex and Gemini CLI, sets each one up, and adds the `airband` command. Every
 settings file it touches is backed up first. Then restart your agent chats. In Codex, type `/hooks`
-once and trust Airband's hook: Codex runs a new hook only after you approve it.
+once and trust Airband's hooks: Codex runs a new hook only after you approve it, and `airband doctor`
+tells you when it skips one.
 
 | Package manager | Set up, nothing installed first | Install the command |
 |---|---|---|
@@ -113,7 +114,7 @@ points to. It shows only when it is a real saving.
 | **Map** | Your project's code as a map, built on your computer. Agents query it instead of searching files. TypeScript, JavaScript, Python, Go, Rust, Java, C#, Ruby and PHP. |
 | **Agent tools and skills** | Three MCP tools (under 400 tokens of definitions) and 15 skills agents use by themselves: review a PR, plan tests, debug, hand off, write a standup and more. |
 | **Writing rules** | Short house rules when an agent writes a doc or a message, and a check of what it wrote. |
-| **Roger** | The desktop companion: requests and finished chats in a corner of your screen and on your iPhone. |
+| **Roger** | The desktop companion: requests, questions and finished chats in a corner of your screen and on your iPhone. A chat running many agents is one chat, working until its last agent ends. |
 | **VS Code boards** | The Tower (every chat as a card), Fuel (plan limits and tokens), the Map and Commands. |
 
 ## Documentation

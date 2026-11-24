@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+A big release: a full security review, the code laid out for people who want to read it or help,
+and Roger reworked around chats that run many agents.
+
+**When you update:**
+- Things you set to **Always allow** ask once more. A rule now covers the exact same request, not
+  every use of a tool.
+- **Link your iPhone again** in Roger's settings: linking now uses a new, safer handshake.
+- In Codex, type `/hooks` and trust Airband's hooks if Codex asks. `airband doctor` tells you when
+  Codex skips them.
+
+**Security:**
+- The desktop app installs an engine only when its signature checks out, against Airband's own
+  signature on the GitHub release as well as npm's fingerprint.
+- Only Airband's own pages can reach the Station: other pages, other host names and plain forms
+  are refused. The hook checks that it talks to the real Station before it hands over a request.
+- Approvals say when a command was cut short, and only whole one-line requests can be answered
+  from an alert.
+- Linking an iPhone locks the shared secret to that iPhone's own key, so someone who saw the code
+  can't read your alerts. The relay limits how many links one address may open.
+- Text from other chats and project notes reaches an agent fenced as information, never as
+  instructions. Restoring a backup never brings back links, and takes only Airband's own files.
+
+**For contributors:** the engine, the desktop app and every screen are split into small modules by
+job, with one shared place for logos, times and colours. See CONTRIBUTING.md for the layout.
+
+**Removed:** runs and automations, the Wi-Fi phone link and the chat model controls. All three were
+switched off. The Station listens on this computer only.
+
 - **The doctor tells when an agent skips Airband's hook.** Codex runs a hook only after you
   review and trust it in Codex, and asks again when the hook changes. Until then it skips it
   without a word: its chats shared nothing and showed no status. The hook now notes each run, and

@@ -27,8 +27,9 @@ It looks a minute after it starts, then every six hours. To update now, run this
 <summary><strong>A connected chat doesn't receive updates</strong></summary>
 
 Updates arrive with the chat's **next** message, not instantly (unless `airband.autoDeliver` is on).
-Check that auto-sharing is on with `airband doctor`. In Codex, type `/hooks` once and trust Airband's
-hook.
+Check that auto-sharing is on with `airband doctor`. In Codex, type `/hooks` and trust Airband's
+hooks: Codex runs a hook only after you trust it, asks again whenever it changes, and until then
+skips it without a word. `airband doctor` says when Codex chats ran without it.
 </details>
 
 <details>

@@ -26,8 +26,9 @@ npx airband
   Done. Restart open agent chats to pick it up.
 ```
 
-Every settings file it touches is backed up first. In Codex, type `/hooks` once and trust Airband's
-hook. Needs Node.js 20 or newer, on macOS, Windows or Linux.
+Every settings file it touches is backed up first. In Codex, type `/hooks` and trust Airband's
+hooks: Codex skips a hook until you do, and `airband doctor` tells you if it does. Needs Node.js 20
+or newer, on macOS, Windows or Linux.
 
 ## What it does
 
@@ -36,6 +37,8 @@ hook. Needs Node.js 20 or newer, on macOS, Windows or Linux.
 - **Agents get a map of your code.** Finding something costs a few hundred tokens instead of a
   search through files. Three tools, under 400 tokens of definitions.
 - **15 skills agents use by themselves,** from reviewing a pull request to writing a standup.
+- **Roger, the desktop companion,** shows what each chat is doing, and asks you its permissions and
+  questions. A chat running many agents is one chat, working until its last agent ends.
 
 ## Commands
 
