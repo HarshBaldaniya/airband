@@ -158,7 +158,7 @@ export async function main(argv: string[]): Promise<number> {
     case "restore": {
       if (!rest) return usage("restore <folder>");
       const r = restore(path.resolve(rest));
-      out(r.from.length ? `Restored ${r.restored} files from ${r.from.join(", ")}` : `No Airband backup in ${rest}`);
+      out(r.from.length ? `Restored ${r.restored} files from ${r.from.join(", ")}${r.refused ? `. Left out ${r.refused} that didn't look like Airband's own` : ""}. Links between chats are never restored.` : `No Airband backup in ${rest}`);
       return 0;
     }
     case "mcp":

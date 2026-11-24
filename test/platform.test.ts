@@ -36,12 +36,37 @@ test("backup copies only what changed and never deletes; restore merges and neve
   // A new computer: empty home, restored from the folder.
   process.env.AIRBAND_HOME = tmp("airband-plat-new-");
   const r = restore(folder);
-  assert.equal(r.restored, 2);
+  assert.equal(r.restored, 1, "the session log; links are never restored from a folder others may share");
+  assert.ok(!fs.existsSync(path.join(process.env.AIRBAND_HOME, "connections.json")));
   assert.equal(fs.readFileSync(path.join(process.env.AIRBAND_HOME, "flightlogs", "a.jsonl"), "utf8"), '{"n":1}\n{"n":2}\n');
   // Grown here since: a restore never cuts it back.
   fs.appendFileSync(path.join(process.env.AIRBAND_HOME, "flightlogs", "a.jsonl"), '{"n":3}\n');
   assert.equal(restore(folder).restored, 0);
   assert.match(fs.readFileSync(path.join(process.env.AIRBAND_HOME, "flightlogs", "a.jsonl"), "utf8"), /"n":3/);
+});
+
+test("restore takes in only files shaped like Airband's own, never links, and nothing outside its folders", () => {
+  const folder = tmp("airband-backup-");
+  const from = path.join(folder, "airband-backup", "other-mac");
+  const put = (rel: string, text: string) => {
+    fs.mkdirSync(path.dirname(path.join(from, rel)), { recursive: true });
+    fs.writeFileSync(path.join(from, rel), text);
+  };
+  put("flightlogs/good.json", JSON.stringify({ id: "good", updatedAt: 1, tool: "claude" }));
+  put("flightlogs/good.jsonl", '{"ask":"a"}\n{"ask":"b"}\n');
+  put("flightlogs/other.json", JSON.stringify({ id: "someone-else", updatedAt: 1 }));
+  put("flightlogs/bad.jsonl", '{"ask":"a"}\nnot json\n');
+  put("flightlogs/deep/x.json", JSON.stringify({ id: "x", updatedAt: 1 }));
+  put("library/mine.md", "# Mine\n");
+  put("library/run.sh", "rm -rf ~");
+  put("connections.json", JSON.stringify([{ id: "x", tools: ["Claude"] }]));
+  const home = process.env.AIRBAND_HOME!;
+  const r = restore(folder);
+  assert.deepEqual([r.restored, r.refused], [3, 4]);
+  assert.ok(fs.existsSync(path.join(home, "flightlogs", "good.json")));
+  assert.ok(fs.existsSync(path.join(home, "flightlogs", "good.jsonl")));
+  assert.ok(fs.existsSync(path.join(home, "library", "mine.md")));
+  for (const gone of ["flightlogs/other.json", "flightlogs/bad.jsonl", "flightlogs/deep", "library/run.sh", "connections.json"]) assert.ok(!fs.existsSync(path.join(home, gone)), gone);
 });
 
 test("Windows line endings: code, Library commands and line numbers read the same as Unix ones", async () => {

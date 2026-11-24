@@ -56,21 +56,52 @@ export function backUp(folder: string): { copied: number; files: number; to: str
 }
 
 /**
+ * What a restore brings back. Not connections.json: which chats are linked decides what they hear
+ * from each other, and a backup folder can be shared (a synced drive, a team folder), so links are
+ * never taken from it. Each file must also look like what Airband itself writes there.
+ */
+const RESTORED: Record<string, (rel: string, text: string) => boolean> = {
+  flightlogs: (rel, text) => {
+    const m = /^([A-Za-z0-9_-]{1,128})\.(json|jsonl)$/.exec(rel);
+    if (!m) return false;
+    if (m[2] === "jsonl") return jsonLinesOfObjects(text);
+    const head = parseObject(text);
+    return !!head && head.id === m[1] && typeof head.updatedAt === "number";
+  },
+  library: (rel) => /\.md$/i.test(rel) && rel.split(path.sep).length <= 2,
+  "deliveries.jsonl": (_rel, text) => jsonLinesOfObjects(text),
+};
+/** The largest file a restore copies in. */
+const RESTORE_FILE_MAX = 64 * 1024 * 1024;
+
+function parseObject(text: string): Record<string, unknown> | undefined {
+  try {
+    const v = JSON.parse(text) as unknown;
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const jsonLinesOfObjects = (text: string) => text.split("\n").every((l) => !l.trim() || !!parseObject(l));
+
+/**
  * Brings back what this computer is missing from every computer's backup in the folder: a file that
  * isn't here, or is shorter here (session logs only ever grow), is copied in. Nothing is overwritten
- * with something older or shorter.
+ * with something older or shorter, and a file that doesn't look like Airband's own is left out.
  */
-export function restore(folder: string): { restored: number; from: string[] } {
+export function restore(folder: string): { restored: number; refused: number; from: string[] } {
   const root = path.join(folder, "airband-backup");
   let machines: string[] = [];
   try {
     machines = fs.readdirSync(root).filter((m) => fs.lstatSync(path.join(root, m)).isDirectory());
   } catch {
-    return { restored: 0, from: [] };
+    return { restored: 0, refused: 0, from: [] };
   }
   let restored = 0;
+  let refused = 0;
   for (const m of machines) {
-    for (const item of ITEMS) {
+    for (const [item, fits] of Object.entries(RESTORED)) {
       walk(path.join(root, m, item), (rel, full, st) => {
         const dest = path.join(airbandHome(), item, rel);
         try {
@@ -79,11 +110,13 @@ export function restore(folder: string): { restored: number; from: string[] } {
         } catch {
           // Missing here: restore it.
         }
+        const text = st.size <= RESTORE_FILE_MAX ? fs.readFileSync(full, "utf8") : undefined;
+        if (text === undefined || !fits(rel, text)) return void refused++;
         fs.mkdirSync(path.dirname(dest), { recursive: true });
-        fs.copyFileSync(full, dest);
+        fs.writeFileSync(dest, text);
         restored++;
       });
     }
   }
-  return { restored, from: machines };
+  return { restored, refused, from: machines };
 }

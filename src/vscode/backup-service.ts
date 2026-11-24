@@ -48,7 +48,7 @@ export class BackupService implements vscode.Disposable {
     const folder = this.folder || (await this.pickFolder("Restore Airband's session logs from"));
     if (!folder) return;
     const r = restore(folder);
-    void vscode.window.showInformationMessage(r.from.length ? `Restored ${r.restored} files from ${r.from.join(", ")}. Nothing here was replaced.` : `No Airband backup in ${folder}.`);
+    void vscode.window.showInformationMessage(r.from.length ? `Restored ${r.restored} files from ${r.from.join(", ")}. Nothing here was replaced${r.refused ? `, and ${r.refused} files that didn't look like Airband's own were left out` : ""}.` : `No Airband backup in ${folder}.`);
   }
 
   dispose(): void {
