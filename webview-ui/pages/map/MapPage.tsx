@@ -1,17 +1,19 @@
-// The Code page: one project as a board to explore. Each part is a small galaxy of its files; parts of
+// The Map: one project as a board to explore. Each part is a small galaxy of its files; parts of
 // a folder sit together in a soft cloud. Drag a part to move it (it stays put), drag the board to pan,
 // scroll or pinch to zoom. Hover or click a part or a file to see what it uses (blue) and what uses it
 // (orange). Built by a parser on this computer, no AI.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronsUpDown, FolderGit2, FolderPlus, LayoutGrid, Maximize2, Minus, Plus, Search, X } from "lucide-react";
+import { LayoutGrid, Maximize2, Minus, Plus, Search, X } from "lucide-react";
 import type { CodeHitView, CodeMapView } from "../../../src/core/protocol";
 import { useViewState } from "../../app/ViewStateContext";
 import { LAYER, useKeys } from "../../lib/useKeys";
 import { onMessage, remember, remembered, send } from "../../lib/vscode";
 import { typing } from "../../lib/keys";
-import { useDismiss } from "../../lib/useDismiss";
 import { I } from "../../components/Icons";
-import { buildModel, dotX, dotY, draw, fitCam, hitTest, litFor, sameTarget, type Cam, type Model, type Target, type Theme } from "./codeboard";
+import { buildModel, dotX, dotY, fitCam, hitTest, litFor, sameTarget, type Cam, type Model, type Target, type Theme } from "./model";
+import { ProjectPicker } from "./ProjectPicker";
+import { draw } from "./render";
+import { clampZoom, stepFlight, useCamera, type CameraState } from "./useCamera";
 
 
 const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -29,7 +31,6 @@ function marked(name: string, q: string) {
     </>
   );
 }
-const home = (p: string) => p.replace(/^\/(Users|home)\/[^/]+/, "~").replace(/^[A-Za-z]:\\Users\\[^\\]+/, "~");
 
 function readTheme(el: Element): Theme {
   const cs = getComputedStyle(el);
@@ -38,16 +39,12 @@ function readTheme(el: Element): Theme {
 }
 
 /** Everything the canvas needs between frames, kept out of React so moving the pointer doesn't re-render. */
-interface Live {
+interface Live extends CameraState {
   model?: Model;
-  cam: Cam;
-  w: number;
-  h: number;
   hover?: Target;
   selected?: Target;
   fade: number;
   pulse?: { i: number; t: number };
-  tween?: { from: Cam; to: Cam; t0: number };
   theme?: Theme;
   raf: number;
   fitted?: string;
@@ -127,14 +124,7 @@ export function MapPage() {
       live.fade = reduced() ? want : want > live.fade ? Math.min(1, live.fade + 0.14) : Math.max(0, live.fade - 0.14);
       busy = true;
     }
-    if (live.tween) {
-      const p = Math.min(1, (now - live.tween.t0) / 420);
-      const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-      const { from, to } = live.tween;
-      live.cam = { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, k: from.k * Math.pow(to.k / from.k, e) };
-      if (p >= 1) live.tween = undefined;
-      busy = true;
-    }
+    if (stepFlight(live, now)) busy = true;
     if (live.pulse && now - live.pulse.t < 3000 && !reduced()) busy = true;
     // Light flows along the wires of whatever is in focus.
     if ((live.hover || live.selected) && !reduced()) busy = true;
@@ -145,16 +135,11 @@ export function MapPage() {
   const redraw = () => {
     if (!live.raf) live.raf = requestAnimationFrame(frame);
   };
-  const flyTo = (to: Cam) => {
-    if (reduced()) live.cam = to;
-    else live.tween = { from: { ...live.cam }, to, t0: performance.now() };
-    redraw();
-  };
+  const { flyTo, zoomBy, toWorld } = useCamera(canvasRef, live, redraw, !!model);
   // Over a wide board the project and search float on top: leave them room.
   const topRoom = () => (live.w > 640 ? 64 : 0);
   const fitNow = () => live.model && fitCam(live.model, live.w, live.h, topRoom());
   const fit = () => live.model && flyTo(fitNow()!);
-  const zoomBy = (f: number) => flyTo({ ...live.cam, k: Math.min(6, Math.max(0.08, live.cam.k * f)) });
 
   useEffect(() => {
     live.model = model;
@@ -230,10 +215,6 @@ export function MapPage() {
   // ---- pointer: hover, click, drag a part, pan, pinch, wheel
   const ptrs = useRef(new Map<number, { x: number; y: number }>()).current;
   const gesture = useRef<{ mode: "pan" | "part" | "pinch"; x: number; y: number; moved: boolean; target?: Target; offX: number; offY: number; cam: Cam; d0?: number; id?: string } | undefined>(undefined);
-  const toWorld = (cx: number, cy: number) => {
-    const r = canvasRef.current!.getBoundingClientRect();
-    return { x: live.cam.x + (cx - r.left - live.w / 2) / live.cam.k, y: live.cam.y + (cy - r.top - live.h / 2) / live.cam.k };
-  };
   const setHoverTarget = (t: Target | undefined) => {
     if (sameTarget(t, live.hover) || (!t && !live.hover)) return;
     live.hover = t;
@@ -295,13 +276,14 @@ export function MapPage() {
       e.currentTarget.style.cursor = "grabbing";
     } else if (g.mode === "pinch" && ptrs.size === 2 && g.d0) {
       const [a, b] = [...ptrs.values()];
-      const k = Math.min(6, Math.max(0.08, g.cam.k * (Math.hypot(a.x - b.x, a.y - b.y) / g.d0)));
+      const k = clampZoom(g.cam.k * (Math.hypot(a.x - b.x, a.y - b.y) / g.d0));
       const r = canvasRef.current!.getBoundingClientRect();
+      // The world point under where the pinch began stays under the fingers' middle.
       const wx = g.cam.x + (g.x - r.left - live.w / 2) / g.cam.k;
       const wy = g.cam.y + (g.y - r.top - live.h / 2) / g.cam.k;
-      const mx = (a.x + b.x) / 2;
-      const my = (a.y + b.y) / 2;
-      live.cam = { k, x: wx - (mx - r.left - live.w / 2) / k, y: wy - (my - r.top - live.h / 2) / k };
+      const mx = (a.x + b.x) / 2 - r.left - live.w / 2;
+      const my = (a.y + b.y) / 2 - r.top - live.h / 2;
+      live.cam = { k, x: wx - mx / k, y: wy - my / k };
     }
     redraw();
   };
@@ -319,7 +301,7 @@ export function MapPage() {
     if (!g.moved) {
       // A click picks what is under it, again to let go; on the board it clears.
       setSelected(g.target && !sameTarget(g.target, live.selected) ? g.target : undefined);
-        return;
+      return;
     }
     if (g.mode === "part" && g.id) {
       // Where you put a part is where it stays, on this computer, for this project.
@@ -339,25 +321,6 @@ export function MapPage() {
     else if (t?.kind === "part") flyToPart(t.id);
     else zoomBy(1.6);
   };
-  useEffect(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      live.tween = undefined;
-      const r = c.getBoundingClientRect();
-      const px = e.clientX - r.left - live.w / 2;
-      const py = e.clientY - r.top - live.h / 2;
-      // A trackpad pinch arrives as a wheel with ctrl held, in small steps.
-      const k = Math.min(6, Math.max(0.08, live.cam.k * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018))));
-      const wx = live.cam.x + px / live.cam.k;
-      const wy = live.cam.y + py / live.cam.k;
-      live.cam = { k, x: wx - px / k, y: wy - py / k };
-      redraw();
-    };
-    c.addEventListener("wheel", onWheel, { passive: false });
-    return () => c.removeEventListener("wheel", onWheel);
-  }, [!!model]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flyToPart = (id: string) => {
     const s = live.model?.byId.get(id);
@@ -475,7 +438,7 @@ export function MapPage() {
       </div>
 
       <div className="cbboard" ref={boardRef}>
-        <canvas ref={canvasRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={() => !gesture.current && setHoverTarget(undefined)} onDoubleClick={onDouble} role="img" aria-label={model ? `Map of ${project}: ${model.systems.length} parts, ${model.dots.length} files. Use Find to reach a file.` : "Map"} />
+        <canvas ref={canvasRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={() => !gesture.current && setHoverTarget(undefined)} onDoubleClick={onDouble} role="img" aria-label={model ? `Map of ${project}: ${model.parts.length} parts, ${model.dots.length} files. Use Find to reach a file.` : "Map"} />
         {!model && <div className="cbempty muted">{data && !data.building && !data.modules.length ? "No code found in this folder." : data?.building ? "Reading this project for the first time. After this it keeps itself up to date." : "Reading this project…"}</div>}
         <div ref={cardRef} className={`cbcard${hoverInfo ? " on" : ""}`} aria-hidden="true">
           {hoverInfo && (
@@ -529,59 +492,6 @@ export function MapPage() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-/** The project: its name; with more than one, a short list to switch. */
-function ProjectPicker({ data, name, pick }: { data: CodeMapView; name: string; pick: (root: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useDismiss(open, ref, () => setOpen(false));
-  // This window's projects first, then the others, with a line between; then any other folder.
-  const here = data.projects.filter((p) => p.here);
-  const others = data.projects.filter((p) => !p.here);
-  const row = (p: CodeMapView["projects"][number]) => (
-    <button
-      key={p.root}
-      className={`projrow${p.root === data.root ? " on" : ""}`}
-      role="option"
-      aria-selected={p.root === data.root}
-      data-tip={home(p.root)}
-      onClick={() => {
-        setOpen(false);
-        if (p.root !== data.root) pick(p.root);
-      }}
-    >
-      <span className="ellipsis">{p.name}</span>
-      {p.root === data.root && <Check {...I} size={14} />}
-    </button>
-  );
-  return (
-    <div className="projpick" ref={ref}>
-      <button className="projbtn" onClick={() => setOpen(!open)} aria-haspopup="listbox" aria-expanded={open} aria-label={`Project: ${name}`} data-tip={home(data.root)}>
-        <FolderGit2 {...I} size={15} className="projicon" />
-        <span className="projname ellipsis">{name}</span>
-        <ChevronsUpDown {...I} size={14} className="projchev" />
-      </button>
-      {open && (
-        <div className="projmenu" role="listbox" aria-label="Projects">
-          {here.map(row)}
-          {here.length > 0 && others.length > 0 && <div className="menusep" />}
-          {others.map(row)}
-          <div className="menusep" />
-          <button
-            className="projrow projadd"
-            onClick={() => {
-              setOpen(false);
-              send({ type: "codeMapFolder" });
-            }}
-          >
-            <span>Map another folder…</span>
-            <FolderPlus {...I} size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
