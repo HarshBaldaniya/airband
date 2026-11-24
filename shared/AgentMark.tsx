@@ -1,6 +1,6 @@
 // Each agent's own logo, for every screen: the extension's pages, Roger, the phone app and the setup
-// tour. LobeHub's icon set (MIT); the marks belong to their owners. The SVGs are bundled files from
-// the icon set, never anything a chat sent.
+// tour. They come from LobeHub's icon set (MIT), and the marks belong to their owners. The SVGs are
+// bundled files from the icon set, never anything a chat sent.
 import type { CSSProperties } from "react";
 import claude from "@lobehub/icons-static-svg/icons/claude-color.svg";
 import claudeCode from "@lobehub/icons-static-svg/icons/claudecode-color.svg";
@@ -15,7 +15,7 @@ const LOGO: Record<"chat" | "product", Record<AgentId, string>> = {
   product: { claude: claudeCode, codex, gemini },
 };
 
-/** The agent an id ("claude") or a label ("Claude") names; nothing for anything else. */
+/** The agent an id ("claude") or a label ("Claude") names, or nothing for anything else. */
 const idOf = (agent: string): AgentId | undefined => (isAgentId(agent) ? agent : AGENT_IDS.find((id) => AGENTS[id].tool === agent));
 
 export function AgentMark({ agent, mark = "chat", className, style, label }: { agent: string; mark?: "chat" | "product"; className?: string; style?: CSSProperties; label?: string }) {
