@@ -31,8 +31,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import type { BoardTab, ConnectionView, ViewState } from "../src/core/protocol";
-import { Orbit, PenLine, SquareSlash, Workflow } from "lucide-react";
-import { RUNS_OFFERED } from "../src/core/features";
+import { Orbit, PenLine, SquareSlash } from "lucide-react";
 import { PAGE_KEYS } from "./pagekeys";
 import type { BoardArrange, BoardPosition, ChatSession } from "../src/core/types";
 import { DRAG_TYPE, agoText, charsToTokens, contextPct, folderName, modelName, remember, remembered, send, tokens, whereItOpens } from "./api";
@@ -85,7 +84,6 @@ import { CompactButton, ModelPicker } from "./ChatControls";
 import { UsageView } from "./Usage";
 import { CodePage } from "./CodePage";
 import { LibraryPage } from "./LibraryPage";
-import { RunsPage } from "./RunsPage";
 import { WritingPage } from "./WritingPage";
 import { KeySheet, useDismiss } from "./Keys";
 
@@ -166,12 +164,11 @@ export function Board(props: { state: ViewState; setModal: (m: Modal) => void; t
       if (k === "m") props.setTab("code");
       if (k === "c") props.setTab("library");
       if (k === "e") props.setTab("writing");
-      if (k === "w" && RUNS_OFFERED) props.setTab("runs");
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [props, keysOpen]);
-  const tab = props.tab === "runs" && !RUNS_OFFERED ? "board" : props.tab;
+  const tab = props.tab;
   return (
     <div className="boardpage">
       <div className="boardtop">
@@ -191,11 +188,6 @@ export function Board(props: { state: ViewState; setModal: (m: Modal) => void; t
           <button role="tab" aria-selected={tab === "writing"} className={tab === "writing" ? "on" : ""} onClick={() => props.setTab("writing")} data-tip="Writing rules for your agents (E)">
             <PenLine {...I} /> <span className="tablabel">Writing</span>
           </button>
-          {RUNS_OFFERED && (
-            <button role="tab" aria-selected={tab === "runs"} className={tab === "runs" ? "on" : ""} onClick={() => props.setTab("runs")} data-tip="Runs and automations (W)">
-              <Workflow {...I} /> <span className="tablabel">Runs</span>
-            </button>
-          )}
         </div>
         <span className="grow" />
         <button className={`keysbtn${keysOpen ? " on" : ""}`} onClick={() => setKeysOpen((v) => !v)} data-tip="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-expanded={keysOpen}>
@@ -216,8 +208,6 @@ export function Board(props: { state: ViewState; setModal: (m: Modal) => void; t
         <LibraryPage />
       ) : tab === "writing" ? (
         <WritingPage />
-      ) : tab === "runs" ? (
-        <RunsPage />
       ) : (
         <ReactFlowProvider>
           <Canvas state={props.state} setModal={props.setModal} />

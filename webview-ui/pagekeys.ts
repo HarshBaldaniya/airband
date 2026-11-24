@@ -61,5 +61,4 @@ export const PAGE_KEYS: Record<BoardTab, KeySection[]> = {
   code: [{ title: "Map", keys: MAP }, EVERYWHERE],
   library: [{ title: "Commands", keys: COMMANDS }, EVERYWHERE],
   writing: [EVERYWHERE],
-  runs: [EVERYWHERE],
 };

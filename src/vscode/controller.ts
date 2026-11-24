@@ -17,7 +17,6 @@ import type { BoardTab, ConnectionView, FromWebview, ModelOption, ToWebview, Too
 import { CodeMap } from "../codemap/index";
 import { codeHits, codeMapView, codeModuleView, knownProjects, libraryView } from "./pages";
 import { projectFile } from "../core/writing";
-import type { RunsService } from "./runs-service";
 import { claudePluginInstalled, installFiles } from "../core/setup";
 import { installSkills, removeSkills, skillsState } from "../core/skills";
 import { allCommands, STARTER_DESCRIPTION, userLibraryDir } from "../library/index";
@@ -775,35 +774,6 @@ export class Controller implements vscode.Disposable {
         case "writingAiCredit":
           setClaudeAiCredit(m.show);
           return this.post({ type: "writing", data: this.writingView() }, from);
-        case "runs":
-          if (this.runsService) this.post({ type: "runs", data: this.runsService.view() }, from);
-          return;
-        case "runStart":
-          try {
-            await this.runsService?.start(m.task, m.agents, { ...(m.tokens ? { tokens: m.tokens } : {}), ...(m.minutes ? { minutes: m.minutes } : {}) }, m.leases);
-          } catch (err) {
-            void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
-          }
-          return;
-        case "run": {
-          const svc = this.runsService;
-          if (!svc) return;
-          const run = (await import("../core/runs")).readRun(m.id);
-          if (m.action === "stop") return void svc.stop(m.id);
-          if (m.action === "apply") return void svc.apply(m.id);
-          if (m.action === "discard") return void svc.discard(m.id);
-          if (m.action === "log") return svc.openLog(m.id);
-          if (m.action === "open" && run) return svc.openCopy(run.worktree);
-          return;
-        }
-        case "stopAll":
-          return void this.runsService?.stopAll();
-        case "automation":
-          return this.runsService?.update(m.id, m.action === "remove" ? "remove" : { enabled: m.action === "on" });
-        case "automationAdd":
-          return this.runsService?.addTemplate(m.index);
-        case "automationsPaused":
-          return this.runsService?.setPaused(m.paused);
         case "models":
           return this.sendModels(m.tool, from);
         case "fullscreen":
@@ -1521,13 +1491,6 @@ export class Controller implements vscode.Disposable {
   // ---- the Code and Library pages ----
 
   private codeMaps?: { mapFor(root: string): CodeMap | undefined };
-  private runsService?: RunsService;
-
-  /** Runs and automations, shared with the extension; their changes reach every open page. */
-  useRuns(service: RunsService): void {
-    this.runsService = service;
-    this.disposables.push(service.onChange(() => this.post({ type: "runs", data: service.view() })));
-  }
   private ownMap?: CodeMap;
 
   /** The code map service from the extension, shared so the folder is mapped once. */

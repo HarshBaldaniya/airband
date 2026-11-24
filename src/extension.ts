@@ -2,8 +2,6 @@ import * as vscode from "vscode";
 import { Controller } from "./vscode/controller";
 import { CodeMapService } from "./vscode/codemap-service";
 import { BackupService } from "./vscode/backup-service";
-import { RunsService } from "./vscode/runs-service";
-import { RUNS_OFFERED } from "./core/features";
 
 export function activate(ctx: vscode.ExtensionContext): void {
   const controller = new Controller(ctx);
@@ -11,16 +9,6 @@ export function activate(ctx: vscode.ExtensionContext): void {
   const codeMap = new CodeMapService();
   ctx.subscriptions.push(codeMap);
   controller.useCodeMaps(codeMap);
-  // Runs are not offered yet: nothing of them starts, watches or shows.
-  const runs = RUNS_OFFERED ? new RunsService(() => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath) : undefined;
-  if (runs) {
-    ctx.subscriptions.push(runs);
-    controller.useRuns(runs);
-    ctx.subscriptions.push(
-      vscode.commands.registerCommand("airband.openRuns", () => controller.openBoard("runs")),
-      vscode.commands.registerCommand("airband.stopAll", () => runs.stopAll()),
-    );
-  }
   const backup = new BackupService();
   ctx.subscriptions.push(backup);
   const offer = setTimeout(() => void controller.offerSetupOnce().catch(() => undefined), 3000);

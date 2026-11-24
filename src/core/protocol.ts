@@ -113,14 +113,6 @@ export interface LibraryView {
   folder: string;
 }
 
-export interface RunsView {
-  runs: import("./runs").Run[];
-  automations: import("./automations").Automation[];
-  paused: boolean;
-  templates: { index: number; name: string; kind: string; agent: string }[];
-  audit: { at: number; automation: string; event: string; decision: "started" | "skipped"; why?: string; run?: string }[];
-}
-
 /** The Writing page: the rules agents get, and any project file that overrides them. */
 export interface WritingView {
   settings: { docs: boolean; messages: boolean; replies: boolean; beforeSend: boolean };
@@ -157,11 +149,10 @@ export type ToWebview =
   | { type: "codeModule"; data: CodeModuleView }
   | { type: "library"; data: LibraryView }
   | { type: "librarySuggest"; q: string; names: string[] }
-  | { type: "runs"; data: RunsView }
   | { type: "writing"; data: WritingView }
   | { type: "models"; tool: Tool; models: ModelOption[]; error?: string };
 
-export type BoardTab = "board" | "usage" | "code" | "library" | "writing" | "runs";
+export type BoardTab = "board" | "usage" | "code" | "library" | "writing";
 
 /** A model a tool offers, as the tool itself describes it. */
 export interface ModelOption {
@@ -195,16 +186,9 @@ export type FromWebview =
   /** Pick any folder on this computer and map it */
   | { type: "codeMapFolder" }
   | { type: "setUpToolkit" }
-  | { type: "runs" }
   | { type: "writing" }
   | { type: "writingSet"; key: "docs" | "messages" | "replies" | "beforeSend"; on: boolean }
   | { type: "writingAiCredit"; show: boolean }
-  | { type: "runStart"; task: string; agents: ("claude" | "codex" | "gemini")[]; tokens?: number; minutes?: number; leases: string[] }
-  | { type: "run"; id: string; action: "stop" | "apply" | "discard" | "log" | "open" }
-  | { type: "stopAll" }
-  | { type: "automation"; id: string; action: "on" | "off" | "remove" }
-  | { type: "automationAdd"; index: number }
-  | { type: "automationsPaused"; paused: boolean }
   | { type: "setup" }
   | { type: "connect"; from: string; to: string; both?: boolean }
   | { type: "connectMany"; pairs: [string, string][]; handles?: Record<string, { s: string; t: string }> }
