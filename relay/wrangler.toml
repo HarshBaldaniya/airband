@@ -14,10 +14,19 @@ not_found_handling = "single-page-application"
 name = "ROOMS"
 class_name = "Room"
 
+# The door for new rooms: one per address on the internet, so nobody can fill the plan with rooms.
+[[durable_objects.bindings]]
+name = "GATES"
+class_name = "Gate"
+
 # SQLite-backed Durable Objects are the kind the free plan offers.
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Gate"]
 
 [observability]
 enabled = false

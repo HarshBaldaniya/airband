@@ -3,12 +3,16 @@
 // Each pair has a room (a Durable Object). Idle connections sleep (hibernation), so a quiet room
 // costs nothing.
 import { DurableObject } from "cloudflare:workers";
-import { LIMITS, RoomLogic, type Role, type RoomSocket } from "./room";
+import { GATE_LIMITS, GateLogic, gateName } from "./gate";
+import { LIMITS, RoomLogic, type Role, type RoomGate, type RoomSocket } from "./room";
 
 interface Env {
   ROOMS: DurableObjectNamespace<Room>;
+  GATES: DurableObjectNamespace<Gate>;
   ASSETS: Fetcher;
 }
+
+const GATE_ROUTE = /^\/(open|closed)$/;
 
 const ROUTE = /^\/r\/([A-Za-z0-9_-]{22})\/(ws|send|forget|check)$/;
 
@@ -57,7 +61,18 @@ export class Room extends DurableObject<Env> {
     return new RoomLogic(
       { get: (k) => storage.get<string>(k), put: (k, v) => storage.put(k, v), deleteAll: () => storage.deleteAll() },
       () => this.sockets(except),
+      Date.now,
+      this.gate(),
     );
+  }
+
+  /** The door for new rooms, one per address (gate.ts). */
+  private gate(): RoomGate {
+    const ask = async (what: "open" | "closed", by: string) => (await this.env.GATES.get(this.env.GATES.idFromName(by)).fetch(`https://gate/${what}`, { method: "POST" })).status;
+    return {
+      open: async (by) => (await ask("open", by)) === 200,
+      closed: async (by) => void (await ask("closed", by)),
+    };
   }
 
   async fetch(req: Request): Promise<Response> {
@@ -66,7 +81,9 @@ export class Room extends DurableObject<Env> {
     if (what === "ws") {
       if (req.headers.get("upgrade") !== "websocket") return new Response("A WebSocket only.", { status: 426 });
       const role: Role = url.searchParams.get("role") === "mac" ? "mac" : "phone";
-      const verdict = await this.logic().admit(role, url.searchParams.get("token"));
+      const by = await gateName(req.headers.get("cf-connecting-ip") ?? "unknown");
+      const verdict = await this.logic().admit(role, url.searchParams.get("token"), by);
+      if (verdict === "busy") return new Response("Too many new rooms from this address. Try again in an hour.", { status: 429 });
       if (verdict !== "ok") return new Response(verdict === "full" ? "Too many phones." : "Not this room.", { status: verdict === "full" ? 429 : 403 });
       const [client, server] = Object.values(new WebSocketPair());
       this.ctx.acceptWebSocket(server);
@@ -99,7 +116,24 @@ export class Room extends DurableObject<Env> {
   }
 
   async alarm(): Promise<void> {
-    if (await this.logic().stale()) await this.ctx.storage.deleteAll();
+    if (await this.logic().stale()) await this.logic().remove();
     else await this.ctx.storage.setAlarm(Date.now() + LIMITS.idleMs);
+  }
+}
+
+/** One address's count of new rooms (gate.ts). Only rooms call it. */
+export class Gate extends DurableObject<Env> {
+  async fetch(req: Request): Promise<Response> {
+    const what = GATE_ROUTE.exec(new URL(req.url).pathname)?.[1];
+    const storage = this.ctx.storage;
+    const logic = new GateLogic({ get: (k) => storage.get<string>(k), put: (k, v) => storage.put(k, v) });
+    await storage.setAlarm(Date.now() + GATE_LIMITS.idleMs);
+    if (what === "open") return new Response(null, { status: (await logic.open()) ? 200 : 429 });
+    if (what === "closed") return await logic.closed(), new Response(null, { status: 200 });
+    return new Response("Not here.", { status: 404 });
+  }
+
+  async alarm(): Promise<void> {
+    await this.ctx.storage.deleteAll();
   }
 }

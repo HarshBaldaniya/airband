@@ -32,6 +32,12 @@ async function sha256(text: string): Promise<string> {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Where a new room is counted against the address that opened it (gate.ts). Names are hashes. */
+export interface RoomGate {
+  open(by: string): Promise<boolean>;
+  closed(by: string): Promise<void>;
+}
+
 export class RoomLogic {
   private counts = new WeakMap<RoomSocket, { minute: number; n: number }>();
 
@@ -39,15 +45,24 @@ export class RoomLogic {
     private readonly store: RoomStore,
     private readonly sockets: () => RoomSocket[],
     private readonly now: () => number = Date.now,
+    private readonly gate?: RoomGate,
   ) {}
 
-  /** The computer opens the room the first time; after that, only the same pair gets in. */
-  async admit(role: Role, token: string | null): Promise<"ok" | "denied" | "full"> {
+  /**
+   * The computer opens the room the first time; after that, only the same pair gets in. `by` names
+   * the address asking (a hash of it): a new room counts against it, and "busy" means it has opened
+   * too many.
+   */
+  async admit(role: Role, token: string | null, by?: string): Promise<"ok" | "denied" | "full" | "busy"> {
     if (!token || token.length < 32 || token.length > 64) return "denied";
     const hash = await sha256(token);
     const known = await this.store.get("token");
     if (!known) {
       if (role !== "mac") return "denied";
+      if (this.gate && by) {
+        if (!(await this.gate.open(by))) return "busy";
+        await this.store.put("by", by);
+      }
       await this.store.put("token", hash);
     } else if (known !== hash) return "denied";
     if (role === "phone" && this.sockets().filter((s) => s.role === "phone").length >= LIMITS.phones) return "full";
@@ -124,7 +139,7 @@ export class RoomLogic {
     const known = await this.store.get("token");
     if (!token || !known || known !== (await sha256(token))) return 403;
     for (const s of this.sockets()) s.close(4001, "unlinked");
-    await this.store.deleteAll();
+    await this.remove();
     return 200;
   }
 
@@ -132,6 +147,13 @@ export class RoomLogic {
   async stale(): Promise<boolean> {
     const seen = Number((await this.store.get("seen")) ?? 0);
     return !this.sockets().length && this.now() - seen > LIMITS.idleMs;
+  }
+
+  /** Deletes the room, and gives its place back to the address that opened it. */
+  async remove(): Promise<void> {
+    const by = await this.store.get("by");
+    await this.store.deleteAll();
+    if (by) await this.gate?.closed(by);
   }
 
   private allowed(s: RoomSocket): boolean {

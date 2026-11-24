@@ -9,6 +9,7 @@ import * as path from "node:path";
 import { fromB64u, newClaimKey, openBox, openClaim, pairingFragment, parsePairing, randomB64u, seal, toB64u, unseal, MAX_AGE_MS, type ClaimedRoom } from "../src/remote/box";
 import { isPushEndpoint, lockForPhone, newVapidKeys, sendPush, vapidAuthorization } from "../src/remote/webpush";
 import { LIMITS, RoomLogic, type Role, type RoomSocket } from "../relay/src/room";
+import { GATE_LIMITS, GateLogic, gateName } from "../relay/src/gate";
 import { Station, type PendingView } from "../src/station/server";
 import { answeredOnAlert } from "../src/station/link";
 import { askStation } from "../src/station/client";
@@ -181,6 +182,45 @@ test("the relay closes a connection that floods it or sends too much at once", a
   const mac2 = (await r.join("mac", token)) as RoomSocket & { closed?: number };
   for (let i = 0; i <= LIMITS.perMinute && mac2.closed === undefined; i++) await r.logic.message(mac2, '{"k":"msg","d":"x"}');
   assert.equal(mac2.closed, 4008);
+});
+
+test("one address may open only a few rooms an hour and hold a few dozen; an unlinked room gives its place back", async () => {
+  let now = 1_000 * 3600e3;
+  const gates = new Map<string, GateLogic>();
+  const gate = (by: string) => {
+    if (!gates.has(by)) {
+      const data = new Map<string, string>();
+      gates.set(by, new GateLogic({ get: async (k) => data.get(k), put: async (k, v) => void data.set(k, v) }, () => now));
+    }
+    return gates.get(by)!;
+  };
+  const roomGate = { open: (by: string) => gate(by).open(), closed: (by: string) => gate(by).closed() };
+  const newRoom = () => {
+    const data = new Map<string, string>();
+    return new RoomLogic({ get: async (k) => data.get(k), put: async (k, v) => void data.set(k, v), deleteAll: async () => data.clear() }, () => [], () => now, roomGate);
+  };
+  const by = await gateName("203.0.113.7");
+  assert.ok(!by.includes("203.0.113.7"), "no address kept as written");
+  const token = async () => (await openBox(randomB64u(32))).token;
+  const rooms: { room: RoomLogic; token: string }[] = [];
+  for (let i = 0; i < GATE_LIMITS.perHour; i++) {
+    const r = { room: newRoom(), token: await token() };
+    assert.equal(await r.room.admit("mac", r.token, by), "ok");
+    rooms.push(r);
+  }
+  assert.equal(await newRoom().admit("mac", await token(), by), "busy", "too many new rooms this hour");
+  assert.equal(await newRoom().admit("mac", await token(), await gateName("198.51.100.1")), "ok", "another address is not held up");
+  assert.equal(await rooms[0].room.admit("mac", rooms[0].token, by), "ok", "a room already open still lets its pair in");
+  // Hour after hour, up to the cap on rooms held at once.
+  let held = GATE_LIMITS.perHour;
+  while (held < GATE_LIMITS.rooms) {
+    now += 3600e3;
+    for (let i = 0; i < GATE_LIMITS.perHour && held < GATE_LIMITS.rooms; i++, held++) assert.ok(await gate(by).open());
+  }
+  now += 3600e3;
+  assert.equal(await newRoom().admit("mac", await token(), by), "busy", "the cap on rooms held at once");
+  assert.equal(await rooms[0].room.forget(rooms[0].token), 200);
+  assert.equal(await newRoom().admit("mac", await token(), by), "ok", "an unlinked room gave its place back");
 });
 
 // ---- a whole pairing, Station to iPhone and back ----
