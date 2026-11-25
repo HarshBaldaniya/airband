@@ -4,6 +4,7 @@
 name: Desktop checks
 on:
   push:
+    branches: [main]
     paths:
       - "desktop/**"
       - "package.json"

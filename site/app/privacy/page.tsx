@@ -85,7 +85,7 @@ export default function Privacy() {
 
         <Reveal delay={0.1}>
           <p className="pv-end">
-            This website has no cookies, no analytics and no forms. Found a security problem? See{" "}
+            This website has no cookies, no analytics and no forms. The download count comes from npm's public counter. Found a security problem? See{" "}
             <a href={`${SITE.repo}/blob/main/SECURITY.md`} {...NEW_TAB}>
               SECURITY.md
             </a>

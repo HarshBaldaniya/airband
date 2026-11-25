@@ -91,3 +91,21 @@ pub fn untar(archive: &Path, into: &Path) -> Result<()> {
         Err(format!("couldn't unpack: {}", String::from_utf8_lossy(&out.stderr).trim()).into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The checks every download goes through give the published digests, whatever version of
+    /// sha2 and base64 is in use: "abc" is the standard test vector.
+    #[test]
+    fn digests_match_the_published_ones() {
+        let file = std::env::temp_dir().join(format!("airband-digest-{}", std::process::id()));
+        std::fs::write(&file, b"abc").unwrap();
+        let sha256 = sha256_hex(&file).unwrap();
+        let sha512 = sha512_b64(&file).unwrap();
+        std::fs::remove_file(&file).unwrap();
+        assert_eq!(sha256, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+        assert_eq!(sha512, "3a81oZNherrMQXNJriBBMRLm+k6JqX6iCp7u5ktV05ohkpkqJ0/BqDa6PCOj/uu9RU1EI2Q86A4qmslPpUyknw==");
+    }
+}

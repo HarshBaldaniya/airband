@@ -1,6 +1,10 @@
 # Runs every test on macOS, Windows and Linux, so nothing works on one computer only.
 name: Tests
-on: [push, pull_request]
+# Pushes to main and pull requests: a pull request's branch is tested once, not twice.
+on:
+  push:
+    branches: [main]
+  pull_request:
 # Read-only: the tests need nothing else.
 permissions:
   contents: read
