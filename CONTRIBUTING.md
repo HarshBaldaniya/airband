@@ -42,7 +42,16 @@ Every change from a contributor reaches `main` through a pull request. Only the 
 A pull request from a fork runs its checks only after the owner approves the run. It never gets
 the repository's secrets. Only the owner can create, move or delete a release tag (`v*`). Workflows
 may use only GitHub's own actions and the two Rust actions already in them, pinned to a commit.
-Dependabot opens a pull request each month for dependency updates, and at once for a security fix.
+Dependencies are updated by hand. Dependabot alerts show a security problem on the Security tab,
+and open no pull requests.
+
+## Picking an issue
+
+Issues labelled `good first issue` are small and say where to start. `help wanted` ones are bigger.
+
+1. Comment on the issue to ask for it. The first person to ask gets it, and the owner assigns it.
+2. Each issue says what done looks like. Link the issue in your pull request.
+3. An issue with no word for two weeks goes back to the list, so someone else can pick it up.
 
 Report a bug or an idea with the issue forms. Report a security problem privately: see
 [SECURITY.md](SECURITY.md).
