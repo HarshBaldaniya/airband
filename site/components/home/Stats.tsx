@@ -2,7 +2,8 @@
 // "On the air": how often Airband was downloaded from npm. One big number inside a broadcast's
 // rings. Each time the section comes on screen the rings draw themselves in, sparks of signal run
 // along them, and every digit rolls into place like a dial, unless the person asked for less
-// motion. The page carries the real number, so it reads without JavaScript.
+// motion. The page carries the build's number, so it reads without JavaScript, and the browser
+// brings it up to npm's count of now.
 import { useEffect, useRef, useState } from "react";
 import { FIRST_DAY, type Stats as Numbers } from "@/lib/stats";
 
@@ -72,7 +73,30 @@ function Rings() {
   );
 }
 
-export function Stats({ numbers: n }: { numbers: Numbers }) {
+/** npm's count right now. The page starts with the build's numbers; the browser then asks npm's
+ *  public counter once (npm caches each answer for 5 minutes), with no cookie and no referrer. An
+ *  answer that can't be read, or is lower than the build's, leaves the build's number. */
+function useLiveNumbers(built: Numbers): Numbers {
+  const [n, setN] = useState(built);
+  useEffect(() => {
+    const stop = new AbortController();
+    const read = (range: string) =>
+      fetch(`https://api.npmjs.org/downloads/point/${range}/airband`, { signal: stop.signal, credentials: "omit", referrerPolicy: "no-referrer" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((b: { downloads?: unknown } | null) => (typeof b?.downloads === "number" ? b.downloads : undefined))
+        .catch(() => undefined);
+    const today = new Date().toISOString().slice(0, 10);
+    void Promise.all([read(`${FIRST_DAY}:${today}`), read("last-week")]).then(([total, week]) => {
+      if (stop.signal.aborted) return;
+      setN((old) => ({ total: total && total >= (old.total ?? 0) ? total : old.total, week: week || old.week }));
+    });
+    return () => stop.abort();
+  }, []);
+  return n;
+}
+
+export function Stats({ numbers }: { numbers: Numbers }) {
+  const n = useLiveNumbers(numbers);
   const ref = useRef<HTMLElement>(null);
   // Starts true so the page, before JavaScript, carries the real number.
   const [run, setRun] = useState(true);
@@ -108,7 +132,7 @@ export function Stats({ numbers: n }: { numbers: Numbers }) {
             <b>{format(n.week)}</b> in the last 7 days
           </p>
         )}
-        <p className="onair-note">Downloads, not people. Updated with each release.</p>
+        <p className="onair-note">Downloads, not people. Live from npm.</p>
       </div>
     </section>
   );

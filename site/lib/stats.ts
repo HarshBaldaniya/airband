@@ -1,9 +1,9 @@
-// How often Airband was downloaded from npm, as npm counts it, read when the site is built and
-// never from a visitor's browser (the site sends nothing about visitors anywhere). These are
-// downloads, not people: one person can download twice, and npm also counts automated installs
-// and the desktop app fetching its engine. Every deploy refreshes them, and the site is deployed
-// again every morning for that (.github/workflows/site-numbers.yml). A number that can't be read
-// is left out, never guessed.
+// How often Airband was downloaded from npm, as npm counts it. Read when the site is built, so the
+// page carries a real number without JavaScript, and again from npm's public counter when the page
+// is opened (components/home/Stats.tsx), so it is never older than npm's own. These are downloads,
+// not people: one person can download twice, and npm also counts automated installs and the
+// desktop app fetching its engine.
+// A number that can't be read is left out, never guessed.
 
 const PACKAGE = "airband";
 /** npm's download counts start the day the package was first published. */
