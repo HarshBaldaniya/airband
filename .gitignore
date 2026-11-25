@@ -8,3 +8,6 @@ docs/internal/
 .DS_Store
 npm-dist/
 *.tgz
+
+# Vercel CLI: project link and local builds
+.vercel/

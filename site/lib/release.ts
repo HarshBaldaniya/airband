@@ -26,6 +26,13 @@ const FILES: (Omit<Download, "url" | "file" | "version"> & { name: (v: string) =
   { platform: "windows", label: "Windows", detail: "Windows 10 or 11, 64-bit", name: named("windows") },
 ];
 
+/** GitHub's API, signed in when the build has a token (the daily build in GitHub Actions does):
+ *  without one, a shared build machine can run out of GitHub's hourly allowance and lose the sizes. */
+const GITHUB_HEADERS: Record<string, string> = {
+  accept: "application/vnd.github+json",
+  ...(process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
+};
+
 interface GitHubRelease {
   tag_name: string;
   draft: boolean;
@@ -36,7 +43,7 @@ interface GitHubRelease {
 /** When each version was published on GitHub ("0.1.1" → ISO date), as far as GitHub answers. */
 export async function releaseDates(): Promise<Record<string, string>> {
   try {
-    const r = await fetch("https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=100", { headers: { accept: "application/vnd.github+json" } });
+    const r = await fetch("https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=100", { headers: GITHUB_HEADERS });
     if (r.ok) return Object.fromEntries(((await r.json()) as { tag_name: string; published_at: string }[]).map((x) => [x.tag_name.replace(/^v/, ""), x.published_at]));
   } catch {
     // Offline build: versions without dates.
@@ -47,7 +54,7 @@ export async function releaseDates(): Promise<Record<string, string>> {
 export async function downloads(): Promise<Download[]> {
   let releases: GitHubRelease[] = [];
   try {
-    const r = await fetch("https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20", { headers: { accept: "application/vnd.github+json" } });
+    const r = await fetch("https://api.github.com/repos/HarshBaldaniya/airband/releases?per_page=20", { headers: GITHUB_HEADERS });
     if (r.ok) releases = ((await r.json()) as GitHubRelease[]).filter((x) => !x.draft && !x.prerelease);
   } catch {
     // Offline build: links to this version, without sizes.
